@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Подтверждение - Стела</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .verify {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+        .verify h1 { color: #4CAF50; text-align:center; margin-bottom:10px; }
+        .verify .sub { color: #888; text-align:center; margin-bottom:30px; font-size:14px; }
+        .form-group { margin-bottom:20px; }
+        .form-group label { color: #aaa; display:block; margin-bottom:5px; }
+        .form-group input {
+            width:100%; padding:10px 14px;
+            border-radius:8px; border:1px solid #444;
+            background:#222; color:#fff; font-size:14px; text-align:center; font-size:24px; letter-spacing:8px;
+        }
+        .form-group input:focus { outline:none; border-color:#4CAF50; }
+        .btn {
+            width:100%; padding:12px;
+            border:none; border-radius:8px;
+            font-size:16px; font-weight:bold;
+            background:#4CAF50; color:white;
+            cursor:pointer;
+        }
+        .btn:hover { background:#45a049; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:15px; font-size:13px; }
+        .alert-success { background:#1a2a1a; border:1px solid #2d7d2d; color:#6bff6b; }
+        .alert-danger { background:#2a1a1a; border:1px solid #8b0000; color:#ff6b6b; }
+        .code-hint { text-align:center; color:#666; font-size:13px; margin-bottom:15px; }
+        .code-hint strong { color:#4CAF50; font-size:18px; }
+    </style>
+</head>
+<body>
+    <div class="verify">
+        <h1>🔑 Код подтверждения</h1>
+        <div class="sub">Введите код, который отобразился на экране</div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="code-hint">
+            Код отправлен в <strong>БРАУЗЕР</strong><br>
+            <span style="font-size:12px; color:#555;">(проверьте всплывающее сообщение)</span>
+        </div>
+        
+        <form method="POST" action="{{ url_for('verify_code') }}">
+            <div class="form-group">
+                <label>Код подтверждения</label>
+                <input type="text" name="code" placeholder="XXXXXX" maxlength="6" required>
+            </div>
+            <button type="submit" class="btn">Подтвердить</button>
+        </form>
+    </div>
+</body>
+</html>

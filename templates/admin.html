@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Админ-панель - Стела</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-card .label {
+            color: #888;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        .table-container {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #333;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        td {
+            color: #ccc;
+            font-size: 13px;
+        }
+        .status-badge {
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-draft { background: #666; color: #fff; }
+        .status-ready { background: #4CAF50; color: #fff; }
+        .status-printed { background: #2196F3; color: #fff; }
+        .status-delivered { background: #9C27B0; color: #fff; }
+        .btn-sm {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0 3px;
+        }
+        .btn-sm-primary { background: #2196F3; color: white; }
+        .btn-sm-success { background: #4CAF50; color: white; }
+        .btn-sm-danger { background: #d32f2f; color: white; }
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background: #111; border-radius: 12px;
+            margin-bottom: 15px; border: 1px solid #333;
+        }
+        .top-bar a { color: #888; text-decoration: none; font-size: 13px; }
+        .top-bar a:hover { color: #fff; }
+        .role-badge {
+            background: #1a2a1a; padding: 2px 12px; border-radius: 12px;
+            font-size: 11px; color: #4CAF50; border: 1px solid #2a4a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <a href="{{ url_for('index') }}" style="color:#4CAF50; font-weight:bold; font-size:18px;">🗿 Стела</a>
+                <span style="color:#666;">|</span>
+                <span style="color:#888;">{{ user.full_name or user.username }}</span>
+                <span class="role-badge">Администратор</span>
+            </div>
+            <div>
+                <a href="{{ url_for('index') }}">🏠 Главная</a>
+                <a href="{{ url_for('profile') }}">📋 Профиль</a>
+                <a href="{{ url_for('logout') }}" style="color:#ff6b6b; margin-left:15px;">🚪 Выйти</a>
+            </div>
+        </div>
+
+        <h1 style="color:#4CAF50; margin-bottom:20px;">📊 Админ-панель</h1>
+        
+        <!-- Статистика -->
+        <div class="admin-grid">
+            <div class="stat-card">
+                <div class="number">{{ stats.total }}</div>
+                <div class="label">📋 Всего заказов</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">{{ stats.ready }}</div>
+                <div class="label">✅ Готовых</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">{{ stats.printed }}</div>
+                <div class="label">🖨️ Напечатано</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">{{ stats.delivered }}</div>
+                <div class="label">📦 Выдано</div>
+            </div>
+        </div>
+
+        <!-- Таблица заказов -->
+        <div class="table-container">
+            <h3 style="color:#4CAF50; margin-bottom:10px;">📋 Все заказы</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Клиент</th>
+                        <th>Телефон</th>
+                        <th>Режим</th>
+                        <th>Камень</th>
+                        <th>Статус</th>
+                        <th>Дата</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>#{{ project.id }}</td>
+                        <td>{{ project.client_name or '—' }}</td>
+                        <td>{{ project.client_phone or '—' }}</td>
+                        <td>{{ 'Гравировка' if project.mode == 'engraving' else 'Фото' }}</td>
+                        <td>{{ project.stone }}</td>
+                        <td>
+                            <span class="status-badge status-{{ project.status }}">
+                                {{ project.status|capitalize }}
+                            </span>
+                        </td>
+                        <td>{{ project.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            <button class="btn-sm btn-sm-primary" onclick="viewProject({{ project.id }})">👁️</button>
+                            <button class="btn-sm btn-sm-success" onclick="downloadPDF({{ project.id }})">📄</button>
+                            <button class="btn-sm btn-sm-danger" onclick="deleteProject({{ project.id }})">🗑️</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if not projects %}
+            <div style="text-align:center; color:#666; padding:30px;">
+                📭 Нет заказов
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function viewProject(id) {
+            window.location.href = `/?project_id=${id}`;
+        }
+        
+        function downloadPDF(id) {
+            window.open(`/api/project/${id}/pdf`, '_blank');
+        }
+        
+        async function deleteProject(id) {
+            if (!confirm('Удалить заказ #' + id + '?')) return;
+            try {
+                const response = await fetch(`/api/project/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

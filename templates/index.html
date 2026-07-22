@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гравировка на стеле</title>
+    
+    <!-- ЛОКАЛЬНЫЕ БИБЛИОТЕКИ THREE.JS -->
+    <script src="{{ url_for('static', filename='libs/three.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='libs/OrbitControls.js') }}"></script>
+    <script src="{{ url_for('static', filename='libs/DecalGeometry.js') }}"></script>
+	<script src="{{ url_for('static', filename='libs/GLTFLoader.js') }}"></script> 
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Верхняя панель -->
+        <div class="top-bar" style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111; border-radius:12px; margin-bottom:15px; border:1px solid #333;">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <!-- Логотип -->
+                <a href="/" style="display:flex; align-items:center; gap:12px; text-decoration:none;">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" 
+                         alt="Giga-NT" 
+                         style="height:50px; width:auto; 
+                                filter: drop-shadow(0 0 20px rgba(124,252,0,0.1));">
+                </a>
+            </div>
+            <div style="display:flex; align-items:center; gap:15px;">
+                {% if user %}
+                    <span style="color:#888; font-size:13px;">{{ user.full_name or user.username }}</span>
+                    <span style="background:#1a2a1a; padding:2px 12px; border-radius:12px; font-size:11px; color:#7CFC00; border:1px solid #2a4a2a;">{{ user.role }}</span>
+                {% else %}
+                    <span style="color:#FF9800; font-size:13px;">👤 Гость (демо-режим)</span>
+                    <input type="hidden" id="isGuest" value="true">
+                {% endif %}
+                {% if user %}
+                    <a href="{{ url_for('profile') }}" style="color:#888; text-decoration:none; font-size:13px;">📋 Профиль</a>
+                    <a href="{{ url_for('logout') }}" style="color:#ff6b6b; text-decoration:none; font-size:13px;">🚪 Выйти</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" style="color:#7CFC00; text-decoration:none; font-size:13px;">🔑 Войти</a>
+                    <a href="{{ url_for('register') }}" style="color:#888; text-decoration:none; font-size:13px;">📝 Регистрация</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="header">
+            <h1>🗿 Гравировка на стеле</h1>
+        </div>
+
+        <div class="main-grid">
+            <!-- Левая панель -->
+            <div class="left-panel">
+                <div class="upload-area" id="uploadArea">
+                    <div style="font-size:30px;">📸</div>
+                    <div style="font-weight:bold;">Загрузите фото</div>
+                    <div style="color:#666; font-size:12px;">Нажмите или перетащите</div>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+
+                <div class="preview-thumb">
+                    <div id="originalPreview" class="placeholder">📷 Оригинал</div>
+                </div>
+                <div class="preview-thumb">
+                    <div id="enhancedPreview" class="placeholder">🔍 Улучшенное</div>
+                </div>
+
+                <div class="section-title">🔄 Режим</div>
+                <div class="mode-selector" id="modeSelector">
+                    <label class="active" id="modeEngravingLabel">
+                        <input type="radio" name="mode" value="engraving" checked id="modeEngraving">
+                        <span>🗿 Гравировка</span>
+                    </label>
+                    <label id="modePhotoLabel">
+                        <input type="radio" name="mode" value="photo" id="modePhoto">
+                        <span>🖼️ Фото (декаль)</span>
+                    </label>
+                </div>
+
+                <div class="mode-settings" id="engravingSettings">
+                    <div class="section-title">🎨 Параметры гравировки</div>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <label>Форма:</label>
+                            <select id="shapeSelect">
+                                <option value="none">Без рамки (по ореолу)</option>
+                                <option value="circle">Круг</option>
+                                <option value="oval">Овал</option>
+                                <option value="square">Квадрат</option>
+                                <option value="rounded">Скругленный</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label>Размытие:</label>
+                            <input type="range" id="blurSlider" min="0" max="20" value="3">
+                            <span class="value" id="blurValue">3</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Глубина:</label>
+                            <input type="range" id="depthSlider" min="0.3" max="1.0" step="0.05" value="0.9">
+                            <span class="value" id="depthValue">0.9</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Ореол:</label>
+                            <input type="range" id="haloSlider" min="0" max="80" value="35">
+                            <span class="value" id="haloValue">35</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Контраст:</label>
+                            <input type="range" id="contrastSlider" min="1.0" max="4.0" step="0.1" value="3.0">
+                            <span class="value" id="contrastValue">3.0</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Яркость:</label>
+                            <input type="range" id="brightnessSlider" min="-50" max="50" value="0">
+                            <span class="value" id="brightnessValue">0</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Камень:</label>
+                            <select id="stoneSelect">
+                                <option value="classic">🗿 Классический</option>
+                                <option value="dark">⚫ Темный</option>
+                                <option value="light">⬜ Светлый</option>
+                                <option value="marble">🏛️ Мрамор</option>
+                                <option value="basalt">🌋 Базальт</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mode-settings hidden" id="photoSettings">
+                    <div class="section-title">🖼️ Настройки фото</div>
+                    <div class="settings-group" style="background:#1a2a1a; border-radius:6px; padding:10px; border:1px solid #2a4a2a;">
+                        <div class="settings-row" style="justify-content: center; gap: 15px;">
+                            <label style="min-width: auto; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size:13px;">
+                                <input type="radio" name="photo_mode" value="color" checked id="photoModeColor">
+                                <span>🎨 Цветное</span>
+                            </label>
+                            <label style="min-width: auto; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size:13px;">
+                                <input type="radio" name="photo_mode" value="bw" id="photoModeBW">
+                                <span>⚫ Ч/Б</span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <label>Яркость:</label>
+                            <input type="range" id="photoBrightnessSlider" min="-50" max="50" value="0">
+                            <span class="value" id="photoBrightnessValue">0</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Контраст:</label>
+                            <input type="range" id="photoContrastSlider" min="0.5" max="2.0" step="0.05" value="1.0">
+                            <span class="value" id="photoContrastValue">1.00</span>
+                        </div>
+                        <div style="color:#888; font-size:11px; text-align:center; padding:5px;">
+                            💡 Фото наклеивается как декаль с прозрачностью
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title">✂️ Кадрирование (отступы)</div>
+                <div class="crop-settings">
+                    <div class="settings-row">
+                        <label>Сверху:</label>
+                        <input type="range" id="cropTopSlider" min="0" max="30" value="2">
+                        <span class="value" id="cropTopValue">2%</span>
+                    </div>
+                    <div class="settings-row">
+                        <label>Снизу:</label>
+                        <input type="range" id="cropBottomSlider" min="0" max="30" value="2">
+                        <span class="value" id="cropBottomValue">2%</span>
+                    </div>
+                    <div class="settings-row">
+                        <label>Слева:</label>
+                        <input type="range" id="cropLeftSlider" min="0" max="30" value="2">
+                        <span class="value" id="cropLeftValue">2%</span>
+                    </div>
+                    <div class="settings-row">
+                        <label>Справа:</label>
+                        <input type="range" id="cropRightSlider" min="0" max="30" value="2">
+                        <span class="value" id="cropRightValue">2%</span>
+                    </div>
+                </div>
+
+                <div class="section-title">📐 Позиция на стеле</div>
+                <div class="settings-group">
+                    <div class="settings-row">
+                        <label>Масштаб:</label>
+                        <input type="range" id="scaleSlider" min="0.1" max="5.5" step="0.05" value="0.8">
+                        <span class="value" id="scaleValue">0.80</span>
+                    </div>
+                    <div class="settings-row">
+                        <label>Смещение X:</label>
+                        <input type="range" id="offsetXSlider" min="-2.0" max="2.0" step="0.05" value="0.0">
+                        <span class="value" id="offsetXValue">0.00</span>
+                    </div>
+                    <div class="settings-row">
+                        <label>Смещение Y:</label>
+                        <input type="range" id="offsetYSlider" min="-2.0" max="2.0" step="0.05" value="0.0">
+                        <span class="value" id="offsetYValue">0.00</span>
+                    </div>
+                    <div class="settings-row">
+                        <label>Смещение Z:</label>
+                        <input type="range" id="offsetZSlider" min="-1.0" max="1.0" step="0.05" value="-0.10">
+                        <span class="value" id="offsetZValue">-0.10</span>
+                    </div>
+                </div>
+
+				<div class="section-title">🏛️ Выберите стеллу</div>
+				<div class="stele-selector" id="steleSelector">
+					<div class="stele-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap:10px; margin:8px 0;">
+						<!-- Карточки будут генерироваться из JS -->
+					</div>
+				</div>
+
+                <div class="section-title">🪨 Текстура стелы</div>
+                <div class="settings-group">
+                    <div class="settings-row">
+                        <label>Текстура:</label>
+                        <select id="textureSelect">
+                            <option value="">Без текстуры</option>
+                        </select>
+                    </div>
+                    <div style="color:#888; font-size:11px; text-align:center; padding:5px;">
+                        💡 Выберите текстуру для фона стелы
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" id="uploadBtn" disabled>📤 Загрузить</button>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-action" id="applyBtn" disabled>⚙️ Создать</button>
+                </div>
+
+                {% if user %}
+                    <!-- Кнопки только для авторизованных -->
+                    <div class="controls">
+                        <button class="btn btn-download" id="downloadBtn" disabled>💾 Скачать</button>
+                        <button class="btn btn-print" id="printBtn" disabled>🖨️ Печать</button>
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-order" id="orderBtn" disabled style="flex:2; background: linear-gradient(135deg, #4CAF50, #2E7D32); color: white; padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width:100%;">
+                            📋 Оформить заказ
+                        </button>
+                    </div>
+                {% else %}
+                    <!-- Для гостей - только демонстрация -->
+                    <div class="controls" style="border: 1px dashed #FF9800; border-radius: 8px; padding: 10px; text-align: center; background: rgba(255, 152, 0, 0.05); margin-top: 10px;">
+                        <div style="color: #FF9800; font-size: 13px; margin-bottom: 5px;">
+                            🔒 Для скачивания, печати и оформления заказа 
+                            <a href="{{ url_for('login') }}" style="color: #4CAF50; text-decoration: underline;">войдите</a> 
+                            или 
+                            <a href="{{ url_for('register') }}" style="color: #4CAF50; text-decoration: underline;">зарегистрируйтесь</a>
+                        </div>
+                        <div style="color: #666; font-size: 12px;">
+                            👆 Вы можете вращать 3D модель и смотреть демонстрацию
+                        </div>
+                    </div>
+                    <!-- Скрытые кнопки для гостей -->
+                    <div style="display: none;">
+                        <button class="btn btn-download" id="downloadBtn" disabled>💾 Скачать</button>
+                        <button class="btn btn-print" id="printBtn" disabled>🖨️ Печать</button>
+                        <button class="btn btn-order" id="orderBtn" disabled>📋 Оформить заказ</button>
+                    </div>
+                {% endif %}
+
+                <div class="status" id="statusText">Ожидание загрузки фото...</div>
+            </div>
+
+            <!-- Правая панель - 3D -->
+            <div class="right-panel">
+                <div id="stelaViewer"></div>
+                <div class="controls-3d">
+                    <span>🖱️ Вращать: drag</span>
+                    <span>🔍 Приблизить: scroll</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Форма для печати -->
+    <div id="printForm">
+        <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;">
+            <div style="background:#1a1a1a; border-radius:16px; padding:30px; max-width:1100px; width:100%; max-height:90vh; overflow-y:auto; border:1px solid #4CAF50; position:relative;">
+                <button onclick="closePrintForm()" style="position:absolute; top:10px; right:15px; background:none; border:none; color:#888; font-size:28px; cursor:pointer; z-index:10;">✕</button>
+                
+                <div id="printContent" style="background:#0a0a0a; border-radius:12px; padding:20px;">
+                    
+                    <!-- СТРАНИЦА 1 - СТЕЛЛА -->
+                    <div class="print-page-stela" style="page-break-after: always; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+                        <h2 style="text-align:center; color:#4CAF50; margin-bottom:20px; font-size:24px;">📋 Эскиз стеллы</h2>
+                        
+                        <div style="width:100%; max-width:700px; height:70vh; display:flex; align-items:center; justify-content:center;">
+                            <div id="printStelaContainer" style="width:100%; height:100%; background:#111; border-radius:12px; overflow:hidden; border:3px solid #4CAF50; box-shadow:0 0 30px rgba(76,175,80,0.2); position:relative; display:flex; align-items:center; justify-content:center;">
+                                <div class="stela-label" style="position:absolute; top:15px; left:20px; background:rgba(0,0,0,0.75); padding:6px 20px; border-radius:4px; font-size:14px; color:#4CAF50; z-index:5; border:1px solid #4CAF50; font-weight:bold;">📐 Эскиз стеллы</div>
+                                <canvas id="printCanvas" style="width:100%; height:100%; display:block; object-fit:contain;"></canvas>
+                            </div>
+                        </div>
+                        <div style="color:#888; font-size:12px; margin-top:10px; text-align:center;">
+                            * Изображение является предварительным эскизом. Окончательный вид может отличаться.
+                        </div>
+                    </div>
+                    
+                    <!-- СТРАНИЦА 2 - ПАРАМЕТРЫ -->
+                    <div class="print-page-params" style="padding:20px 30px; min-height:100vh;">
+                        <h2 style="text-align:center; color:#4CAF50; margin-bottom:20px; font-size:24px; border-bottom:2px solid #4CAF50; padding-bottom:10px;">📋 Детали заказа</h2>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+                            <div style="background:#1a2a1a; padding:12px 16px; border-radius:8px; border:1px solid #2a4a2a;">
+                                <h4 style="color:#4CAF50; margin-bottom:8px; font-size:14px;">📐 Параметры стеллы</h4>
+                                <div style="font-size:13px; color:#ccc; line-height:1.8;">
+                                    <div><span style="color:#888;">Высота:</span> <span id="printStelaHeight">2000 мм</span></div>
+                                    <div><span style="color:#888;">Ширина:</span> <span id="printStelaWidth">1200 мм</span></div>
+                                    <div><span style="color:#888;">Толщина:</span> <span id="printStelaDepth">200 мм</span></div>
+                                    <div><span style="color:#888;">Материал:</span> <span id="printStelaMaterial">Гранит</span></div>
+                                </div>
+                            </div>
+                            <div style="background:#1a2a1a; padding:12px 16px; border-radius:8px; border:1px solid #2a4a2a;">
+                                <h4 style="color:#4CAF50; margin-bottom:8px; font-size:14px;">🖼️ Размеры гравировки</h4>
+                                <div style="font-size:13px; color:#ccc; line-height:1.8;">
+                                    <div><span style="color:#888;">Ширина:</span> <span id="printEngravingWidth">-</span></div>
+                                    <div><span style="color:#888;">Высота:</span> <span id="printEngravingHeight">-</span></div>
+                                    <div><span style="color:#888;">Масштаб:</span> <span id="printEngravingScale">-</span></div>
+                                    <div><span style="color:#888;">Положение:</span> <span id="printEngravingPosition">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background:#1a1a1a; padding:10px 16px; border-radius:8px; border:1px solid #333; margin-bottom:15px;">
+                            <h4 style="color:#4CAF50; margin-bottom:6px; font-size:13px;">✂️ Отступы от края стеллы</h4>
+                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; font-size:13px; color:#ccc;">
+                                <div><span style="color:#888;">Сверху:</span> <span id="printCropTopParam">-</span></div>
+                                <div><span style="color:#888;">Снизу:</span> <span id="printCropBottomParam">-</span></div>
+                                <div><span style="color:#888;">Слева:</span> <span id="printCropLeftParam">-</span></div>
+                                <div><span style="color:#888;">Справа:</span> <span id="printCropRightParam">-</span></div>
+                            </div>
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:13px; color:#ccc;">
+                            <div style="background:#222; padding:10px 14px; border-radius:8px;">
+                                <h4 style="color:#4CAF50; margin-bottom:6px;">🎨 Параметры обработки</h4>
+                                <div><span style="color:#888;">Режим:</span> <span id="printMode">-</span></div>
+                                <div><span style="color:#888;">Форма:</span> <span id="printShape">-</span></div>
+                                <div><span style="color:#888;">Глубина:</span> <span id="printDepth">-</span></div>
+                                <div><span style="color:#888;">Ореол:</span> <span id="printHalo">-</span></div>
+                                <div><span style="color:#888;">Контраст:</span> <span id="printContrast">-</span></div>
+                                <div><span style="color:#888;">Яркость:</span> <span id="printBrightness">-</span></div>
+                                <div><span style="color:#888;">Камень:</span> <span id="printStone">-</span></div>
+                                <div><span style="color:#888;">Текстура:</span> <span id="printTexture">-</span></div>
+                            </div>
+                            <div style="background:#222; padding:10px 14px; border-radius:8px;">
+                                <h4 style="color:#4CAF50; margin-bottom:6px;">📐 Позиция на стеле</h4>
+                                <div><span style="color:#888;">Масштаб:</span> <span id="printScale">-</span></div>
+                                <div><span style="color:#888;">Смещение X:</span> <span id="printOffsetX">-</span></div>
+                                <div><span style="color:#888;">Смещение Y:</span> <span id="printOffsetY">-</span></div>
+                                <div><span style="color:#888;">Смещение Z:</span> <span id="printOffsetZ">-</span></div>
+                            </div>
+                        </div>
+                        
+                        <div style="background:#1a2a1a; padding:10px 16px; border-radius:8px; border:1px solid #2a4a2a; margin-top:15px; text-align:center;">
+                            <h4 style="color:#4CAF50; margin-bottom:6px; font-size:14px;">✅ Согласие</h4>
+                            <div style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;">
+                                <input type="checkbox" id="agreeCheckbox" style="width:18px; height:18px; accent-color:#4CAF50;">
+                                <label for="agreeCheckbox" style="color:#ccc; font-size:13px;">
+                                    Я ознакомился(ась) с эскизом и согласен(на) с расположением и качеством гравировки
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="print-signatures" style="display:flex; justify-content:space-between; margin-top:15px; padding-top:15px; border-top:2px solid #444; gap:30px;">
+                            <div style="flex:1;">
+                                <div class="signature-label" style="font-weight:bold; color:#4CAF50; margin-bottom:3px; font-size:15px;">ИСПОЛНИТЕЛЬ</div>
+                                <div class="signature-company" style="color:#aaa; font-size:12px; margin-bottom:3px;">ООО "Память"</div>
+                                <div style="margin-top:5px;">
+                                    <input type="text" id="executorName" placeholder="ФИО исполнителя" style="width:100%; padding:5px 8px; border-radius:4px; border:1px solid #555; background:#2a2a2a; color:#fff; font-size:12px;">
+                                </div>
+                                <div style="margin-top:3px;">
+                                    <input type="text" id="executorPosition" placeholder="Должность" style="width:100%; padding:5px 8px; border-radius:4px; border:1px solid #555; background:#2a2a2a; color:#fff; font-size:12px;">
+                                </div>
+                                <div class="signature-line" style="border-bottom:1px solid #888; height:25px; margin-top:3px;"></div>
+                                <div class="signature-sub" style="color:#888; font-size:10px; margin-top:2px;">__________________ / подпись /</div>
+                            </div>
+                            
+                            <div style="flex:1;">
+                                <div class="signature-label" style="font-weight:bold; color:#4CAF50; margin-bottom:3px; font-size:15px;">ЗАКАЗЧИК</div>
+                                <div style="margin-top:5px;">
+                                    <input type="text" id="customerName" placeholder="ФИО заказчика" style="width:100%; padding:5px 8px; border-radius:4px; border:1px solid #555; background:#2a2a2a; color:#fff; font-size:12px;">
+                                </div>
+                                <div style="margin-top:3px;">
+                                    <input type="text" id="customerPhone" placeholder="Телефон" style="width:100%; padding:5px 8px; border-radius:4px; border:1px solid #555; background:#2a2a2a; color:#fff; font-size:12px;">
+                                </div>
+                                <div class="signature-line" style="border-bottom:1px solid #888; height:25px; margin-top:3px;"></div>
+                                <div class="signature-sub" style="color:#888; font-size:10px; margin-top:2px;">__________________ / подпись /</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; margin-top:15px; justify-content:center; flex-wrap:wrap;">
+                        <button onclick="printDocument()" id="printAgreeBtn" class="btn btn-primary" disabled style="padding:10px 25px; flex:none;">🖨️ Печать</button>
+                        <button onclick="closePrintForm()" class="btn btn-action" style="padding:10px 25px; flex:none;">✕ Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно оформления заказа -->
+    <div id="orderModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#1a1a1a; border-radius:16px; padding:30px; max-width:600px; width:100%; max-height:90vh; overflow-y:auto; border:2px solid #4CAF50; position:relative;">
+            <button onclick="closeOrderModal()" style="position:absolute; top:10px; right:15px; background:none; border:none; color:#888; font-size:28px; cursor:pointer;">✕</button>
+            
+            <h2 style="color:#4CAF50; margin-bottom:20px; text-align:center;">📋 Оформление заказа</h2>
+            
+            <form id="orderForm">
+                <div style="margin-bottom:15px;">
+                    <label style="color:#aaa; display:block; margin-bottom:5px;">👤 ФИО заказчика *</label>
+                    <input type="text" id="orderClientName" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#222; color:#fff; font-size:14px;">
+                </div>
+                
+                <div style="margin-bottom:15px;">
+                    <label style="color:#aaa; display:block; margin-bottom:5px;">📱 Телефон *</label>
+                    <input type="tel" id="orderClientPhone" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#222; color:#fff; font-size:14px;">
+                </div>
+                
+                <div style="margin-bottom:15px;">
+                    <label style="color:#aaa; display:block; margin-bottom:5px;">📧 Email</label>
+                    <input type="email" id="orderClientEmail" style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#222; color:#fff; font-size:14px;">
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="color:#aaa; display:block; margin-bottom:5px;">💬 Комментарий</label>
+                    <textarea id="orderNotes" rows="3" style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#222; color:#fff; font-size:14px; resize:vertical;"></textarea>
+                </div>
+                
+                <div style="background:#1a2a1a; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #2a4a2a;">
+                    <div style="display:flex; justify-content:space-between; color:#888; font-size:13px; padding:3px 0;">
+                        <span>Режим:</span>
+                        <span style="color:#4CAF50;" id="orderPreviewMode">Гравировка</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; color:#888; font-size:13px; padding:3px 0;">
+                        <span>Камень:</span>
+                        <span style="color:#4CAF50;" id="orderPreviewStone">Классический</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; color:#888; font-size:13px; padding:3px 0;">
+                        <span>Масштаб:</span>
+                        <span style="color:#4CAF50;" id="orderPreviewScale">0.80</span>
+                    </div>
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <button type="submit" style="flex:2; padding:12px; background: #4CAF50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">📨 Отправить заказ</button>
+                    <button type="button" onclick="closeOrderModal()" style="flex:1; padding:12px; background:#FF9800; color:white; border:none; border-radius:8px; cursor:pointer; font-size:16px;">✕ Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

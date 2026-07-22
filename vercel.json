@@ -1,0 +1,34 @@
+<<<<<<< HEAD
+{
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ]
+}
+=======
+{
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "env": {
+    "PYTHON_VERSION": "3.10"
+  }
+}
+>>>>>>> 8e734ba9ce21e78239c78bba23747082f52e579a

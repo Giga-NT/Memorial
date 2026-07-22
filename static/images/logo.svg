@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 160" width="700" height="160">
+  <defs>
+    <linearGradient id="mainGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7CFC00"/>
+      <stop offset="100%" style="stop-color:#32CD32"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="700" height="160" rx="12" fill="#0a0a0a" stroke="#1a2a1a" stroke-width="1"/>
+
+  <!-- Иконка -->
+  <g transform="translate(20, 15)">
+    <!-- Голова -->
+    <ellipse cx="45" cy="45" rx="35" ry="40" fill="#1a2a1a" stroke="#7CFC00" stroke-width="2"/>
+    <!-- Извилины -->
+    <path d="M22,30 Q35,20 45,28 Q55,20 68,30" fill="none" stroke="#7CFC00" stroke-width="1.5" opacity="0.4"/>
+    <path d="M24,40 Q35,30 45,38 Q55,30 66,40" fill="none" stroke="#7CFC00" stroke-width="1.5" opacity="0.3"/>
+    <!-- Глаза -->
+    <ellipse cx="35" cy="38" rx="5" ry="6" fill="#0a0a0a" stroke="#7CFC00" stroke-width="1.5"/>
+    <ellipse cx="32" cy="38" rx="2" ry="3" fill="#7CFC00"/>
+    <ellipse cx="55" cy="38" rx="5" ry="6" fill="#0a0a0a" stroke="#7CFC00" stroke-width="1.5"/>
+    <ellipse cx="52" cy="38" rx="2" ry="3" fill="#7CFC00"/>
+    <!-- Ноутбук -->
+    <rect x="25" y="48" width="40" height="25" rx="2" fill="#0a0a0a" stroke="#7CFC00" stroke-width="1.5"/>
+    <rect x="28" y="51" width="34" height="19" fill="#111"/>
+    <rect x="30" y="53" width="8" height="2" rx="1" fill="#7CFC00" opacity="0.5"/>
+    <rect x="30" y="57" width="14" height="2" rx="1" fill="#32CD32" opacity="0.4"/>
+    <rect x="30" y="61" width="10" height="2" rx="1" fill="#7CFC00" opacity="0.3"/>
+    <rect x="25" y="75" width="40" height="6" rx="1" fill="#1a1a1a" stroke="#7CFC00" stroke-width="1"/>
+  </g>
+
+  <!-- Текст -->
+  <text x="130" y="60" font-family="'Arial Black', sans-serif" font-size="56" font-weight="900" fill="url(#mainGrad2)" letter-spacing="3">
+    GIGA
+  </text>
+  <text x="130" y="64" font-family="'Arial Black', sans-serif" font-size="56" font-weight="900" fill="#ffffff" letter-spacing="3">
+    <tspan fill="#7CFC00" opacity="0.6" font-size="46">—</tspan>
+    <tspan fill="#7CFC00">NT</tspan>
+  </text>
+
+  <!-- Подпись -->
+  <text x="130" y="88" font-family="'Courier New', monospace" font-size="12" fill="#444" letter-spacing="4">
+    ❮ ENTERPRISE SOLUTIONS ❯
+  </text>
+
+  <!-- Слоган -->
+  <text x="130" y="120" font-family="'Arial', sans-serif" font-size="18" fill="#666" letter-spacing="6" font-weight="300">
+    "ПОКА ДРУГИЕ ДУМАЮТ —
+  </text>
+  <text x="130" y="145" font-family="'Arial', sans-serif" font-size="18" fill="#7CFC00" letter-spacing="6" font-weight="700">
+    МЫ УЖЕ СДЕЛАЛИ."
+  </text>
+</svg>

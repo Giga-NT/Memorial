@@ -1,0 +1,828 @@
+/* ============================================
+   MOBILE.CSS - Адаптив для всех экранов
+   Поддерживается даже Nokia 3310 (240x320)
+   ============================================ */
+
+/* ===== БАЗОВЫЕ СБРОСЫ ДЛЯ ВСЕХ ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 8px;
+}
+
+/* ===== ШАПКА ===== */
+.top-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #111;
+    border-radius: 10px;
+    border: 1px solid #333;
+    margin-bottom: 10px;
+}
+
+.top-bar > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.top-bar .logo img {
+    height: 35px;
+    max-width: 180px;
+}
+
+.top-bar .user-info {
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+}
+
+.top-bar .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 12px;
+}
+
+.top-bar .nav-links a {
+    font-size: 11px;
+    color: #888;
+    text-decoration: none;
+    padding: 2px 6px;
+}
+
+.top-bar .nav-links a:hover {
+    color: #7CFC00;
+}
+
+/* ===== ЗАГОЛОВОК ===== */
+.header h1 {
+    font-size: 20px;
+    text-align: center;
+    background: linear-gradient(135deg, #7CFC00, #32CD32);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    padding: 8px 0;
+}
+
+/* ===== СЕТКА ===== */
+.main-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.left-panel {
+    background: #1a1a1a;
+    border-radius: 10px;
+    padding: 10px;
+    border: 1px solid #333;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.right-panel {
+    background: #1a1a1a;
+    border-radius: 10px;
+    padding: 0;
+    border: 1px solid #333;
+    height: 320px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ===== 3D ВИД ===== */
+#stelaViewer {
+    width: 100%;
+    height: 100%;
+}
+
+#stelaViewer canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+.controls-3d {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: flex;
+    gap: 12px;
+    font-size: 9px;
+    color: #666;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* ===== ЗАГРУЗКА ФАЙЛА ===== */
+.upload-area {
+    background: #222;
+    border: 2px dashed #444;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.upload-area:hover {
+    border-color: #7CFC00;
+    background: #2a2a2a;
+}
+
+.upload-area div {
+    font-size: 24px;
+}
+
+.upload-area .title {
+    font-weight: bold;
+    font-size: 14px;
+    color: #fff;
+}
+
+.upload-area .subtitle {
+    color: #666;
+    font-size: 11px;
+}
+
+/* ===== ПРЕВЬЮ ===== */
+.preview-thumb {
+    background: #111;
+    border-radius: 6px;
+    padding: 4px;
+    text-align: center;
+}
+
+.preview-thumb img {
+    max-width: 100%;
+    max-height: 60px;
+    border-radius: 4px;
+}
+
+.preview-thumb .placeholder {
+    color: #444;
+    font-size: 10px;
+    padding: 8px;
+}
+
+/* ===== СЕКЦИИ ===== */
+.section-title {
+    color: #7CFC00;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 6px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 2px;
+}
+
+/* ===== НАСТРОЙКИ ===== */
+.settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.settings-row label {
+    color: #aaa;
+    font-size: 11px;
+    min-width: 60px;
+}
+
+.settings-row select {
+    flex: 1;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #2a2a2a;
+    color: #fff;
+    font-size: 11px;
+    min-width: 80px;
+}
+
+.settings-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+    min-width: 60px;
+}
+
+.settings-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7CFC00;
+    cursor: pointer;
+}
+
+.settings-row input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7CFC00;
+    cursor: pointer;
+    border: none;
+}
+
+.settings-row .value {
+    color: #7CFC00;
+    font-weight: bold;
+    min-width: 30px;
+    font-size: 11px;
+    text-align: right;
+}
+
+/* ===== КНОПКИ ===== */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.controls .btn {
+    flex: 1;
+    min-width: 60px;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.btn-primary {
+    background: #4CAF50;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #45a049;
+}
+
+.btn-primary:disabled {
+    background: #333;
+    cursor: not-allowed;
+}
+
+.btn-action {
+    background: #FF9800;
+    color: white;
+}
+
+.btn-action:hover:not(:disabled) {
+    background: #F57C00;
+}
+
+.btn-action:disabled {
+    background: #333;
+    cursor: not-allowed;
+}
+
+.btn-download {
+    background: #2196F3;
+    color: white;
+}
+
+.btn-download:hover:not(:disabled) {
+    background: #1976D2;
+}
+
+.btn-download:disabled {
+    background: #333;
+    cursor: not-allowed;
+}
+
+.btn-print {
+    background: #9C27B0;
+    color: white;
+}
+
+.btn-print:hover:not(:disabled) {
+    background: #7B1FA2;
+}
+
+.btn-print:disabled {
+    background: #333;
+    cursor: not-allowed;
+}
+
+.btn-order {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+}
+
+.btn-order:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn-order:disabled {
+    background: #333;
+    cursor: not-allowed;
+}
+
+/* ===== СТАТУС ===== */
+.status {
+    font-size: 11px;
+    color: #888;
+    padding: 6px;
+    text-align: center;
+    margin-top: 4px;
+}
+
+/* ===== МОДАЛЬНОЕ ОКНО ===== */
+#orderModal > div {
+    padding: 16px !important;
+    max-width: 95% !important;
+    max-height: 95vh !important;
+}
+
+#orderModal h2 {
+    font-size: 18px !important;
+}
+
+#orderModal input,
+#orderModal textarea {
+    font-size: 13px !important;
+    padding: 8px !important;
+}
+
+#orderModal .preview-block {
+    padding: 10px !important;
+    font-size: 12px !important;
+}
+
+#orderModal .preview-block div {
+    font-size: 12px !important;
+}
+
+/* ===== ФОРМА ПЕЧАТИ ===== */
+#printForm > div > div {
+    padding: 16px !important;
+    max-width: 98% !important;
+}
+
+#printContent {
+    padding: 12px !important;
+}
+
+#printContent h2 {
+    font-size: 18px !important;
+}
+
+#printContent .print-page-params {
+    padding: 12px !important;
+}
+
+#printContent .print-page-params > div {
+    display: block !important;
+    margin-bottom: 10px !important;
+}
+
+#printContent .print-page-params > div > div {
+    margin-bottom: 10px !important;
+}
+
+#printStelaContainer {
+    height: 50vh !important;
+    max-height: 400px !important;
+}
+
+/* ===== ГОСТЕВОЙ РЕЖИМ ===== */
+.guest-banner {
+    border: 1px dashed #FF9800;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    background: rgba(255, 152, 0, 0.05);
+    margin-top: 6px;
+}
+
+.guest-banner .title {
+    color: #FF9800;
+    font-size: 12px;
+}
+
+.guest-banner .subtitle {
+    color: #666;
+    font-size: 10px;
+}
+
+/* ===== СКРОЛЛ ===== */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: #222;
+    border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4CAF50;
+    border-radius: 2px;
+}
+
+/* ============================================
+   ПЛАНШЕТЫ (768px и выше)
+   ============================================ */
+@media (min-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    .top-bar {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 10px 20px;
+    }
+
+    .top-bar > div {
+        flex-wrap: nowrap;
+    }
+
+    .top-bar .logo img {
+        height: 45px;
+    }
+
+    .main-grid {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 15px;
+    }
+
+    .left-panel {
+        max-height: calc(100vh - 160px);
+        padding: 15px;
+    }
+
+    .right-panel {
+        height: 500px;
+    }
+
+    .header h1 {
+        font-size: 28px;
+    }
+
+    .controls .btn {
+        font-size: 13px;
+        padding: 10px 14px;
+    }
+
+    .settings-row label {
+        font-size: 12px;
+        min-width: 80px;
+    }
+
+    .settings-row input[type="range"] {
+        min-width: 100px;
+    }
+
+    .settings-row select {
+        font-size: 12px;
+    }
+
+    .preview-thumb img {
+        max-height: 80px;
+    }
+}
+
+/* ============================================
+   ДЕСКТОПЫ (1024px и выше)
+   ============================================ */
+@media (min-width: 1024px) {
+    .container {
+        padding: 20px;
+    }
+
+    .main-grid {
+        grid-template-columns: 380px 1fr;
+        gap: 20px;
+        height: calc(100vh - 160px);
+    }
+
+    .left-panel {
+        max-height: 100%;
+    }
+
+    .right-panel {
+        height: 100%;
+    }
+
+    .header h1 {
+        font-size: 32px;
+    }
+
+    .top-bar .logo img {
+        height: 55px;
+    }
+
+    .top-bar .nav-links a {
+        font-size: 13px;
+    }
+
+    .controls .btn {
+        font-size: 14px;
+        padding: 10px 18px;
+    }
+
+    .settings-row label {
+        font-size: 13px;
+        min-width: 100px;
+    }
+
+    .settings-row input[type="range"] {
+        min-width: 120px;
+    }
+
+    .settings-row .value {
+        font-size: 13px;
+        min-width: 40px;
+    }
+
+    .preview-thumb img {
+        max-height: 100px;
+    }
+
+    #printStelaContainer {
+        height: 70vh !important;
+        max-height: 600px !important;
+    }
+}
+
+/* ============================================
+   БОЛЬШИЕ ЭКРАНЫ (1400px и выше)
+   ============================================ */
+@media (min-width: 1400px) {
+    .main-grid {
+        grid-template-columns: 420px 1fr;
+        gap: 25px;
+    }
+
+    .header h1 {
+        font-size: 38px;
+    }
+
+    .top-bar .logo img {
+        height: 65px;
+    }
+
+    .controls .btn {
+        font-size: 15px;
+        padding: 12px 22px;
+    }
+}
+
+/* ============================================
+   ЭКРАН 320px (Nokia 3310 режим)
+   ============================================ */
+@media (max-width: 360px) {
+    .container {
+        padding: 4px;
+    }
+
+    .top-bar {
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+
+    .top-bar .logo img {
+        height: 25px;
+        max-width: 120px;
+    }
+
+    .top-bar .user-info {
+        font-size: 9px;
+    }
+
+    .top-bar .nav-links a {
+        font-size: 9px;
+        padding: 1px 4px;
+    }
+
+    .header h1 {
+        font-size: 16px;
+    }
+
+    .left-panel {
+        padding: 6px;
+        max-height: 60vh;
+    }
+
+    .right-panel {
+        height: 200px;
+    }
+
+    .settings-row label {
+        font-size: 9px;
+        min-width: 40px;
+    }
+
+    .settings-row input[type="range"] {
+        min-width: 40px;
+        height: 3px;
+    }
+
+    .settings-row .value {
+        font-size: 9px;
+        min-width: 20px;
+    }
+
+    .settings-row select {
+        font-size: 9px;
+        padding: 2px 4px;
+        min-width: 60px;
+    }
+
+    .controls .btn {
+        font-size: 9px;
+        padding: 4px 6px;
+        min-width: 40px;
+        border-radius: 4px;
+    }
+
+    .upload-area {
+        padding: 6px;
+    }
+
+    .upload-area div {
+        font-size: 18px;
+    }
+
+    .upload-area .title {
+        font-size: 11px;
+    }
+
+    .upload-area .subtitle {
+        font-size: 9px;
+    }
+
+    .section-title {
+        font-size: 10px;
+    }
+
+    .status {
+        font-size: 9px;
+        padding: 3px;
+    }
+
+    .controls-3d {
+        font-size: 7px;
+        padding: 2px 6px;
+        gap: 6px;
+        bottom: 3px;
+    }
+
+    .preview-thumb img {
+        max-height: 40px;
+    }
+
+    .preview-thumb .placeholder {
+        font-size: 8px;
+        padding: 4px;
+    }
+
+    #orderModal > div {
+        padding: 10px !important;
+    }
+
+    #orderModal h2 {
+        font-size: 14px !important;
+    }
+
+    #orderModal input,
+    #orderModal textarea {
+        font-size: 11px !important;
+        padding: 4px !important;
+    }
+
+    #printStelaContainer {
+        height: 30vh !important;
+        max-height: 200px !important;
+    }
+
+    .guest-banner .title {
+        font-size: 10px;
+    }
+
+    .guest-banner .subtitle {
+        font-size: 8px;
+    }
+
+    /* Скрываем 3D подписи на совсем маленьких */
+    .controls-3d span:last-child {
+        display: none;
+    }
+}
+
+/* ============================================
+   ПЕЧАТЬ
+   ============================================ */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm;
+    }
+
+    body * {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    #printForm,
+    #printForm * {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    #printForm {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        z-index: 99999 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+
+    #printForm > div {
+        background: white !important;
+        padding: 0 !important;
+        border: none !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    #printContent {
+        background: white !important;
+        color: black !important;
+        padding: 5px 10px !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    #printContent * {
+        color: black !important;
+        background: transparent !important;
+    }
+
+    #printStelaContainer {
+        border: 2px solid #333 !important;
+        box-shadow: none !important;
+        background: #fafafa !important;
+        max-height: 70vh !important;
+    }
+
+    #printForm button {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .print-page-stela {
+        page-break-after: always !important;
+        min-height: 100vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 10px !important;
+    }
+
+    .print-page-params {
+        min-height: 100vh !important;
+        padding: 10px 15px !important;
+    }
+}

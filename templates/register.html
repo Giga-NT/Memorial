@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Регистрация - Стела</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .register {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+        .register h1 { color: #4CAF50; text-align:center; margin-bottom:10px; }
+        .register .sub { color: #888; text-align:center; margin-bottom:30px; font-size:14px; }
+        .form-group { margin-bottom:20px; }
+        .form-group label { color: #aaa; display:block; margin-bottom:5px; }
+        .form-group input {
+            width:100%; padding:10px 14px;
+            border-radius:8px; border:1px solid #444;
+            background:#222; color:#fff; font-size:14px;
+        }
+        .form-group input:focus { outline:none; border-color:#4CAF50; }
+        .btn {
+            width:100%; padding:12px;
+            border:none; border-radius:8px;
+            font-size:16px; font-weight:bold;
+            background:#4CAF50; color:white;
+            cursor:pointer;
+        }
+        .btn:hover { background:#45a049; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:15px; font-size:13px; }
+        .alert-success { background:#1a2a1a; border:1px solid #2d7d2d; color:#6bff6b; }
+        .alert-danger { background:#2a1a1a; border:1px solid #8b0000; color:#ff6b6b; }
+        .links { text-align:center; margin-top:15px; color:#666; }
+        .links a { color:#4CAF50; text-decoration:none; }
+        .links a:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+    <div class="register">
+        <h1>📝 Регистрация</h1>
+        <div class="sub">Создайте аккаунт в системе Стела</div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST">
+            <div class="form-group">
+                <label>👤 Ваше имя</label>
+                <input type="text" name="full_name" placeholder="Иванов Иван" required>
+            </div>
+            <div class="form-group">
+                <label>📱 Телефон</label>
+                <input type="tel" name="phone" placeholder="+7XXX XXX-XX-XX" required>
+            </div>
+            <div class="form-group">
+                <label>🔒 Пароль</label>
+                <input type="password" name="password" placeholder="Придумайте пароль" required>
+            </div>
+            <button type="submit" class="btn">Зарегистрироваться</button>
+        </form>
+        
+        <div class="links">
+            Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a>
+        </div>
+    </div>
+</body>
+</html>
