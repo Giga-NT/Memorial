@@ -1,26 +1,10 @@
-<<<<<<< HEAD
 Flask==2.3.3
 Flask-Cors==4.0.0
-Flask-Login==0.6.3
 Flask-Bcrypt==1.0.1
-Flask-SQLAlchemy==3.0.5
-Flask-Mail==0.10.0
 Werkzeug==2.3.8
 opencv-python==4.9.0.80
 Pillow==10.2.0
 numpy==1.24.3
 reportlab==4.0.4
-=======
-Flask==2.3.3
-Flask-Cors==4.0.0
-Flask-Login==0.6.3
-Flask-Bcrypt==1.0.1
-Flask-SQLAlchemy==3.0.5
-Flask-Mail==0.10.0
-Werkzeug==2.3.8
-opencv-python==4.9.0.80
-Pillow==10.2.0
-numpy==1.24.3
-reportlab==4.0.4
->>>>>>> 8e734ba9ce21e78239c78bba23747082f52e579a
-python-dotenv==1.0.0
+requests==2.31.0
+gunicorn==21.2.0
