@@ -1,0 +1,1489 @@
+// static/js/main.js - Полный JavaScript для проекта
+
+// DOM элементы
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const applyBtn = document.getElementById('applyBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const printBtn = document.getElementById('printBtn');
+const statusText = document.getElementById('statusText');
+const originalPreview = document.getElementById('originalPreview');
+const enhancedPreview = document.getElementById('enhancedPreview');
+
+const shapeSelect = document.getElementById('shapeSelect');
+const blurSlider = document.getElementById('blurSlider');
+const depthSlider = document.getElementById('depthSlider');
+const haloSlider = document.getElementById('haloSlider');
+const contrastSlider = document.getElementById('contrastSlider');
+const brightnessSlider = document.getElementById('brightnessSlider');
+const stoneSelect = document.getElementById('stoneSelect');
+const scaleSlider = document.getElementById('scaleSlider');
+const offsetXSlider = document.getElementById('offsetXSlider');
+const offsetYSlider = document.getElementById('offsetYSlider');
+const offsetZSlider = document.getElementById('offsetZSlider');
+
+const cropTopSlider = document.getElementById('cropTopSlider');
+const cropBottomSlider = document.getElementById('cropBottomSlider');
+const cropLeftSlider = document.getElementById('cropLeftSlider');
+const cropRightSlider = document.getElementById('cropRightSlider');
+const cropTopValue = document.getElementById('cropTopValue');
+const cropBottomValue = document.getElementById('cropBottomValue');
+const cropLeftValue = document.getElementById('cropLeftValue');
+const cropRightValue = document.getElementById('cropRightValue');
+
+const blurValue = document.getElementById('blurValue');
+const depthValue = document.getElementById('depthValue');
+const haloValue = document.getElementById('haloValue');
+const contrastValue = document.getElementById('contrastValue');
+const brightnessValue = document.getElementById('brightnessValue');
+const scaleValue = document.getElementById('scaleValue');
+const offsetXValue = document.getElementById('offsetXValue');
+const offsetYValue = document.getElementById('offsetYValue');
+const offsetZValue = document.getElementById('offsetZValue');
+
+const modeEngraving = document.getElementById('modeEngraving');
+const modePhoto = document.getElementById('modePhoto');
+const modeEngravingLabel = document.getElementById('modeEngravingLabel');
+const modePhotoLabel = document.getElementById('modePhotoLabel');
+const engravingSettings = document.getElementById('engravingSettings');
+const photoSettings = document.getElementById('photoSettings');
+const photoModeColor = document.getElementById('photoModeColor');
+const photoModeBW = document.getElementById('photoModeBW');
+
+const textureSelect = document.getElementById('textureSelect');
+
+// Элементы для фото
+const photoBrightnessSlider = document.getElementById('photoBrightnessSlider');
+const photoContrastSlider = document.getElementById('photoContrastSlider');
+const photoBrightnessValue = document.getElementById('photoBrightnessValue');
+const photoContrastValue = document.getElementById('photoContrastValue');
+
+// Проверка авторизации
+const isAuthenticated = document.querySelector('.top-bar span[style*="color:#888"]') !== null;
+const isGuest = window.location.pathname.includes('/guest');
+
+// Переменные состояния
+let currentFile = null;
+let sessionId = null;
+let engravingBase64 = null;
+let maskBase64 = null;
+let isProcessing = false;
+let isUploading = false;
+let currentShape = 'none';
+let texturesList = [];
+let currentTexturePath = null;
+let isTextureApplying = false;
+
+// === 3D переменные ===
+let scene, camera, renderer, controls;
+let stelaMesh = null;
+let stelaMeshForDecal = null;
+let stelaTextureLoaded = null;
+
+// === СПИСОК ДОСТУПНЫХ СТЕЛЛ ===
+const STELES = [
+    { id: 'angel', name: 'Ангел', path: '/static/models/stele/angel.glb', icon: '👼' },
+    { id: 'cubok', name: 'Кубок', path: '/static/models/stele/cubok.glb', icon: '🏆' },
+    { id: 'domik', name: 'Домик', path: '/static/models/stele/Domik.glb', icon: '🏠' },
+    { id: 'krest', name: 'Крест', path: '/static/models/stele/krest.glb', icon: '✝️' },
+    { id: 'liliya', name: 'Лилия', path: '/static/models/stele/liliya.glb', icon: '🌺' },
+    { id: 'lotos', name: 'Лотос', path: '/static/models/stele/lotos.glb', icon: '🪷' },
+    { id: 'rectangle', name: 'Прямоугольник', path: '/static/models/stele/Rectangle.glb', icon: '▬' },
+    { id: 'trapecya', name: 'Трапеция', path: '/static/models/stele/trapecya.glb', icon: '▲' }
+];
+
+let currentStele = 'angel';
+let currentSteleModel = null;
+let isSteleLoading = false;
+
+// === КНОПКИ ===
+const orderBtn = document.getElementById('orderBtn');
+const orderModal = document.getElementById('orderModal');
+
+// === ФЛАГ ДЛЯ ДЕКАЛИ ===
+let isDecalApplying = false;
+let decalMesh = null;
+
+// === ФУНКЦИИ ===
+function getMode() {
+    return modeEngraving.checked ? 'engraving' : 'photo';
+}
+
+function getPhotoMode() {
+    return photoModeColor.checked ? 'color' : 'bw';
+}
+
+function updateModeUI() {
+    const isEngraving = getMode() === 'engraving';
+    
+    modeEngravingLabel.classList.toggle('active', isEngraving);
+    modePhotoLabel.classList.toggle('active', !isEngraving);
+    
+    engravingSettings.classList.toggle('hidden', !isEngraving);
+    photoSettings.classList.toggle('hidden', isEngraving);
+    
+    statusText.textContent = isEngraving ? 
+        '✅ Режим гравировки' : 
+        '✅ Режим фото-декали';
+}
+
+modeEngraving.addEventListener('change', () => {
+    updateModeUI();
+    if (engravingBase64) applyToStela(engravingBase64);
+});
+modePhoto.addEventListener('change', () => {
+    updateModeUI();
+    if (engravingBase64) applyToStela(engravingBase64);
+});
+
+if (photoBrightnessSlider) {
+    photoBrightnessSlider.addEventListener('input', () => {
+        if (photoBrightnessValue) photoBrightnessValue.textContent = photoBrightnessSlider.value;
+        if (engravingBase64 && getMode() === 'photo') applyToStela(engravingBase64);
+    });
+}
+if (photoContrastSlider) {
+    photoContrastSlider.addEventListener('input', () => {
+        if (photoContrastValue) photoContrastValue.textContent = parseFloat(photoContrastSlider.value).toFixed(2);
+        if (engravingBase64 && getMode() === 'photo') applyToStela(engravingBase64);
+    });
+}
+
+// === ЗАГРУЗКА СПИСКА СТЕЛЛ ===
+function loadSteleList() {
+    console.log('🔍 loadSteleList вызвана');
+    
+    const grid = document.getElementById('steleGrid');
+    if (!grid) {
+        console.error('❌ steleGrid не найден!');
+        return;
+    }
+    
+    console.log('✅ steleGrid найден, очищаем...');
+    grid.innerHTML = '';
+    
+    console.log('📋 Стеллы для отрисовки:', STELES.length);
+    
+    STELES.forEach((stele, index) => {
+        const card = document.createElement('div');
+        card.className = `stele-card ${index === 0 ? 'active' : ''}`;
+        card.dataset.id = stele.id;
+        card.style.cssText = `
+            background: ${index === 0 ? '#1a2a1a' : '#222'};
+            border-radius: 8px;
+            padding: 8px 4px;
+            cursor: pointer;
+            border: 2px solid ${index === 0 ? '#4CAF50' : '#333'};
+            text-align: center;
+            transition: all 0.3s;
+        `;
+        card.innerHTML = `
+            <div style="font-size:28px;">${stele.icon || '🪦'}</div>
+            <div style="font-size:10px; color:#fff; margin-top:2px;">${stele.name}</div>
+        `;
+        card.onclick = () => selectStele(stele.id);
+        grid.appendChild(card);
+        console.log(`✅ Добавлена карточка: ${stele.name}`);
+    });
+    
+    console.log('✅ loadSteleList завершена, карточек:', grid.children.length);
+}
+
+// === ВЫБОР СТЕЛЛЫ ===
+function selectStele(id) {
+    if (isSteleLoading) return;
+    
+    currentStele = id;
+    
+    // Подсветка
+    document.querySelectorAll('.stele-card').forEach(c => {
+        c.style.borderColor = '#333';
+        c.style.background = '#222';
+    });
+    const activeCard = document.querySelector(`.stele-card[data-id="${id}"]`);
+    if (activeCard) {
+        activeCard.style.borderColor = '#4CAF50';
+        activeCard.style.background = '#1a2a1a';
+    }
+    
+    // Загружаем модель
+    const stele = STELES.find(s => s.id === id);
+    if (stele) {
+        loadSteleModel(stele.path);
+    }
+}
+
+// === ЗАГРУЗКА 3D МОДЕЛИ СТЕЛЛЫ ===
+function loadSteleModel(path) {
+    if (!scene) {
+        setTimeout(() => loadSteleModel(path), 500);
+        return;
+    }
+    
+    if (typeof THREE.GLTFLoader === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+        document.head.appendChild(script);
+        script.onload = () => loadSteleModel(path);
+        return;
+    }
+    
+    isSteleLoading = true;
+    statusText.textContent = '⏳ Загрузка стеллы...';
+    
+    // Удаляем старую декаль
+    if (decalMesh) {
+        scene.remove(decalMesh);
+        decalMesh.geometry?.dispose();
+        decalMesh.material?.dispose();
+        decalMesh = null;
+    }
+    
+    // Удаляем старую стеллу
+    if (currentSteleModel) {
+        scene.remove(currentSteleModel);
+        currentSteleModel = null;
+    }
+    if (stelaMesh) {
+        scene.remove(stelaMesh);
+        stelaMesh = null;
+        stelaMeshForDecal = null;
+    }
+    
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(
+        path,
+        (gltf) => {
+            currentSteleModel = gltf.scene;
+            stelaMesh = gltf.scene;
+            stelaMeshForDecal = gltf.scene;
+            
+            // Масштабируем
+            const box = new THREE.Box3().setFromObject(stelaMesh);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const targetSize = 1.8;
+            const scale = targetSize / maxDim;
+            stelaMesh.scale.set(scale, scale, scale);
+            
+            // Центрируем
+            const center = box.getCenter(new THREE.Vector3());
+            stelaMesh.position.sub(center);
+            stelaMesh.position.y += 0.8;
+            
+            scene.add(stelaMesh);
+            
+            // Добавляем каркас
+            stelaMesh.traverse((child) => {
+                if (child.isMesh) {
+                    const edges = new THREE.EdgesGeometry(child.geometry);
+                    const lineMat = new THREE.LineBasicMaterial({ 
+                        color: 0x4CAF50, 
+                        transparent: true, 
+                        opacity: 0.15 
+                    });
+                    const wireframe = new THREE.LineSegments(edges, lineMat);
+                    child.add(wireframe);
+                }
+            });
+            
+            statusText.textContent = '✅ Стелла загружена!';
+            isSteleLoading = false;
+            
+            // Если есть текстура — применяем
+            if (currentTexturePath) {
+                applyTextureToStela(currentTexturePath);
+            }
+            
+            // Если есть гравировка — наносим
+            if (engravingBase64) {
+                setTimeout(() => applyToStela(engravingBase64), 500);
+            }
+            
+            console.log('✅ Стелла загружена:', path);
+        },
+        (progress) => {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            if (progress.total > 0) {
+                statusText.textContent = `⏳ Загрузка стеллы: ${percent}%`;
+            }
+        },
+        (error) => {
+            console.error('❌ Ошибка загрузки стеллы:', error);
+            statusText.textContent = '❌ Ошибка загрузки стеллы';
+            isSteleLoading = false;
+            createDefaultStela();
+        }
+    );
+}
+
+// === СОЗДАНИЕ СТАНДАРТНОЙ СТЕЛЛЫ ===
+function createDefaultStela() {
+    if (stelaMesh) {
+        scene.remove(stelaMesh);
+        stelaMesh = null;
+        stelaMeshForDecal = null;
+    }
+    
+    if (currentSteleModel) {
+        scene.remove(currentSteleModel);
+        currentSteleModel = null;
+    }
+    
+    if (decalMesh) {
+        scene.remove(decalMesh);
+        decalMesh.geometry?.dispose();
+        decalMesh.material?.dispose();
+        decalMesh = null;
+    }
+    
+    const stelaWidth = 1.2;
+    const stelaHeight = 2.0;
+    const stelaDepth = 0.2;
+    
+    const frontMat = new THREE.MeshStandardMaterial({
+        color: 0x888888,
+        roughness: 0.6,
+        metalness: 0.1,
+        side: THREE.DoubleSide
+    });
+    
+    const otherMat = new THREE.MeshStandardMaterial({
+        color: 0x444444,
+        roughness: 0.8,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+    });
+    
+    const materials = [
+        otherMat, otherMat,
+        otherMat, otherMat,
+        frontMat, otherMat
+    ];
+    
+    const geometry = new THREE.BoxGeometry(stelaWidth, stelaHeight, stelaDepth);
+    stelaMesh = new THREE.Mesh(geometry, materials);
+    stelaMesh.position.set(0, 0.8, 0);
+    stelaMesh.castShadow = true;
+    stelaMesh.receiveShadow = true;
+    
+    scene.add(stelaMesh);
+    stelaMeshForDecal = stelaMesh;
+    
+    const edgeGeo = new THREE.EdgesGeometry(geometry);
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x444444 });
+    const wireframe = new THREE.LineSegments(edgeGeo, edgeMat);
+    wireframe.position.copy(stelaMesh.position);
+    scene.add(wireframe);
+    
+    console.log('✅ Стандартная стелла создана');
+}
+
+
+
+function finalizeDecal(ctx, canvas, canvasSize) {
+    if (isDecalApplying) {
+        console.log('⏳ Уже применяется, пропускаем');
+        return;
+    }
+    
+    try {
+        isDecalApplying = true;
+        console.log('🔍 finalizeDecal вызвана');
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.needsUpdate = true;
+        
+        // ========================================
+        // ТВОЯ ЛОГИКА ПОЗИЦИОНИРОВАНИЯ
+        // ========================================
+        const stelaWidth = 1.2;
+        const stelaHeight = 2.0;
+        const stelaDepth = 0.2;
+        
+        const userScale = parseFloat(scaleSlider.value);
+        const decalSize = Math.min(stelaWidth, stelaHeight) * 0.85 * userScale;
+        
+        const offsetXPos = parseFloat(offsetXSlider.value) * 0.3;
+        const offsetYPos = parseFloat(offsetYSlider.value) * 0.3;
+        const offsetZPos = parseFloat(offsetZSlider.value) * 0.05;
+        
+        // Позиция (ТВОЯ РОДНАЯ)
+        const posX = offsetXPos;
+        const posY = 0.8 + offsetYPos;
+        const posZ = stelaDepth/2 + 0.01 + offsetZPos;
+        
+        console.log('🔍 Позиция:', posX, posY, posZ);
+        console.log('🔍 Размер:', decalSize);
+        
+        // ========================================
+        // УДАЛЯЕМ СТАРУЮ ГРАВИРОВКУ
+        // ========================================
+        if (window.currentDecal) {
+            scene.remove(window.currentDecal);
+            window.currentDecal.geometry?.dispose();
+            window.currentDecal.material?.dispose();
+            window.currentDecal = null;
+        }
+        
+        // ========================================
+        // СОЗДАЁМ ПЛОСКИЙ ОБЪЕКТ ВМЕСТО DECALGEOMETRY
+        // ========================================
+        const geometry = new THREE.PlaneGeometry(decalSize, decalSize);
+        const material = new THREE.MeshStandardMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -1,
+            opacity: 1.0
+        });
+        
+        const decal = new THREE.Mesh(geometry, material);
+        
+        // ПОЗИЦИЯ (ТВОЯ)
+        decal.position.set(posX, posY, posZ);
+        
+        // ПОВОРОТ — чтобы смотреть на камеру (вперёд)
+        decal.rotation.y = 0;
+        
+        scene.add(decal);
+        window.currentDecal = decal;
+        
+        statusText.textContent = '✅ Нанесено на стелу!';
+        
+        // Активируем кнопки
+        if (isAuthenticated) {
+            printBtn.disabled = false;
+            if (orderBtn) orderBtn.disabled = false;
+        }
+        downloadBtn.disabled = false;
+        
+        console.log('✅ finalizeDecal завершена');
+        
+    } catch (e) {
+        console.error('❌ Ошибка в finalizeDecal:', e);
+        statusText.textContent = '❌ Ошибка нанесения: ' + (e.message || 'неизвестная ошибка');
+    } finally {
+        setTimeout(() => {
+            isDecalApplying = false;
+        }, 300);
+    }
+}
+
+function updateDecalPosition() {
+    if (!window.currentDecal) return;
+    
+    const userScale = parseFloat(scaleSlider.value);
+    const decalSize = Math.min(1.2, 2.0) * 0.85 * userScale;
+    
+    const offsetXPos = parseFloat(offsetXSlider.value) * 0.3;
+    const offsetYPos = parseFloat(offsetYSlider.value) * 0.3;
+    const offsetZPos = parseFloat(offsetZSlider.value) * 0.05;
+    
+    const posX = offsetXPos;
+    const posY = 0.8 + offsetYPos;
+    const posZ = 0.2/2 + 0.01 + offsetZPos;
+    
+    window.currentDecal.position.set(posX, posY, posZ);
+    window.currentDecal.scale.set(1, 1, 1);
+    window.currentDecal.geometry.dispose();
+    window.currentDecal.geometry = new THREE.PlaneGeometry(decalSize, decalSize);
+    
+    renderer.render(scene, camera);
+}
+
+function createShapeMask(width, height, shapeType) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    
+    ctx.fillStyle = '#FFFFFF';
+    
+    const cx = width / 2;
+    const cy = height / 2;
+    const size = Math.min(width, height);
+    
+    switch(shapeType) {
+        case 'circle':
+            ctx.beginPath();
+            ctx.arc(cx, cy, size * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+        case 'oval':
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, width * 0.45, height * 0.45, 0, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+        case 'square':
+            const sqSize = size * 0.45;
+            ctx.fillRect(cx - sqSize, cy - sqSize, sqSize * 2, sqSize * 2);
+            break;
+        case 'rounded':
+            const rSize = size * 0.45;
+            const radius = 20;
+            ctx.beginPath();
+            ctx.moveTo(cx - rSize + radius, cy - rSize);
+            ctx.lineTo(cx + rSize - radius, cy - rSize);
+            ctx.quadraticCurveTo(cx + rSize, cy - rSize, cx + rSize, cy - rSize + radius);
+            ctx.lineTo(cx + rSize, cy + rSize - radius);
+            ctx.quadraticCurveTo(cx + rSize, cy + rSize, cx + rSize - radius, cy + rSize);
+            ctx.lineTo(cx - rSize + radius, cy + rSize);
+            ctx.quadraticCurveTo(cx - rSize, cy + rSize, cx - rSize, cy + rSize - radius);
+            ctx.lineTo(cx - rSize, cy - rSize + radius);
+            ctx.quadraticCurveTo(cx - rSize, cy - rSize, cx - rSize + radius, cy - rSize);
+            ctx.fill();
+            break;
+        default:
+            return null;
+    }
+    
+    return canvas;
+}
+
+function applyTextureToStela(texturePath) {
+    if (!stelaMesh) return;
+    if (isTextureApplying) return;
+    if (texturePath === currentTexturePath && stelaTextureLoaded) return;
+    
+    isTextureApplying = true;
+    
+    // Находим ВСЕ меши в модели
+    let meshes = [];
+    if (stelaMesh.isGroup || stelaMesh.children) {
+        stelaMesh.traverse((child) => {
+            if (child.isMesh) {
+                meshes.push(child);
+            }
+        });
+    } else {
+        meshes = [stelaMesh];
+    }
+    
+    if (meshes.length === 0) {
+        isTextureApplying = false;
+        return;
+    }
+    
+    if (!texturePath) {
+        // Сбрасываем текстуру для всех мешей
+        meshes.forEach(mesh => {
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                roughness: 0.6,
+                metalness: 0.1,
+                side: THREE.DoubleSide
+            });
+            mesh.material = material;
+        });
+        stelaTextureLoaded = null;
+        currentTexturePath = null;
+        isTextureApplying = false;
+        return;
+    }
+    
+    const loader = new THREE.TextureLoader();
+    const fullPath = `/texture/${texturePath}`;
+    
+    loader.load(fullPath, (texture) => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+        
+        // Применяем текстуру ко ВСЕМ мешам
+        meshes.forEach(mesh => {
+            const material = new THREE.MeshStandardMaterial({
+                map: texture,
+                roughness: 0.7,
+                metalness: 0.0,
+                side: THREE.DoubleSide,
+                color: 0xffffff
+            });
+            mesh.material = material;
+            mesh.material.needsUpdate = true;
+        });
+        
+        stelaTextureLoaded = texture;
+        currentTexturePath = texturePath;
+        
+        console.log('✅ Текстура применена к стеле:', texturePath);
+        isTextureApplying = false;
+        
+        // Если есть гравировка — переприменяем
+        if (engravingBase64) {
+            setTimeout(() => applyToStela(engravingBase64), 300);
+        }
+    }, undefined, (error) => {
+        console.error('❌ Ошибка загрузки текстуры:', error);
+        isTextureApplying = false;
+    });
+}
+
+textureSelect.addEventListener('change', function() {
+    const selectedTexture = this.value;
+    if (selectedTexture) {
+        const texture = texturesList.find(t => t.id === selectedTexture);
+        if (texture) {
+            const relPath = texture.path.replace(/^.*[\\\/]textures[\\\/]/, '');
+            applyTextureToStela(relPath);
+        }
+    } else {
+        applyTextureToStela(null);
+    }
+});
+
+// === applyToStela ===
+function applyToStela(base64Image) {
+    if (isDecalApplying) {
+        console.log('⏳ Декаль уже применяется, пропускаем');
+        return;
+    }
+    
+    if (!stelaMeshForDecal) {
+        setTimeout(() => applyToStela(base64Image), 500);
+        return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const srcW = img.width;
+            const srcH = img.height;
+            
+            const canvasSize = Math.max(srcW, srcH) * 1.0;
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const scale = Math.min(canvasSize / srcW, canvasSize / srcH);
+            const newW = srcW * scale;
+            const newH = srcH * scale;
+            const offsetX = (canvasSize - newW) / 2;
+            const offsetY = (canvasSize - newH) / 2;
+            ctx.drawImage(img, offsetX, offsetY, newW, newH);
+            
+            // Применяем форму
+            const shape = shapeSelect.value;
+            if (shape !== 'none') {
+                const maskCanvas = createShapeMask(canvasSize, canvasSize, shape);
+                if (maskCanvas) {
+                    const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+                    const maskData = maskCanvas.getContext('2d').getImageData(0, 0, canvasSize, canvasSize);
+                    const d = imageData.data;
+                    const md = maskData.data;
+                    
+                    for (let i = 3; i < d.length; i += 4) {
+                        if (md[i-3] === 0) {
+                            d[i] = 0;
+                        }
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                }
+            }
+            
+            // Используем maskBase64 если есть
+            if (maskBase64 && shape === 'none') {
+                const maskImg = new Image();
+                maskImg.onload = () => {
+                    const maskCanvas = document.createElement('canvas');
+                    maskCanvas.width = canvasSize;
+                    maskCanvas.height = canvasSize;
+                    const maskCtx = maskCanvas.getContext('2d');
+                    maskCtx.drawImage(maskImg, 0, 0, canvasSize, canvasSize);
+                    
+                    const imgData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+                    const maskData = maskCtx.getImageData(0, 0, canvasSize, canvasSize);
+                    const d = imgData.data;
+                    const md = maskData.data;
+                    
+                    for (let i = 0; i < d.length; i += 4) {
+                        if (md[i] < 30) {
+                            d[i + 3] = 0;
+                        }
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    finalizeDecal(ctx, canvas, canvasSize);
+                };
+                maskImg.onerror = () => finalizeDecal(ctx, canvas, canvasSize);
+                maskImg.src = `data:image/png;base64,${maskBase64}`;
+                return;
+            }
+            
+            finalizeDecal(ctx, canvas, canvasSize);
+            
+        } catch (e) {
+            console.error('Ошибка в applyToStela:', e);
+            statusText.textContent = '❌ Ошибка обработки изображения';
+        }
+    };
+    img.onerror = () => {
+        statusText.textContent = '❌ Ошибка загрузки изображения';
+    };
+    img.src = `data:image/png;base64,${base64Image}`;
+}
+
+function init3D() {
+    const container = document.getElementById('stelaViewer');
+    if (!container) return;
+    
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a1a);
+
+    const width = container.clientWidth || 400;
+    const height = container.clientHeight || 400;
+    
+    camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, 1.2, 4.5);
+    camera.lookAt(0, 0.5, 0);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
+    controls.minDistance = 1.5;
+    controls.maxDistance = 10;
+    controls.target.set(0, 0.5, 0);
+    controls.update();
+
+    const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(2, 3, 4);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    const fillLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+    fillLight.position.set(-2, 1, -3);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xff8844, 0.3);
+    rimLight.position.set(0, -1, -2);
+    scene.add(rimLight);
+
+    const groundGeometry = new THREE.CircleGeometry(3, 32);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x111122,
+        roughness: 0.8,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.5
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Загружаем список стелл
+    loadSteleList();
+    
+    // Загружаем первую стеллу
+    setTimeout(() => {
+        const firstStele = STELES[0];
+        if (firstStele) {
+            loadSteleModel(firstStele.path);
+        }
+    }, 500);
+    
+    animate();
+    
+    window.addEventListener('resize', () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w > 0 && h > 0) {
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+    });
+}
+
+function animate() {
+    if (!renderer) return;
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// === ЗАГРУЗКА ТЕКСТУР ===
+async function loadTextures() {
+    try {
+        const response = await fetch('/textures');
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки текстур');
+        }
+        const data = await response.json();
+        
+        texturesList = data.textures;
+        
+        textureSelect.innerHTML = '<option value="">Без текстуры</option>';
+        
+        const categories = {};
+        data.textures.forEach(texture => {
+            const category = texture.category || 'root';
+            if (!categories[category]) {
+                categories[category] = [];
+            }
+            categories[category].push(texture);
+        });
+        
+        for (const [category, textures] of Object.entries(categories)) {
+            if (category !== 'root') {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = category;
+                textures.forEach(texture => {
+                    const option = document.createElement('option');
+                    option.value = texture.id;
+                    option.textContent = texture.display_name || texture.name;
+                    optgroup.appendChild(option);
+                });
+                textureSelect.appendChild(optgroup);
+            } else {
+                textures.forEach(texture => {
+                    const option = document.createElement('option');
+                    option.value = texture.id;
+                    option.textContent = texture.display_name || texture.name;
+                    textureSelect.appendChild(option);
+                });
+            }
+        }
+        
+        textureSelect.value = '';
+        
+        console.log('✅ Текстуры загружены:', data.textures.length);
+    } catch (error) {
+        console.error('❌ Ошибка загрузки текстур:', error);
+    }
+}
+
+// === ФУНКЦИИ ДЛЯ ПЕЧАТИ ===
+function openPrintForm() {
+    if (!engravingBase64) {
+        statusText.textContent = '⚠️ Сначала создайте гравировку';
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        statusText.textContent = '⚠️ Для печати войдите в систему';
+        if (confirm('⚠️ Для печати нужно войти или зарегистрироваться. Перейти на страницу входа?')) {
+            window.location.href = '/login';
+        }
+        return;
+    }
+    
+    const printForm = document.getElementById('printForm');
+    if (!printForm) {
+        console.error('❌ printForm не найден');
+        return;
+    }
+    
+    printForm.classList.add('active');
+    printForm.style.display = 'block';
+    
+    // Заполняем данные с проверкой
+    const fields = {
+        'printMode': getMode() === 'engraving' ? 'Гравировка' : 'Фото (декаль)',
+        'printShape': shapeSelect.options[shapeSelect.selectedIndex]?.text || '—',
+        'printDepth': depthSlider.value || '0.9',
+        'printHalo': haloSlider.value || '35',
+        'printContrast': contrastSlider.value || '3.0',
+        'printBrightness': brightnessSlider.value || '0',
+        'printStone': stoneSelect.options[stoneSelect.selectedIndex]?.text || 'Классический',
+        'printTexture': textureSelect.options[textureSelect.selectedIndex]?.text || 'Нет',
+        'printScale': scaleSlider.value || '0.8',
+        'printOffsetX': offsetXSlider.value || '0.00',
+        'printOffsetY': offsetYSlider.value || '0.00',
+        'printOffsetZ': offsetZSlider.value || '-0.10'
+    };
+    
+    for (const [id, value] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+    
+    // Отступы
+    const cropTop = cropTopSlider.value + '%';
+    const cropBottom = cropBottomSlider.value + '%';
+    const cropLeft = cropLeftSlider.value + '%';
+    const cropRight = cropRightSlider.value + '%';
+    
+    const cropFields = ['printCropTop', 'printCropBottom', 'printCropLeft', 'printCropRight', 
+                        'printCropTopParam', 'printCropBottomParam', 'printCropLeftParam', 'printCropRightParam'];
+    const cropValues = [cropTop, cropBottom, cropLeft, cropRight, cropTop, cropBottom, cropLeft, cropRight];
+    
+    for (let i = 0; i < cropFields.length; i++) {
+        const el = document.getElementById(cropFields[i]);
+        if (el) el.textContent = cropValues[i];
+    }
+    
+    // Параметры стеллы
+    const stelaFields = {
+        'printStelaHeight': '600 мм',
+        'printStelaWidth': '1200 мм',
+        'printStelaDepth': '8 мм',
+        'printStelaMaterial': 'Гранит'
+    };
+    
+    for (const [id, value] of Object.entries(stelaFields)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+    
+    // Размеры гравировки
+    const stelaWidth = 1200;
+    const stelaHeight = 600;
+    const scale = parseFloat(scaleSlider.value) || 0.8;
+    const engravingWidth = Math.round(stelaWidth * 0.85 * scale);
+    const engravingHeight = Math.round(stelaHeight * 0.85 * scale);
+    
+    const sizeFields = {
+        'printEngravingWidth': engravingWidth + ' мм',
+        'printEngravingHeight': engravingHeight + ' мм',
+        'printEngravingScale': scale
+    };
+    
+    for (const [id, value] of Object.entries(sizeFields)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+    
+    const offsetX = parseFloat(offsetXSlider.value) || 0;
+    const offsetY = parseFloat(offsetYSlider.value) || 0;
+    const posX = offsetX > 0 ? `смещено вправо на ${Math.round(offsetX * 50)} мм` : 
+                 offsetX < 0 ? `смещено влево на ${Math.round(Math.abs(offsetX) * 50)} мм` : 'по центру';
+    const posY = offsetY > 0 ? `смещено вверх на ${Math.round(offsetY * 50)} мм` : 
+                 offsetY < 0 ? `смещено вниз на ${Math.round(Math.abs(offsetY) * 50)} мм` : 'по центру';
+    
+    const posEl = document.getElementById('printEngravingPosition');
+    if (posEl) posEl.textContent = `X: ${posX}, Y: ${posY}`;
+    
+    // Очищаем поля
+    ['executorName', 'executorPosition', 'customerName', 'customerPhone'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    setTimeout(() => renderStelaForPrint(), 200);
+    
+    const agreeCheckbox = document.getElementById('agreeCheckbox');
+    const printAgreeBtn = document.getElementById('printAgreeBtn');
+    if (agreeCheckbox) agreeCheckbox.checked = false;
+    if (printAgreeBtn) printAgreeBtn.disabled = true;
+}
+
+function renderStelaForPrint() {
+    const canvas = document.getElementById('printCanvas');
+    const container = document.getElementById('printStelaContainer');
+    
+    if (!canvas || !container) {
+        console.error('Canvas или контейнер не найдены');
+        return;
+    }
+    
+    const rect = container.getBoundingClientRect();
+    const width = rect.width || 500;
+    const height = rect.height || 500;
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, width, height);
+    
+    if (controls) {
+        const wasAutoRotate = controls.autoRotate;
+        controls.autoRotate = false;
+        controls.update();
+        
+        renderer.render(scene, camera);
+        
+        const mainCanvas = renderer.domElement;
+        ctx.drawImage(mainCanvas, 0, 0, width, height);
+        
+        controls.autoRotate = wasAutoRotate;
+        controls.update();
+    } else {
+        ctx.fillStyle = '#333';
+        ctx.font = '24px Arial';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔄 Загрузка 3D модели...', width/2, height/2);
+    }
+    
+    console.log('✅ Стелла отрендерена для печати');
+}
+
+function closePrintForm() {
+    const printForm = document.getElementById('printForm');
+    printForm.classList.remove('active');
+    printForm.style.display = 'none';
+}
+
+function printDocument() {
+    window.print();
+}
+
+const agreeCheckbox = document.getElementById('agreeCheckbox');
+if (agreeCheckbox) {
+    agreeCheckbox.addEventListener('change', function() {
+        const printAgreeBtn = document.getElementById('printAgreeBtn');
+        if (printAgreeBtn) printAgreeBtn.disabled = !this.checked;
+    });
+}
+
+// === СЛАЙДЕРЫ ===
+if (blurSlider) blurSlider.addEventListener('input', () => blurValue.textContent = blurSlider.value);
+if (depthSlider) depthSlider.addEventListener('input', () => depthValue.textContent = depthSlider.value);
+if (haloSlider) haloSlider.addEventListener('input', () => haloValue.textContent = haloSlider.value);
+if (contrastSlider) contrastSlider.addEventListener('input', () => contrastValue.textContent = contrastSlider.value);
+if (brightnessSlider) brightnessSlider.addEventListener('input', () => brightnessValue.textContent = brightnessSlider.value);
+
+if (cropTopSlider) {
+    cropTopSlider.addEventListener('input', () => {
+        if (cropTopValue) cropTopValue.textContent = cropTopSlider.value + '%';
+        if (engravingBase64) recreateEngraving();
+    });
+}
+if (cropBottomSlider) {
+    cropBottomSlider.addEventListener('input', () => {
+        if (cropBottomValue) cropBottomValue.textContent = cropBottomSlider.value + '%';
+        if (engravingBase64) recreateEngraving();
+    });
+}
+if (cropLeftSlider) {
+    cropLeftSlider.addEventListener('input', () => {
+        if (cropLeftValue) cropLeftValue.textContent = cropLeftSlider.value + '%';
+        if (engravingBase64) recreateEngraving();
+    });
+}
+if (cropRightSlider) {
+    cropRightSlider.addEventListener('input', () => {
+        if (cropRightValue) cropRightValue.textContent = cropRightSlider.value + '%';
+        if (engravingBase64) recreateEngraving();
+    });
+}
+
+if (scaleSlider) {
+    scaleSlider.addEventListener('input', () => {
+        if (scaleValue) scaleValue.textContent = parseFloat(scaleSlider.value).toFixed(2);
+        if (engravingBase64 && window.currentDecal) {
+            updateDecalPosition();
+        } else if (engravingBase64) {
+            applyToStela(engravingBase64);
+        }
+    });
+}
+if (offsetXSlider) {
+    offsetXSlider.addEventListener('input', () => {
+        if (offsetXValue) offsetXValue.textContent = parseFloat(offsetXSlider.value).toFixed(2);
+        if (engravingBase64 && window.currentDecal) {
+            updateDecalPosition();
+        }
+    });
+}
+if (offsetYSlider) {
+    offsetYSlider.addEventListener('input', () => {
+        if (offsetYValue) offsetYValue.textContent = parseFloat(offsetYSlider.value).toFixed(2);
+        if (engravingBase64 && window.currentDecal) {
+            updateDecalPosition();
+        }
+    });
+}
+if (offsetZSlider) {
+    offsetZSlider.addEventListener('input', () => {
+        if (offsetZValue) offsetZValue.textContent = parseFloat(offsetZSlider.value).toFixed(2);
+        if (engravingBase64 && window.currentDecal) {
+            updateDecalPosition();
+        }
+    });
+}
+
+if (shapeSelect) {
+    shapeSelect.addEventListener('change', () => {
+        currentShape = shapeSelect.value;
+        if (engravingBase64) {
+            applyToStela(engravingBase64);
+        }
+    });
+}
+
+// === ЗАГРУЗКА ФАЙЛА ===
+if (uploadArea) {
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = '#4CAF50'; });
+    uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = '#444'; });
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault(); uploadArea.style.borderColor = '#444';
+        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+}
+if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+}
+
+function handleFile(file) {
+    if (!file.type.startsWith('image/')) {
+        statusText.textContent = '❌ Загрузите изображение';
+        return;
+    }
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (originalPreview) originalPreview.innerHTML = `<img src="${e.target.result}" alt="Оригинал">`;
+        statusText.textContent = '✅ Фото загружено. Нажмите "Загрузить" для обработки';
+        if (uploadBtn) uploadBtn.disabled = false;
+        if (applyBtn) applyBtn.disabled = true;
+        if (downloadBtn) downloadBtn.disabled = true;
+        if (printBtn) printBtn.disabled = true;
+    };
+    reader.readAsDataURL(file);
+}
+
+// === КНОПКА ЗАГРУЗКИ ===
+if (uploadBtn) {
+    uploadBtn.addEventListener('click', async () => {
+        if (!currentFile || isUploading) return;
+        isUploading = true;
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '⏳ Загрузка...';
+        statusText.textContent = '🔄 Обработка...';
+
+        const formData = new FormData();
+        formData.append('image', currentFile);
+
+        try {
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Ошибка загрузки');
+            }
+            const data = await response.json();
+            if (data.success) {
+                sessionId = data.session_id;
+                if (enhancedPreview) enhancedPreview.innerHTML = `<img src="data:image/jpeg;base64,${data.enhanced}" alt="Улучшенное">`;
+                statusText.textContent = '✅ Готово! Нажмите "Создать" для генерации';
+                uploadBtn.textContent = '✅ Готово';
+                if (applyBtn) applyBtn.disabled = false;
+            } else {
+                throw new Error(data.error || 'Ошибка');
+            }
+        } catch (error) {
+            statusText.textContent = '❌ ' + error.message;
+            uploadBtn.textContent = '📤 Загрузить';
+        } finally {
+            isUploading = false;
+            uploadBtn.disabled = false;
+        }
+    });
+}
+
+// === ПЕРЕСОЗДАНИЕ ===
+async function recreateEngraving() {
+    if (!sessionId || isProcessing) return;
+    
+    isProcessing = true;
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.textContent = '⏳ Обновление...';
+    }
+    statusText.textContent = '⏳ Обновление...';
+
+    const formData = new FormData();
+    formData.append('session_id', sessionId);
+    formData.append('blur', blurSlider ? blurSlider.value : 3);
+    formData.append('depth', depthSlider ? depthSlider.value : 0.9);
+    formData.append('halo', haloSlider ? haloSlider.value : 35);
+    formData.append('contrast', contrastSlider ? contrastSlider.value : 3.0);
+    formData.append('brightness', brightnessSlider ? brightnessSlider.value : 0);
+    formData.append('stone', stoneSelect ? stoneSelect.value : 'classic');
+    formData.append('mode', getMode());
+    formData.append('crop_top', cropTopSlider ? cropTopSlider.value : 2);
+    formData.append('crop_bottom', cropBottomSlider ? cropBottomSlider.value : 2);
+    formData.append('crop_left', cropLeftSlider ? cropLeftSlider.value : 2);
+    formData.append('crop_right', cropRightSlider ? cropRightSlider.value : 2);
+    formData.append('photo_brightness', photoBrightnessSlider ? photoBrightnessSlider.value : 0);
+    formData.append('photo_contrast', photoContrastSlider ? photoContrastSlider.value : 1.0);
+    formData.append('photo_mode', getPhotoMode());
+    formData.append('texture', textureSelect ? textureSelect.value : '');
+
+    try {
+        const response = await fetch('/process', { method: 'POST', body: formData });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Ошибка обработки');
+        }
+        const data = await response.json();
+        if (data.success) {
+            engravingBase64 = data.engraving;
+            maskBase64 = data.mask;
+            if (downloadBtn) downloadBtn.disabled = false;
+            if (isAuthenticated) {
+                if (printBtn) printBtn.disabled = false;
+            }
+            statusText.textContent = '✅ Обновлено!';
+            applyToStela(data.engraving);
+        } else {
+            throw new Error(data.error || 'Ошибка');
+        }
+    } catch (error) {
+        statusText.textContent = '❌ ' + error.message;
+    } finally {
+        isProcessing = false;
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.textContent = '⚙️ Создать';
+        }
+    }
+}
+
+// === КНОПКА СОЗДАНИЯ ===
+if (applyBtn) {
+    applyBtn.addEventListener('click', async () => {
+        if (!sessionId) {
+            statusText.textContent = '⚠️ Сначала загрузите фото';
+            return;
+        }
+        if (isProcessing) return;
+
+        isProcessing = true;
+        applyBtn.disabled = true;
+        applyBtn.textContent = '⏳ Создание...';
+        statusText.textContent = '⏳ Создание...';
+
+        const formData = new FormData();
+        formData.append('session_id', sessionId);
+        formData.append('blur', blurSlider ? blurSlider.value : 3);
+        formData.append('depth', depthSlider ? depthSlider.value : 0.9);
+        formData.append('halo', haloSlider ? haloSlider.value : 35);
+        formData.append('contrast', contrastSlider ? contrastSlider.value : 3.0);
+        formData.append('brightness', brightnessSlider ? brightnessSlider.value : 0);
+        formData.append('stone', stoneSelect ? stoneSelect.value : 'classic');
+        formData.append('mode', getMode());
+        formData.append('crop_top', cropTopSlider ? cropTopSlider.value : 2);
+        formData.append('crop_bottom', cropBottomSlider ? cropBottomSlider.value : 2);
+        formData.append('crop_left', cropLeftSlider ? cropLeftSlider.value : 2);
+        formData.append('crop_right', cropRightSlider ? cropRightSlider.value : 2);
+        formData.append('photo_brightness', photoBrightnessSlider ? photoBrightnessSlider.value : 0);
+        formData.append('photo_contrast', photoContrastSlider ? photoContrastSlider.value : 1.0);
+        formData.append('photo_mode', getPhotoMode());
+        formData.append('texture', textureSelect ? textureSelect.value : '');
+
+        try {
+            const response = await fetch('/process', { method: 'POST', body: formData });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Ошибка обработки');
+            }
+            const data = await response.json();
+            if (data.success) {
+                engravingBase64 = data.engraving;
+                maskBase64 = data.mask;
+                if (downloadBtn) downloadBtn.disabled = false;
+                if (isAuthenticated) {
+                    if (printBtn) printBtn.disabled = false;
+                }
+                statusText.textContent = '✅ Готово!';
+                applyToStela(data.engraving);
+            } else {
+                throw new Error(data.error || 'Ошибка');
+            }
+        } catch (error) {
+            statusText.textContent = '❌ ' + error.message;
+        } finally {
+            isProcessing = false;
+            applyBtn.disabled = false;
+            applyBtn.textContent = '⚙️ Создать';
+        }
+    });
+}
+
+// === СКАЧАТЬ ===
+if (downloadBtn) {
+    downloadBtn.addEventListener('click', () => {
+        if (!engravingBase64) return;
+        const link = document.createElement('a');
+        link.download = 'result.png';
+        link.href = `data:image/png;base64,${engravingBase64}`;
+        link.click();
+    });
+}
+
+// === ПЕЧАТЬ ===
+if (printBtn) {
+    printBtn.addEventListener('click', openPrintForm);
+}
+
+// Переключение режима фото (цветное/ЧБ)
+if (photoModeColor) {
+    photoModeColor.addEventListener('change', () => {
+        if (engravingBase64 && getMode() === 'photo') {
+            applyToStela(engravingBase64);
+        }
+    });
+}
+if (photoModeBW) {
+    photoModeBW.addEventListener('change', () => {
+        if (engravingBase64 && getMode() === 'photo') {
+            applyToStela(engravingBase64);
+        }
+    });
+}
+
+// ============================================
+// ОФОРМЛЕНИЕ ЗАКАЗА
+// ============================================
+
+function openOrderModal() {
+    if (!isAuthenticated) {
+        statusText.textContent = '⚠️ Для оформления заказа войдите в систему';
+        if (confirm('⚠️ Для оформления заказа нужно войти или зарегистрироваться. Перейти на страницу входа?')) {
+            window.location.href = '/login';
+        }
+        return;
+    }
+    
+    if (!engravingBase64) {
+        statusText.textContent = '⚠️ Сначала создайте гравировку';
+        return;
+    }
+    
+    document.getElementById('orderPreviewMode').textContent = 
+        getMode() === 'engraving' ? 'Гравировка' : 'Фото-декаль';
+    document.getElementById('orderPreviewStone').textContent = 
+        stoneSelect.options[stoneSelect.selectedIndex].text;
+    document.getElementById('orderPreviewScale').textContent = 
+        scaleSlider.value;
+    
+    orderModal.style.display = 'flex';
+}
+
+function closeOrderModal() {
+    orderModal.style.display = 'none';
+}
+
+if (document.getElementById('orderForm')) {
+    document.getElementById('orderForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!isAuthenticated) {
+            alert('⚠️ Для оформления заказа войдите в систему');
+            window.location.href = '/login';
+            return;
+        }
+        
+        const clientName = document.getElementById('orderClientName').value.trim();
+        const clientPhone = document.getElementById('orderClientPhone').value.trim();
+        const clientEmail = document.getElementById('orderClientEmail').value.trim();
+        const notes = document.getElementById('orderNotes').value.trim();
+        
+        if (!clientName || !clientPhone) {
+            alert('⚠️ Заполните ФИО и телефон');
+            return;
+        }
+        
+        const orderData = {
+            client_name: clientName,
+            client_phone: clientPhone,
+            client_email: clientEmail || '',
+            notes: notes || '',
+            mode: getMode(),
+            shape: shapeSelect.value,
+            stone: stoneSelect.value,
+            texture: textureSelect.value,
+            blur: parseFloat(blurSlider.value),
+            depth: parseFloat(depthSlider.value),
+            halo: parseInt(haloSlider.value),
+            contrast: parseFloat(contrastSlider.value),
+            brightness: parseInt(brightnessSlider.value),
+            scale: parseFloat(scaleSlider.value),
+            offset_x: parseFloat(offsetXSlider.value),
+            offset_y: parseFloat(offsetYSlider.value),
+            offset_z: parseFloat(offsetZSlider.value),
+            crop_top: parseFloat(cropTopSlider.value),
+            crop_bottom: parseFloat(cropBottomSlider.value),
+            crop_left: parseFloat(cropLeftSlider.value),
+            crop_right: parseFloat(cropRightSlider.value),
+            photo_mode: getPhotoMode(),
+            photo_brightness: parseInt(photoBrightnessSlider.value),
+            photo_contrast: parseFloat(photoContrastSlider.value),
+            engraving_image: engravingBase64,
+            mask_image: maskBase64
+        };
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Отправка...';
+        statusText.textContent = '⏳ Оформление заказа...';
+        
+        try {
+            const url = isGuest ? '/api/guest/order/create' : '/api/order/create';
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                statusText.textContent = '✅ Заказ оформлен! Письмо отправлено на почту';
+                closeOrderModal();
+                document.getElementById('orderClientName').value = '';
+                document.getElementById('orderClientPhone').value = '';
+                document.getElementById('orderClientEmail').value = '';
+                document.getElementById('orderNotes').value = '';
+                orderBtn.textContent = '✅ Заказ отправлен';
+                orderBtn.disabled = true;
+            } else {
+                statusText.textContent = '❌ ' + (data.error || 'Ошибка оформления');
+            }
+        } catch (error) {
+            statusText.textContent = '❌ Ошибка: ' + error.message;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '📨 Отправить заказ';
+        }
+    });
+}
+
+if (orderBtn) {
+    orderBtn.addEventListener('click', openOrderModal);
+}
+
+// === ЗАПУСК ===
+document.addEventListener('DOMContentLoaded', () => {
+    init3D();
+    updateModeUI();
+    loadTextures();
+    console.log('🚀 Готов к работе');
+    console.log('👤 Авторизован:', isAuthenticated);
+    console.log('👤 Гость:', isGuest);
+});

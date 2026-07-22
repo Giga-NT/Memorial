@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Профиль - Стела</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .card { background: #1a1a1a; border-radius: 12px; padding: 20px; border: 1px solid #333; }
+        .project-item {
+            background: #222; padding: 15px; border-radius: 8px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 4px solid #4CAF50;
+        }
+        .project-item:hover { background: #2a2a2a; }
+        .status { padding: 2px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .status-draft { background: #666; color: #fff; }
+        .status-ready { background: #4CAF50; color: #fff; }
+        .btn-small {
+            padding: 4px 12px; border: none; border-radius: 4px; font-size: 12px;
+            cursor: pointer; background: #4CAF50; color: white; margin-left: 5px;
+        }
+        .btn-small-danger { background: #d32f2f; }
+        .btn-small-primary { background: #2196F3; }
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background: #111; border-radius: 12px;
+            margin-bottom: 15px; border: 1px solid #333;
+        }
+        .top-bar a { color: #888; text-decoration: none; font-size: 13px; }
+        .top-bar a:hover { color: #fff; }
+        .role-badge {
+            background: #2a2a2a; padding: 2px 12px; border-radius: 12px;
+            font-size: 11px; color: #888;
+        }
+        .role-admin { background: #1a2a1a; color: #4CAF50; border: 1px solid #2a4a2a; }
+        .role-user { background: #1a1a2a; color: #888; border: 1px solid #2a2a4a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <a href="{{ url_for('index') }}" style="color:#4CAF50; font-weight:bold; font-size:18px;">🗿 Стела</a>
+                <span style="color:#666;">|</span>
+                <span style="color:#888;">{{ current_user.full_name or current_user.phone }}</span>
+                <span class="role-badge {% if current_user.is_admin %}role-admin{% else %}role-user{% endif %}">
+                    {{ 'Администратор' if current_user.is_admin else 'Пользователь' }}
+                </span>
+            </div>
+            <div>
+                <a href="{{ url_for('index') }}">🏠 Главная</a>
+                <a href="{{ url_for('logout') }}" style="color:#ff6b6b; margin-left:15px;">🚪 Выйти</a>
+            </div>
+        </div>
+
+        <div class="profile-grid">
+            <div class="card">
+                <h2 style="color:#4CAF50; font-size:18px;">👤 Профиль</h2>
+                <hr style="border-color:#333; margin:10px 0;">
+                <div style="color:#ccc; font-size:14px;">
+                    <p><strong style="color:#888;">Имя:</strong> {{ current_user.full_name or '—' }}</p>
+                    <p><strong style="color:#888;">Телефон:</strong> {{ current_user.phone }}</p>
+                    <p><strong style="color:#888;">Роль:</strong> {{ 'Админ' if current_user.is_admin else 'Пользователь' }}</p>
+                    <p><strong style="color:#888;">Создан:</strong> {{ current_user.created_at.strftime('%d.%m.%Y') if current_user.created_at else '—' }}</p>
+                </div>
+                <hr style="border-color:#333; margin:15px 0;">
+                <div style="text-align:center;">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary" style="display:inline-block; padding:8px 30px; text-decoration:none;">📐 Создать заказ</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="color:#4CAF50; font-size:18px;">📋 {{ 'Все заказы' if current_user.is_admin else 'Мои заказы' }}</h2>
+                    <button onclick="loadProjects()" style="background:#333; border:none; color:#fff; padding:5px 12px; border-radius:4px; cursor:pointer;">🔄 Обновить</button>
+                </div>
+                <hr style="border-color:#333; margin:10px 0;">
+                <div id="projectsList">
+                    <div style="color:#666; text-align:center; padding:30px;">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadProjects() {
+            const container = document.getElementById('projectsList');
+            container.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">⏳ Загрузка...</div>';
+            
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                
+                if (data.success && data.projects.length > 0) {
+                    container.innerHTML = '';
+                    data.projects.forEach(p => {
+                        const statusClass = {
+                            'draft': 'status-draft',
+                            'ready': 'status-ready'
+                        }[p.status] || 'status-draft';
+                        
+                        const statusNames = {
+                            'draft': 'Черновик',
+                            'ready': 'Готов'
+                        };
+                        
+                        const div = document.createElement('div');
+                        div.className = 'project-item';
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight:bold; color:#fff;">${p.client_name || 'Без имени'}</div>
+                                <div style="font-size:12px; color:#888;">${p.client_phone || '—'} • ${new Date(p.created_at).toLocaleDateString()}</div>
+                                <div style="font-size:12px; color:#666;">${p.mode === 'engraving' ? '🗿 Гравировка' : '🖼️ Фото'} • ${p.stone}</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span class="status ${statusClass}">${statusNames[p.status] || p.status}</span>
+                                <button class="btn-small btn-small-primary" onclick="downloadPDF(${p.id})">📄 PDF</button>
+                                <button class="btn-small btn-small-danger" onclick="deleteProject(${p.id})">🗑️</button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<div style="color:#666; text-align:center; padding:30px;">📭 Нет заказов. Создайте первый!</div>';
+                }
+            } catch (e) {
+                container.innerHTML = '<div style="color:#ff6b6b; text-align:center; padding:20px;">❌ Ошибка загрузки</div>';
+                console.error(e);
+            }
+        }
+        
+        async function downloadPDF(id) {
+            window.open(`/api/project/${id}/pdf`, '_blank');
+        }
+        
+        async function deleteProject(id) {
+            if (!confirm('Удалить заказ?')) return;
+            try {
+                const response = await fetch(`/api/project/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    loadProjects();
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
+            }
+        }
+        
+        loadProjects();
+    </script>
+</body>
+</html>

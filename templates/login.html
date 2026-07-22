@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Вход - Стела</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+        .login h1 { color: #4CAF50; text-align:center; margin-bottom:10px; }
+        .login .sub { color: #888; text-align:center; margin-bottom:30px; font-size:14px; }
+        .form-group { margin-bottom:20px; }
+        .form-group label { color: #aaa; display:block; margin-bottom:5px; }
+        .form-group input {
+            width:100%; padding:10px 14px;
+            border-radius:8px; border:1px solid #444;
+            background:#222; color:#fff; font-size:14px;
+        }
+        .form-group input:focus { outline:none; border-color:#4CAF50; }
+        .btn {
+            width:100%; padding:12px;
+            border:none; border-radius:8px;
+            font-size:16px; font-weight:bold;
+            background:#4CAF50; color:white;
+            cursor:pointer;
+        }
+        .btn:hover { background:#45a049; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:15px; font-size:13px; }
+        .alert-success { background:#1a2a1a; border:1px solid #2d7d2d; color:#6bff6b; }
+        .alert-danger { background:#2a1a1a; border:1px solid #8b0000; color:#ff6b6b; }
+        .links { text-align:center; margin-top:15px; color:#666; font-size:14px; }
+        .links a { color:#4CAF50; text-decoration:none; }
+        .links a:hover { text-decoration:underline; }
+        .divider {
+            display:flex; align-items:center; margin:15px 0;
+            color:#444; font-size:12px;
+        }
+        .divider:before, .divider:after {
+            content:""; flex:1; border-bottom:1px solid #333;
+        }
+        .divider:before { margin-right:10px; }
+        .divider:after { margin-left:10px; }
+        .btn-guest {
+            background: #FF9800;
+            width:100%; padding:12px;
+            border:none; border-radius:8px;
+            font-size:16px; font-weight:bold;
+            color:white;
+            cursor:pointer;
+            text-align:center;
+            display:block;
+            text-decoration:none;
+            transition: background 0.3s;
+        }
+        .btn-guest:hover { background:#F57C00; }
+        .demo {
+            margin-top:15px; padding:12px; background:#111;
+            border-radius:8px; font-size:12px; color:#555;
+        }
+        .demo code {
+            color:#4CAF50; background:#1a1a1a;
+            padding:2px 8px; border-radius:4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login">
+        <h1>🗿 Стела</h1>
+        <div class="sub">Система проектирования памятников</div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST">
+            <div class="form-group">
+                <label>👤 Логин</label>
+                <input type="text" name="username" placeholder="Введите логин" required>
+            </div>
+            <div class="form-group">
+                <label>🔒 Пароль</label>
+                <input type="password" name="password" placeholder="Введите пароль" required>
+            </div>
+            <button type="submit" class="btn">Войти</button>
+        </form>
+        
+        <div class="divider">или</div>
+        
+        <a href="{{ url_for('guest_mode') }}" class="btn-guest">👤 Войти как гость</a>
+        
+        <div class="links">
+            Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a>
+        </div>
+        
+        <div class="demo">
+            <strong>📋 Демо-доступ:</strong><br>
+            👤 <code>admin</code> / <code>admin123</code> (администратор)<br>
+            👤 <code>manager</code> / <code>manager123</code> (менеджер)
+        </div>
+    </div>
+</body>
+</html>
