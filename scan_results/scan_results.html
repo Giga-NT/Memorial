@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Security Scan Results</title>
+<style>
+body{font-family:Arial,sans-serif;margin:20px;background:#f5f5f5;}
+.container{max-width:1200px;margin:0 auto;}
+.header{background:#2c3e50;color:white;padding:20px;border-radius:8px;}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:20px 0;}
+.stat-card{background:white;padding:15px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.stat-number{font-size:2em;font-weight:bold;}
+.stat-critical .stat-number{color:#e74c3c;}
+.stat-high .stat-number{color:#e67e22;}
+.stat-medium .stat-number{color:#f1c40f;}
+.finding{background:white;margin:10px 0;padding:15px;border-radius:8px;border-left:5px solid;}
+.finding-critical{border-color:#e74c3c;}
+.finding-high{border-color:#e67e22;}
+.finding-medium{border-color:#f1c40f;}
+.severity-badge{padding:3px 10px;border-radius:20px;color:white;font-weight:bold;font-size:0.8em;}
+.badge-critical{background:#e74c3c;}
+.badge-high{background:#e67e22;}
+.badge-medium{background:#f1c40f;color:#333;}
+.code-snippet{background:#2c3e50;color:#ecf0f1;padding:10px;border-radius:4px;overflow-x:auto;margin:10px 0;font-family:"Courier New",monospace;font-size:0.9em;}
+.remediation{background:#d5f5e3;padding:10px;border-radius:4px;margin-top:10px;border-left:4px solid #27ae60;}
+.file-path{color:#7f8c8d;font-size:0.9em;}
+.report-location{background:#2c3e50;color:white;padding:15px;border-radius:8px;margin:10px 0;text-align:center;}
+.toggle-btn{background:#e67e22;color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:16px;margin:10px 0;}
+.toggle-btn:hover{background:#d35400;}
+.simple-mode{background:#fef9e7;border:2px solid #f39c12;border-radius:8px;padding:20px;margin:20px 0;}
+.simple-mode .vuln-card{background:white;padding:15px;margin:10px 0;border-radius:8px;border-left:5px solid #e74c3c;}
+.simple-mode .vuln-card.critical{border-color:#e74c3c;}
+.simple-mode .vuln-card.high{border-color:#e67e22;}
+.simple-mode .vuln-card.medium{border-color:#f1c40f;}
+.tech-mode{display:none;}
+</style>
+<script>
+function toggleMode(){var s=document.getElementById("simpleMode"),t=document.getElementById("techMode"),b=document.getElementById("toggleBtn");if(s.style.display==="none"){s.style.display="block";t.style.display="none";b.textContent="🔧 Технический режим";}else{s.style.display="none";t.style.display="block";b.textContent="📖 Простой режим";}}
+</script>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>🔒 Security Scan Results</h1>
+<p>Project: C:\MaxGG\projeckt</p>
+<p>Scan Date: 2026-08-19 23:11:21</p>
+</div>
+<div class="report-location">📁 Report: <a href="C:\MaxGG\projeckt\scan_results\scan_results.html" style="color:#00a896;">C:\MaxGG\projeckt\scan_results\scan_results.html</a></div>
+<button class="toggle-btn" id="toggleBtn" onclick="toggleMode()">📖 Простой режим</button>
+<div id="simpleMode" style="display:none;"><div class="simple-mode"><h2>📖 Результаты для не-программистов</h2>
+<p><strong>Найдено проблем: 5</strong></p>
+<ul>
+<li>⚠️ HIGH: 5</li>
+</ul>
+<div class="vuln-card high"><strong>HIGH</strong> - 🔑 В коде найден секретный ключ или пароль. Злоумышленник может украсть данные.
+<div style="margin-top:8px;font-size:0.9em;color:#555;">📁 C:\MaxGG\projeckt\pentest_scanner.py:101</div>
+<div style="margin-top:8px;background:#e8f8f5;padding:10px;border-radius:4px;">✅ <strong>Как исправить:</strong> Use environment variables or a secrets manager</div>
+</div>
+<div class="vuln-card high"><strong>HIGH</strong> - 💻 Уязвимость XSS - можно внедрить чужой код на страницу.
+<div style="margin-top:8px;font-size:0.9em;color:#555;">📁 C:\MaxGG\projeckt\script.js:6336</div>
+<div style="margin-top:8px;background:#e8f8f5;padding:10px;border-radius:4px;">✅ <strong>Как исправить:</strong> Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div>
+<div class="vuln-card high"><strong>HIGH</strong> - 💻 Уязвимость XSS - можно внедрить чужой код на страницу.
+<div style="margin-top:8px;font-size:0.9em;color:#555;">📁 C:\MaxGG\projeckt\script.js:6336</div>
+<div style="margin-top:8px;background:#e8f8f5;padding:10px;border-radius:4px;">✅ <strong>Как исправить:</strong> Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div>
+<div class="vuln-card high"><strong>HIGH</strong> - 💻 Уязвимость XSS - можно внедрить чужой код на страницу.
+<div style="margin-top:8px;font-size:0.9em;color:#555;">📁 C:\MaxGG\projeckt\server-logic.js:5210</div>
+<div style="margin-top:8px;background:#e8f8f5;padding:10px;border-radius:4px;">✅ <strong>Как исправить:</strong> Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div>
+<div class="vuln-card high"><strong>HIGH</strong> - 💻 Уязвимость XSS - можно внедрить чужой код на страницу.
+<div style="margin-top:8px;font-size:0.9em;color:#555;">📁 C:\MaxGG\projeckt\server-logic.js:5210</div>
+<div style="margin-top:8px;background:#e8f8f5;padding:10px;border-radius:4px;">✅ <strong>Как исправить:</strong> Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div>
+</div></div>
+<div id="techMode" class="tech-mode"><div class="summary">
+<div class="stat-card stat-high"><div>HIGH</div><div class="stat-number">5</div></div>
+</div>
+<h2>Findings (5)</h2>
+<div class="finding finding-high">
+<div class="finding-header"><h3>HARDCODED SECRET - Hardcoded secret in variable 'HARDCODED_SECRET'</h3>
+<span class="severity-badge badge-high">HIGH</span></div>
+<div class="finding-body"><div class="file-path">📁 C:\MaxGG\projeckt\pentest_scanner.py:101</div>
+<div class="metadata"><span>CWE: CWE-259</span>
+<span style="margin-left:20px;">Confidence: 90%</span></div>
+<div class="code-snippet">HARDCODED_SECRET = "hardcoded_secret"</div>
+<div class="remediation">💡 Use environment variables or a secrets manager</div>
+</div></div>
+<div class="finding finding-high">
+<div class="finding-header"><h3>XSS - Potential XSS via 'document.write'</h3>
+<span class="severity-badge badge-high">HIGH</span></div>
+<div class="finding-body"><div class="file-path">📁 C:\MaxGG\projeckt\script.js:6336</div>
+<div class="metadata"><span>CWE: CWE-79</span>
+<span style="margin-left:20px;">Confidence: 70%</span></div>
+<div class="code-snippet">win.document.write(html);</div>
+<div class="remediation">💡 Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div></div>
+<div class="finding finding-high">
+<div class="finding-header"><h3>XSS - Potential XSS via 'document.write'</h3>
+<span class="severity-badge badge-high">HIGH</span></div>
+<div class="finding-body"><div class="file-path">📁 C:\MaxGG\projeckt\script.js:6336</div>
+<div class="metadata"><span>CWE: CWE-79</span>
+<span style="margin-left:20px;">Confidence: 70%</span></div>
+<div class="code-snippet">win.document.write(html);</div>
+<div class="remediation">💡 Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div></div>
+<div class="finding finding-high">
+<div class="finding-header"><h3>XSS - Potential XSS via 'document.write'</h3>
+<span class="severity-badge badge-high">HIGH</span></div>
+<div class="finding-body"><div class="file-path">📁 C:\MaxGG\projeckt\server-logic.js:5210</div>
+<div class="metadata"><span>CWE: CWE-79</span>
+<span style="margin-left:20px;">Confidence: 70%</span></div>
+<div class="code-snippet">win.document.write(html);</div>
+<div class="remediation">💡 Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div></div>
+<div class="finding finding-high">
+<div class="finding-header"><h3>XSS - Potential XSS via 'document.write'</h3>
+<span class="severity-badge badge-high">HIGH</span></div>
+<div class="finding-body"><div class="file-path">📁 C:\MaxGG\projeckt\server-logic.js:5210</div>
+<div class="metadata"><span>CWE: CWE-79</span>
+<span style="margin-left:20px;">Confidence: 70%</span></div>
+<div class="code-snippet">win.document.write(html);</div>
+<div class="remediation">💡 Use textContent instead of innerHTML, or sanitize with DOMPurify</div>
+</div></div>
+</div></div>
+</body>
+</html>

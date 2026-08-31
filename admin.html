@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f0f1a;
+            color: #f0f0f5;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        .login-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .login-box input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 16px;
+            margin: 15px 0;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #00a896;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .login-box button:hover { background: #00897a; }
+        .login-box .error { color: #e74c3c; margin-top: 10px; display: none; }
+        .login-box .error.show { display: block; }
+        
+        .hidden { display: none !important; }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+        }
+        .header h1 { color: #00a896; }
+        .header .logout-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 10px;
+            color: #aaa;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        
+        .section {
+            background: rgba(255,255,255,0.04);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .section h2 { margin-bottom: 20px; font-size: 18px; color: #00a896; }
+        
+        .control-group {
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .control-group label {
+            min-width: 150px;
+            font-size: 14px;
+            color: #b0b0c8;
+        }
+        .control-group input[type="range"] {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #2a2a3e;
+            border-radius: 4px;
+            outline: none;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00a896;
+            cursor: pointer;
+        }
+        .control-group .value {
+            min-width: 60px;
+            text-align: right;
+            color: #00a896;
+            font-weight: 600;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+        }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #1e8449; }
+        .btn-secondary { background: #2a2a3e; }
+        .btn-secondary:hover { background: #3a3a4e; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        
+        .status {
+            background: rgba(0,168,150,0.1);
+            border: 1px solid rgba(0,168,150,0.2);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .status .label { color: #b0b0c8; }
+        .status .value { color: #00a896; font-weight: 700; font-size: 20px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { border: 1px solid #00a896; }
+        .toast.error { border: 1px solid #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- СТРАНИЦА ВХОДА -->
+    <div id="loginPage">
+        <div class="login-box">
+            <h1>🔐 Админ-панель</h1>
+            <p style="color: #888; margin: 15px 0;">Введите пароль для доступа</p>
+            <input type="password" id="passwordInput" placeholder="Введите пароль...">
+            <button id="loginBtn">Войти</button>
+            <div class="error" id="loginError">❌ Неверный пароль!</div>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
+    <div id="adminContent" class="hidden">
+        <div class="header">
+            <h1>🔐 Админ-панель</h1>
+            <button class="logout-btn" id="logoutBtn">🚪 Выйти</button>
+        </div>
+
+        <div id="pricesContainer">
+            <!-- Цены будут загружены сюда -->
+        </div>
+
+        <div class="actions">
+            <button class="btn-success" id="saveBtn">💾 Сохранить в БД</button>
+            <button class="btn-secondary" id="resetBtn">🔄 Сбросить</button>
+        </div>
+
+        <div class="status">
+            <span class="label">📊 Итоговая стоимость (пример):</span>
+            <span class="value" id="totalPrice">0 ₽</span>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// УПРОЩЕННАЯ АДМИНКА
+// ============================================================
+
+let currentPrices = {};
+
+// === Вход ===
+document.getElementById('loginBtn').addEventListener('click', function() {
+    const password = document.getElementById('passwordInput').value;
+    const error = document.getElementById('loginError');
+    
+    if (password === ADMIN_PASSWORD) {
+        error.classList.remove('show');
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('adminContent').classList.remove('hidden');
+        loadPrices();
+        showToast('✅ Добро пожаловать!', 'success');
+    } else {
+        error.classList.add('show');
+        document.getElementById('passwordInput').value = '';
+        showToast('❌ Неверный пароль!', 'error');
+    }
+});
+
+// Enter для входа
+document.getElementById('passwordInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+// === Выход ===
+document.getElementById('logoutBtn').addEventListener('click', function() {
+    document.getElementById('loginPage').style.display = 'block';
+    document.getElementById('adminContent').classList.add('hidden');
+    document.getElementById('passwordInput').value = '';
+    showToast('👋 Вы вышли', 'success');
+});
+
+// === Загрузка цен ===
+async function loadPrices() {
+    try {
+        const response = await fetch('/api/prices');
+        if (response.ok) {
+            currentPrices = await response.json();
+            renderPrices();
+            updateTotal();
+            showToast('✅ Цены загружены', 'success');
+        } else {
+            showToast('❌ Ошибка загрузки', 'error');
+        }
+    } catch (error) {
+        showToast('❌ Ошибка: ' + error.message, 'error');
+    }
+}
+
+// === Отрисовка цен ===
+function renderPrices() {
+    const container = document.getElementById('pricesContainer');
+    container.innerHTML = '';
+    
+    const categories = {
+        'Памятник (м²)': ['granite', 'black_galaxy', 'ninimyaki', 'marble', 'red_granite', 'beige_granite', 'gray_granite'],
+        'Надгробие (м²)': ['base_granite', 'base_marble', 'base_red_granite', 'base_other'],
+        'Цветник (м²)': ['grass', 'gravel', 'marble_chips', 'red_gravel', 'blue_gravel', 'black_gravel', 'sand', 'flowers', 'moss'],
+        'Оградка (п.м.)': ['pipe', 'chain', 'casting', 'model_3d', 'venzel'],
+        '🪑 Мебель (шт)': ['table', 'bench', 'picnic_set'],
+        'Работы': ['stele_work', 'engraving', 'photo'],
+        'Доставка / Установка': ['delivery', 'install']
+    };
+    
+    const names = {
+        granite: 'Габбро-Диабаз',
+        black_galaxy: 'Галактика черный',
+        ninimyaki: 'Нинимяки',
+        marble: 'Белый Мрамор',
+        red_granite: 'Красный Гранит',
+        beige_granite: 'Бежевый Гранит',
+        gray_granite: 'Серый Гранит',
+        base_granite: 'Гранит',
+        base_marble: 'Мрамор',
+        base_red_granite: 'Красный Гранит',
+        base_other: 'Другие',
+        grass: 'Газон',
+        gravel: 'Гравий',
+        marble_chips: 'Мраморная крошка',
+        red_gravel: 'Красный гравий',
+        blue_gravel: 'Синий гравий',
+        black_gravel: 'Чёрная галька',
+        sand: 'Песок',
+        flowers: 'Цветущий газон',
+        moss: 'Мох',
+        pipe: 'Труба',
+        chain: 'Цепь',
+        casting: 'Литье',
+        model_3d: '3D Модель',
+        venzel: 'Вензель',
+        table: '🪵 Стол',
+        bench: '🪑 Скамейка',
+        picnic_set: '🧺 Набор (стол+скамейки)',
+        stele_work: 'Изготовление стелы',
+        engraving: 'Гравировка (за ед.)',
+        photo: 'Фото на памятник',
+        delivery: '🚚 Доставка',
+        install: '🔧 Установка'
+    };
+    
+    Object.entries(categories).forEach(([category, keys]) => {
+        const section = document.createElement('div');
+        section.className = 'section';
+        section.innerHTML = `<h2>${category}</h2>`;
+        
+        keys.forEach(key => {
+            if (currentPrices[key] !== undefined) {
+                const group = document.createElement('div');
+                group.className = 'control-group';
+                group.innerHTML = `
+                    <label>${names[key] || key}</label>
+                    <input type="range" id="slider_${key}" 
+                           min="0" max="50000" step="100" 
+                           value="${currentPrices[key]}">
+                    <span class="value" id="val_${key}">${currentPrices[key]} ₽</span>
+                `;
+                section.appendChild(group);
+                
+                const slider = group.querySelector('input');
+                const valDisplay = group.querySelector('.value');
+                slider.addEventListener('input', function() {
+                    const val = parseInt(this.value);
+                    valDisplay.textContent = val + ' ₽';
+                    currentPrices[key] = val;
+                    updateTotal();
+                });
+            }
+        });
+        
+        container.appendChild(section);
+    });
+}
+
+// === Обновление итога ===
+function updateTotal() {
+    const stelePrice = (currentPrices.granite || 5000) * 0.72;
+    const basePrice = (currentPrices.base_granite || 4000) * 1.35;
+    const workPrice = currentPrices.stele_work || 5000;
+    const delivery = currentPrices.delivery || 3000;
+    const install = currentPrices.install || 5000;
+    const table = currentPrices.table || 15000;
+    const bench = currentPrices.bench || 12000;
+    const picnic = currentPrices.picnic_set || 25000;
+    const total = stelePrice + basePrice + workPrice + delivery + install + table + bench + picnic;
+    
+    document.getElementById('totalPrice').textContent = Math.round(total).toLocaleString('ru-RU') + ' ₽';
+}
+
+// === Сохранение ===
+document.getElementById('saveBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.textContent = '⏳ Сохранение...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prices: currentPrices,
+                password: ADMIN_PASSWORD
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            showToast('✅ ' + result.message, 'success');
+        } else {
+            showToast('❌ ' + result.message, 'error');
+        }
+    } catch (error) {
+        showToast('❌ Ошибка: ' + error.message, 'error');
+    } finally {
+        btn.textContent = '💾 Сохранить в БД';
+        btn.disabled = false;
+    }
+});
+
+// === Сброс ===
+document.getElementById('resetBtn').addEventListener('click', function() {
+    if (confirm('Сбросить все цены на стандартные?')) {
+        location.reload();
+    }
+});
+
+// === Toast ===
+function showToast(message, type) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + (type || '');
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => {
+        toast.className = 'toast';
+    }, 3000);
+}
+</script>
+</body>
+</html>

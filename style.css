@@ -1,0 +1,1802 @@
+/* ============================================================
+   БАЗОВЫЕ ШРИФТЫ
+   ============================================================ */
+@font-face {
+    font-family: 'Yermak';
+    src: url('./fonts/Yermak.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ============================================================
+   БАЗОВЫЕ СТИЛИ
+   ============================================================ */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f0f2f5;
+}
+
+#canvas-container {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    cursor: default;
+}
+
+/* ============================================================
+   ВЕРХНЯЯ ПАНЕЛЬ (БУРГЕР + КНОПКИ)
+   ============================================================ */
+.top-bar {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    z-index: 1001;
+    pointer-events: none;
+}
+
+.top-bar > * {
+    pointer-events: auto;
+}
+
+/* БУРГЕР-КНОПКА */
+.burger-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: rgba(26, 26, 46, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.burger-btn span {
+    width: 24px;
+    height: 2.5px;
+    background: white;
+    border-radius: 3px;
+    transition: 0.3s;
+}
+
+.burger-btn.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.burger-btn.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.burger-btn.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* ============================================================
+   ПАНЕЛЬ БЫСТРЫХ ДЕЙСТВИЙ
+   ============================================================ */
+.quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 4px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.quick-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.quick-btn .quick-icon {
+    font-size: 15px;
+}
+
+.quick-btn .quick-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.quick-btn .badge {
+    background: #e67e22;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
+    margin-left: 2px;
+}
+
+.apply-main-btn {
+    background: rgba(0, 168, 150, 0.25);
+    border: 1px solid rgba(0, 168, 150, 0.3);
+}
+
+.apply-main-btn:hover {
+    background: rgba(0, 168, 150, 0.45);
+}
+
+.apply-main-btn .quick-label {
+    color: #00a896;
+}
+
+.apply-duplicator-btn {
+    background: rgba(230, 126, 34, 0.25);
+    border: 1px solid rgba(230, 126, 34, 0.3);
+}
+
+.apply-duplicator-btn:hover {
+    background: rgba(230, 126, 34, 0.45);
+}
+
+.apply-duplicator-btn .quick-label {
+    color: #e67e22;
+}
+
+.reset-view-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reset-view-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.quick-btn:active {
+    transform: scale(0.95);
+}
+
+.quick-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   МЕНЮ
+   ============================================================ */
+.accordion-menu {
+    position: fixed;
+    left: -340px;
+    top: 0;
+    width: 340px;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(30, 30, 40, 0.98);
+    backdrop-filter: blur(10px);
+    color: white;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+}
+
+.accordion-menu.open {
+    left: 0;
+}
+
+.menu-scroll {
+    flex: 1;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    height: 100%;
+    max-height: 100%;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.menu-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.menu-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-scroll::-webkit-scrollbar-thumb {
+    background: #00a896;
+    border-radius: 4px;
+}
+
+.menu-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #00a896, #008f7f);
+    text-align: center;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.menu-header h2 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.menu-header p {
+    margin: 4px 0 0;
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+}
+
+.menu-overlay.active {
+    display: block;
+}
+
+/* ============================================================
+   ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ
+   ============================================================ */
+.mode-selector {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 3px;
+    flex-shrink: 0;
+}
+
+.mode-btn {
+    padding: 4px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #888;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mode-btn:hover {
+    color: #ccc;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-btn.active {
+    background: #00a896;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 168, 150, 0.3);
+}
+
+.mode-btn .mode-icon {
+    font-size: 13px;
+}
+
+/* ============================================================
+   СЕКЦИИ АККОРДЕОНА
+   ============================================================ */
+.accordion-section {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+.section-header {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.section-header:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.section-header::after {
+    content: "▼";
+    font-size: 10px;
+    transition: transform 0.3s;
+    opacity: 0.7;
+}
+
+.accordion-section.active .section-header::after {
+    transform: rotate(180deg);
+}
+
+.section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0 15px;
+}
+
+.accordion-section.active .section-content {
+    max-height: 2000px;
+    padding: 12px 15px 20px;
+}
+
+/* ============================================================
+   КОМПОНЕНТЫ УПРАВЛЕНИЯ
+   ============================================================ */
+.control-group {
+    margin-bottom: 12px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.control-group-with-input {
+    margin-bottom: 12px;
+}
+
+.control-group-with-input label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.input-with-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.input-with-range input[type="range"] {
+    flex: 1;
+}
+
+.input-with-range .number-input {
+    width: 55px;
+    padding: 5px 4px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    text-align: center;
+    font-size: 12px;
+}
+
+.input-with-range .unit {
+    font-size: 10px;
+    opacity: 0.6;
+    min-width: 18px;
+}
+
+.value-display {
+    float: right;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* ============================================================
+   ЧЕКБОКСЫ
+   ============================================================ */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    padding: 8px 12px;
+    background: rgba(0, 168, 150, 0.08);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 168, 150, 0.15);
+    transition: all 0.2s;
+}
+
+.checkbox-group:hover {
+    background: rgba(0, 168, 150, 0.15);
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    margin: 0;
+    accent-color: #00a896;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+}
+
+.checkbox-group input[type="checkbox"]:checked {
+    background: #00a896;
+    border-color: #00a896;
+}
+
+.checkbox-group input[type="checkbox"]:checked::after {
+    content: "✓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.checkbox-group input[type="checkbox"]:focus {
+    outline: 2px solid rgba(0, 168, 150, 0.5);
+    outline-offset: 2px;
+}
+
+.checkbox-group label {
+    margin: 0;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ============================================================
+   СЕЛЕКТЫ, ИНПУТЫ, ТЕКСТАРЕА
+   ============================================================ */
+select,
+input[type="range"],
+input[type="text"],
+input[type="color"],
+input[type="number"],
+input[type="tel"],
+input[type="email"],
+textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: #00a896;
+}
+
+select option {
+    background: #1a1a2e;
+    color: white;
+}
+
+textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+input[type="color"] {
+    width: 50px;
+    height: 36px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+input[type="range"] {
+    padding: 0;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #00a896;
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #00a896;
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+input[type="file"] {
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+button {
+    width: 100%;
+    padding: 10px;
+    margin: 4px 0;
+    border: none;
+    border-radius: 8px;
+    background: #00a896;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+    touch-action: manipulation;
+}
+
+button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.btn-secondary {
+    background: #2c3e50;
+}
+
+.btn-secondary:hover {
+    background: #34495e;
+}
+
+.btn-danger {
+    background: #e74c3c;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+}
+
+.btn-force-font {
+    background: #3498db;
+    padding: 6px 10px;
+    width: auto;
+    flex-shrink: 0;
+}
+
+.btn-force-font:hover {
+    background: #2980b9;
+}
+
+.btn-add-monument {
+    flex: 2;
+    background: #00a896;
+    padding: 8px;
+    font-size: 13px;
+}
+
+.btn-duplicate-monument {
+    flex: 1;
+    background: #8e44ad;
+    padding: 8px;
+    font-size: 13px;
+    display: none;
+}
+
+.btn-delete-monument {
+    flex: 1;
+    background: #e74c3c;
+    padding: 8px;
+    font-size: 13px;
+    display: none;
+}
+
+.btn-select-main {
+    background: #2c3e50;
+    padding: 8px;
+    font-size: 13px;
+}
+
+.btn-select-main:hover {
+    background: #34495e;
+}
+
+.btn-group-monument {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-group-monument button {
+    flex: 1;
+    min-width: 50px;
+    padding: 8px 6px;
+    font-size: 12px;
+    margin: 0;
+}
+
+.btn-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-group button {
+    flex: 1;
+    min-width: 50px;
+    padding: 8px 6px;
+    font-size: 12px;
+    margin: 0;
+}
+
+/* ============================================================
+   ПОДСКАЗКИ
+   ============================================================ */
+.hint-text {
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+}
+
+/* ============================================================
+   БЛОКИ И СЕКЦИИ
+   ============================================================ */
+.subsection {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.subsection-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #00a896;
+}
+
+.grave-area-info {
+    background: rgba(0, 168, 150, 0.08);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.grave-area-info span {
+    color: #00a896;
+    font-weight: bold;
+}
+
+/* ============================================================
+   СПИСОК ПАМЯТНИКОВ
+   ============================================================ */
+.monument-list-container {
+    margin-bottom: 10px;
+}
+
+.selected-monument-info {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    font-size: 12px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.selected-monument-info .empty {
+    color: #666;
+}
+
+.selected-monument-info .badge {
+    background: #00ff88;
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: bold;
+    display: none;
+}
+
+.selected-monument-info .badge.visible {
+    display: inline-block;
+}
+
+/* ============================================================
+   ФОТО
+   ============================================================ */
+.photo-shape-options {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.photo-shape-options .shape-option {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 11px;
+    touch-action: manipulation;
+    user-select: none;
+    border: 2px solid transparent;
+}
+
+.photo-shape-options .shape-option:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.photo-shape-options .shape-option.active {
+    background: #00a896;
+    border-color: #00a896;
+}
+
+.custom-photo-size {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 8px 0;
+}
+
+.mm-inputs {
+    display: flex;
+    gap: 8px;
+}
+
+.mm-inputs div {
+    flex: 1;
+}
+
+.mm-inputs label {
+    font-size: 11px;
+    opacity: 0.7;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* ============================================================
+   ПОЗИЦИЯ (КНОПКИ СО СТРЕЛКАМИ)
+   ============================================================ */
+.position-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    max-width: 140px;
+    margin: 8px auto;
+}
+
+.position-grid .pos-btn {
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    touch-action: manipulation;
+    width: 100%;
+    margin: 0;
+}
+
+.position-grid .pos-btn:hover {
+    background: #00a896;
+}
+
+.position-grid .pos-btn.reset {
+    background: #e74c3c;
+}
+
+.position-grid .pos-btn.reset:hover {
+    background: #c0392b;
+}
+
+.position-display {
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+    margin-top: 4px;
+}
+
+.position-display span {
+    color: #00a896;
+    font-weight: bold;
+}
+
+/* ============================================================
+   ГРАВИРОВКИ
+   ============================================================ */
+.engravings-list {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 6px;
+    min-height: 50px;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+}
+
+.engravings-list .empty {
+    color: #666;
+    text-align: center;
+    padding: 12px;
+    font-size: 11px;
+}
+
+.engravings-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.engravings-controls select {
+    flex: 1;
+}
+
+.engravings-controls button {
+    width: auto;
+    padding: 6px 12px;
+    margin: 0;
+    font-size: 11px;
+}
+
+.engravings-subsection {
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    margin-bottom: 6px;
+}
+
+/* ============================================================
+   РЕДАКТОР ГРАВИРОВКИ (МОДАЛЬНОЕ ОКНО)
+   ============================================================ */
+.engraving-editor-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.engraving-editor-modal .modal-box {
+    background: #1a1a2e;
+    border-radius: 16px;
+    padding: 20px;
+    width: 90%;
+    max-width: 340px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.engraving-editor-modal .modal-box h3 {
+    color: white;
+    margin: 0 0 12px 0;
+    text-align: center;
+    font-size: 16px;
+}
+
+.engraving-editor-modal .modal-box .btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.engraving-editor-modal .modal-box .btn-group button {
+    margin: 0;
+}
+
+.engraving-editor-modal .modal-box .btn-save {
+    flex: 1;
+    background: #00a896;
+}
+
+.engraving-editor-modal .modal-box .btn-cancel {
+    flex: 1;
+    background: #e74c3c;
+}
+
+/* ============================================================
+   МЕБЕЛЬ
+   ============================================================ */
+.selected-furniture-info {
+    background: rgba(0, 255, 136, 0.08);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 6px 0;
+    font-size: 12px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.selected-furniture-info .indicator {
+    color: #00ff88;
+}
+
+.selected-furniture-info .name {
+    color: #fff;
+}
+
+.selected-furniture-info .badge {
+    background: #00ff88;
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: bold;
+    display: none;
+}
+
+.selected-furniture-info .badge.visible {
+    display: inline-block;
+}
+
+.furniture-controls {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 6px 0;
+}
+
+.furniture-mode-buttons {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.furniture-mode-buttons button {
+    flex: 1;
+    margin: 0;
+    padding: 6px;
+    font-size: 11px;
+}
+
+.furniture-action-buttons {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.furniture-action-buttons button {
+    flex: 1;
+    min-width: 40px;
+    margin: 0;
+    padding: 5px 6px;
+    font-size: 10px;
+}
+
+.furniture-add-buttons {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 6px 0;
+}
+
+.furniture-add-buttons button {
+    flex: 1;
+    min-width: 60px;
+    margin: 0;
+    padding: 6px 4px;
+    font-size: 10px;
+}
+
+/* ============================================================
+   ВАЗЫ
+   ============================================================ */
+.selected-vase-info {
+    background: rgba(230, 126, 34, 0.08);
+    border: 1px solid rgba(230, 126, 34, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 6px 0;
+    font-size: 12px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.selected-vase-info .indicator {
+    color: #e67e22;
+}
+
+.selected-vase-info .badge {
+    background: #e67e22;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: bold;
+    display: none;
+}
+
+.selected-vase-info .badge.visible {
+    display: inline-block;
+}
+
+.vases-control-buttons {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 6px 0;
+}
+
+.vases-control-buttons button {
+    flex: 1;
+    min-width: 50px;
+    margin: 0;
+    padding: 6px 4px;
+    font-size: 10px;
+}
+
+.vases-list {
+    max-height: 100px;
+    overflow-y: auto;
+    margin-top: 8px;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.vases-list .empty {
+    color: #666;
+    text-align: center;
+    padding: 8px;
+    font-size: 11px;
+}
+
+/* ============================================================
+   СТОИМОСТЬ И ЗАКАЗ
+   ============================================================ */
+.price-block {
+    background: linear-gradient(135deg, #00a896, #008f7f);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+}
+
+.price-block .price-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin: 6px 0;
+}
+
+.price-block .price-note {
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+.order-form .form-group {
+    margin-bottom: 10px;
+}
+
+.order-form .form-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.order-form .form-group input,
+.order-form .form-group textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.order-status {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #4ade80;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+.action-buttons button {
+    flex: 1;
+    min-width: 60px;
+    margin: 0;
+    padding: 8px 6px;
+    font-size: 11px;
+}
+
+/* ============================================================
+   СЕТКА СТЕЛ
+   ============================================================ */
+#steleOptionsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.stele-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    text-align: center;
+}
+
+.stele-grid-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.stele-grid-item.selected {
+    background: rgba(0, 168, 150, 0.25);
+    border-color: #00a896;
+}
+
+.stele-grid-preview {
+    width: 60px;
+    height: 60px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.stele-grid-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.stele-placeholder {
+    font-size: 20px;
+    opacity: 0.3;
+}
+
+.stele-grid-name {
+    font-size: 9px;
+    color: #aaa;
+    line-height: 1.2;
+    word-break: break-all;
+}
+
+.stele-grid-item.selected .stele-grid-name {
+    color: #fff;
+}
+
+/* ============================================================
+   ОГРАДКА
+   ============================================================ */
+.fence-size-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.fence-size-item label {
+    display: block;
+    font-size: 10px;
+    opacity: 0.8;
+    margin-bottom: 3px;
+}
+
+.fence-offset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.fence-offset-item label {
+    display: block;
+    font-size: 10px;
+    opacity: 0.8;
+    margin-bottom: 3px;
+}
+
+.fence-offset-item label .value {
+    color: #e67e22;
+}
+
+.fence-offset-buttons {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.fence-offset-buttons button {
+    flex: 1;
+    margin: 0;
+    padding: 6px;
+    font-size: 11px;
+}
+
+.fence-offset-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-radius: 4px;
+    padding: 6px;
+    margin-top: 6px;
+}
+
+.fence-offset-warning .text {
+    font-size: 10px;
+    color: #ffc107;
+    text-align: center;
+}
+
+/* ============================================================
+   ДОРОЖКА
+   ============================================================ */
+.path-tile-settings {
+    display: block;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    margin-top: 6px;
+}
+
+.path-tile-settings .color-picker-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.path-tile-settings .color-picker-row input[type="color"] {
+    width: 36px;
+    height: 36px;
+    padding: 2px;
+    border: 2px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.path-tile-settings .color-picker-row .label {
+    font-size: 11px;
+    color: #aaa;
+}
+
+.path-tile-settings .color-buttons {
+    display: flex;
+    gap: 3px;
+    margin-top: 3px;
+    flex-wrap: wrap;
+}
+
+.path-tile-settings .color-btn {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #555;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+/* ============================================================
+   ТОСТ
+   ============================================================ */
+.mobile-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    z-index: 9999;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    max-width: 90%;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+}
+
+.mobile-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================================
+   ЗАГРУЗКА
+   ============================================================ */
+#loading-msg {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+/* ============================================================
+   КНОПКА ВРАЩЕНИЯ
+   ============================================================ */
+.rotate-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    touch-action: manipulation;
+}
+
+.rotate-toggle.unlocked {
+    background: rgba(0, 168, 150, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+.rotate-toggle.locked {
+    background: rgba(231, 76, 60, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+/* ============================================================
+   АДАПТИВ
+   ============================================================ */
+@media (max-width: 768px) {
+    .accordion-menu {
+        width: 85%;
+        left: -85%;
+    }
+    
+    .top-bar {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        gap: 6px;
+        align-items: flex-start;
+    }
+    
+    .burger-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+    }
+    
+    .burger-btn span {
+        width: 20px;
+        height: 2px;
+    }
+    
+    /* ⭐ ВЕРТИКАЛЬНЫЕ КНОПКИ НА МОБИЛЬНЫХ */
+    .quick-actions {
+        flex-direction: column;
+        padding: 6px 4px;
+        gap: 4px;
+        border-radius: 10px;
+        margin-left: auto;
+    }
+    
+    .quick-btn {
+        height: 32px;
+        padding: 0 8px;
+        font-size: 10px;
+        border-radius: 6px;
+        gap: 4px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .quick-btn .quick-icon {
+        font-size: 13px;
+    }
+    
+    .quick-btn .quick-label {
+        font-size: 9px;
+    }
+    
+    .quick-btn .badge {
+        font-size: 8px;
+        padding: 0 4px;
+    }
+    
+    .section-header {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    
+    .price-value {
+        font-size: 22px;
+    }
+    
+    #steleOptionsGrid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+    }
+    
+    .stele-grid-preview {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .stele-grid-name {
+        font-size: 8px;
+    }
+    
+    .input-with-range .number-input {
+        width: 45px;
+        font-size: 11px;
+    }
+    
+    .fence-size-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .fence-offset-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+    }
+    
+    .checkbox-group label {
+        font-size: 11px;
+    }
+    
+    .photo-shape-options .shape-option {
+        font-size: 10px;
+        padding: 5px 3px;
+    }
+    
+    .mm-inputs {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .position-grid {
+        max-width: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    .accordion-menu {
+        width: 92%;
+        left: -92%;
+    }
+    
+    .top-bar {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        gap: 4px;
+    }
+    
+    .burger-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        gap: 4px;
+    }
+    
+    .burger-btn span {
+        width: 16px;
+        height: 2px;
+    }
+    
+    .burger-btn.active span:nth-child(1) {
+        transform: rotate(45deg) translate(4px, 4px);
+    }
+    
+    .burger-btn.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(4px, -4px);
+    }
+    
+    .quick-actions {
+        padding: 4px 3px;
+        gap: 3px;
+        border-radius: 8px;
+    }
+    
+    .quick-btn {
+        height: 28px;
+        padding: 0 6px;
+        font-size: 9px;
+        border-radius: 5px;
+        gap: 3px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .quick-btn .quick-icon {
+        font-size: 11px;
+    }
+    
+    .quick-btn .quick-label {
+        font-size: 7px;
+    }
+    
+    .quick-btn .badge {
+        font-size: 7px;
+        padding: 0 3px;
+    }
+    
+    #steleOptionsGrid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+    }
+    
+    .stele-grid-preview {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .stele-grid-name {
+        font-size: 7px;
+    }
+    
+    .btn-group-monument button {
+        font-size: 9px;
+        padding: 6px 3px;
+    }
+    
+    .furniture-add-buttons button {
+        font-size: 9px;
+        padding: 4px 3px;
+        min-width: 40px;
+    }
+    
+    .vases-control-buttons button {
+        font-size: 9px;
+        padding: 4px 3px;
+    }
+}
+
+/* ============================================================
+   ДОПОЛНИТЕЛЬНО
+   ============================================================ */
+canvas,
+#canvas-container canvas {
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select {
+    cursor: pointer;
+    -webkit-appearance: none;
+}
+
+hr {
+    border-color: rgba(255, 255, 255, 0.08);
+    margin: 12px 0;
+}
+
+/* ============================================================
+   ЛОКАЛЬНЫЕ ШРИФТЫ
+   ============================================================ */
+@font-face {
+    font-family: 'Bodega Script';
+    src: url('./fonts/Bodega Script.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Brusher';
+    src: url('./fonts/Brusher.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Drevnerusskij';
+    src: url('./fonts/Drevnerusskij.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Drina';
+    src: url('./fonts/Drina.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'DS-BroadBrush';
+    src: url('./fonts/DS-BroadBrush.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Federico';
+    src: url('./fonts/federico.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Feofan';
+    src: url('./fonts/Feofan_Ucs.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Figurny';
+    src: url('./fonts/Figurny.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pochaevsk';
+    src: url('./fonts/Pochaevsk-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Remeslo';
+    src: url('./fonts/Remeslo.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Tsarevich';
+    src: url('./fonts/Tsarevich_old.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ============================================================
+   ПЕРЕТАСКИВАНИЕ ФОТО
+   ============================================================ */
+.photo-draggable {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.photo-draggable:active {
+    cursor: grabbing;
+}
+
+/* Подсветка при перетаскивании */
+body.dragging-photo {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Индикатор что фото можно перетаскивать */
+.photo-drag-hint {
+    display: inline-block;
+    font-size: 12px;
+    color: #666;
+    background: rgba(0,0,0,0.3);
+    padding: 4px 10px;
+    border-radius: 12px;
+    margin-left: 8px;
+}
+
+

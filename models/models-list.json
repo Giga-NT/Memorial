@@ -1,0 +1,113 @@
+{
+    "models": [
+        {
+            "id": "custom_stl0",
+            "file": "book.glb",
+            "name": "Книга",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl_Rectangle",
+            "file": "Rectangle.glb",
+            "name": "Прямоугольник",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl_cupol",
+            "file": "cupol.glb",
+            "name": "Купол",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl",
+            "file": "stele1.glb",
+            "name": "Стела 1",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.1,
+            "modelType": "vertical"
+        },
+        {
+            "id": "custom_stl2",
+            "file": "sk.glb",
+            "name": "Стела 2 ",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl3",
+            "file": "stele3.glb",
+            "name": "Стела 3",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.12,
+            "modelType": "vertical"
+        },
+        {
+            "id": "custom_stl5",
+            "file": "stele5.glb",
+            "name": "Стела 5",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl6",
+            "file": "stele6.glb",
+            "name": "Стела 6",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl7",
+            "file": "stele7.glb",
+            "name": "Тюльпан",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl8",
+            "file": "20.glb",
+            "name": "Тестовая",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        },
+        {
+            "id": "custom_stl_monument",
+            "file": "monument.glb",
+            "name": "555",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.08,
+            "modelType": "vertical",
+            "rotation": "x:90"
+        }
+    ]
+}
+

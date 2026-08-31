@@ -1,0 +1,46 @@
+{
+    "engravings": [
+        {
+            "id": "cross",
+            "name": "✝️ Крест",
+            "file": "./engravings/cross.png",
+            "defaultScale": 1.0,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "heart",
+            "name": "❤️ Сердце",
+            "file": "./engravings/heart.png",
+            "defaultScale": 1.0,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "dove",
+            "name": "🕊️ Голубь",
+            "file": "./engravings/dove.png",
+            "defaultScale": 0.9,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "flower",
+            "name": "🌺 Цветок",
+            "file": "./engravings/flower.png",
+            "defaultScale": 1.0,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "angel",
+            "name": "👼 Ангел",
+            "file": "./engravings/angel.png",
+            "defaultScale": 0.9,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "orthodox_cross",
+            "name": "☦️ Православный крест",
+            "file": "./engravings/orthodox_cross.png",
+            "defaultScale": 1.0,
+            "defaultOffsetY": 0.35
+        }
+    ]
+}

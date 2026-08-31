@@ -1,0 +1,89 @@
+{
+  "scan_date": "2026-08-19T23:11:21.464564",
+  "project_path": "C:\\MaxGG\\projeckt",
+  "total_findings": 5,
+  "findings": [
+    {
+      "severity": "HIGH",
+      "type": "hardcoded_secret",
+      "file_path": "C:\\MaxGG\\projeckt\\pentest_scanner.py",
+      "line_start": 101,
+      "line_end": 101,
+      "column_start": 4,
+      "column_end": 41,
+      "message": "Hardcoded secret in variable 'HARDCODED_SECRET'",
+      "code_snippet": "HARDCODED_SECRET = \"hardcoded_secret\"",
+      "cwe_id": "CWE-259",
+      "remediation": "Use environment variables or a secrets manager",
+      "confidence": 0.9,
+      "metadata": null
+    },
+    {
+      "severity": "HIGH",
+      "type": "xss",
+      "file_path": "C:\\MaxGG\\projeckt\\script.js",
+      "line_start": 6336,
+      "line_end": 6336,
+      "column_start": 0,
+      "column_end": 0,
+      "message": "Potential XSS via 'document.write'",
+      "code_snippet": "win.document.write(html);",
+      "cwe_id": "CWE-79",
+      "remediation": "Use textContent instead of innerHTML, or sanitize with DOMPurify",
+      "confidence": 0.7,
+      "metadata": null
+    },
+    {
+      "severity": "HIGH",
+      "type": "xss",
+      "file_path": "C:\\MaxGG\\projeckt\\script.js",
+      "line_start": 6336,
+      "line_end": 6336,
+      "column_start": 0,
+      "column_end": 0,
+      "message": "Potential XSS via 'document.write'",
+      "code_snippet": "win.document.write(html);",
+      "cwe_id": "CWE-79",
+      "remediation": "Use textContent instead of innerHTML, or sanitize with DOMPurify",
+      "confidence": 0.7,
+      "metadata": null
+    },
+    {
+      "severity": "HIGH",
+      "type": "xss",
+      "file_path": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line_start": 5210,
+      "line_end": 5210,
+      "column_start": 0,
+      "column_end": 0,
+      "message": "Potential XSS via 'document.write'",
+      "code_snippet": "win.document.write(html);",
+      "cwe_id": "CWE-79",
+      "remediation": "Use textContent instead of innerHTML, or sanitize with DOMPurify",
+      "confidence": 0.7,
+      "metadata": null
+    },
+    {
+      "severity": "HIGH",
+      "type": "xss",
+      "file_path": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line_start": 5210,
+      "line_end": 5210,
+      "column_start": 0,
+      "column_end": 0,
+      "message": "Potential XSS via 'document.write'",
+      "code_snippet": "win.document.write(html);",
+      "cwe_id": "CWE-79",
+      "remediation": "Use textContent instead of innerHTML, or sanitize with DOMPurify",
+      "confidence": 0.7,
+      "metadata": null
+    }
+  ],
+  "summary": {
+    "CRITICAL": 0,
+    "HIGH": 5,
+    "MEDIUM": 0,
+    "LOW": 0,
+    "INFO": 0
+  }
+}

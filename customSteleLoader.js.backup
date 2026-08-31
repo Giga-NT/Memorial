@@ -1,0 +1,615 @@
+// customSteleLoader.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createSteleMaterial } from './uvUtils.js';
+import { loadPBRMaterial } from './textures.js';
+
+export const customModels = {};
+let modelCache = new Map();
+let currentModelId = null;
+
+export async function loadModelList() {
+    try {
+        const response = await fetch('./models/models-list.json');
+        if (!response.ok) throw new Error('Файл models-list.json не найден');
+        const data = await response.json();
+        
+        data.models.forEach(item => {
+            customModels[item.id] = {
+                path: `./models/${item.file}`,
+                name: item.name || item.file.replace('.glb', ''),
+                defaultWidth: item.defaultWidth || 0.6,
+                defaultHeight: item.defaultHeight || 1.3,
+                defaultDepth: item.defaultDepth || 0.08,
+                modelType: item.modelType || 'vertical',
+            };
+        });
+        
+        console.log(`✅ Загружено ${data.models.length} моделей`);
+        return data.models;
+    } catch (error) {
+        console.warn('⚠️ Не удалось загрузить список моделей');
+        return [];
+    }
+}
+
+export async function loadCustomStele(modelId) {
+    const config = customModels[modelId];
+    if (!config) {
+        console.warn(`⚠️ Модель ${modelId} не найдена`);
+        return null;
+    }
+    
+    if (modelCache.has(modelId)) {
+        return modelCache.get(modelId).clone();
+    }
+    
+    return new Promise((resolve, reject) => {
+        const loader = new GLTFLoader();
+        console.log(`📥 Загрузка модели: ${config.path}`);
+        
+        loader.load(
+            config.path,
+            (gltf) => {
+                const model = gltf.scene;
+                modelCache.set(modelId, model.clone());
+                console.log(`✅ Модель ${modelId} загружена`);
+                resolve(model);
+            },
+            undefined,
+            (error) => {
+                console.error(`❌ Ошибка загрузки ${config.path}:`, error);
+                reject(error);
+            }
+        );
+    });
+}
+
+/**
+ * Генерация UV для кастомной модели на основе bounding box
+ * Сохраняет пропорции текстуры
+ */
+function generateUVsForModel(geometry, modelType = 'vertical') {
+    const pos = geometry.attributes.position;
+    if (!pos) return;
+    
+    // Получаем bounding box
+    const box = new THREE.Box3().setFromBufferAttribute(pos);
+    const min = box.min;
+    const max = box.max;
+    
+    const sizeX = max.x - min.x || 0.001;
+    const sizeY = max.y - min.y || 0.001;
+    const sizeZ = max.z - min.z || 0.001;
+    
+    const uv = new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2);
+    const normal = geometry.attributes.normal;
+    
+    // Вычисляем центр
+    const centerX = (min.x + max.x) / 2;
+    const centerY = (min.y + max.y) / 2;
+    const centerZ = (min.z + max.z) / 2;
+    
+    // Для правильной текстуры используем проекцию на основе нормалей
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        
+        let u, v;
+        
+        if (normal) {
+            const nx = Math.abs(normal.getX(i));
+            const ny = Math.abs(normal.getY(i));
+            const nz = Math.abs(normal.getZ(i));
+            
+            if (modelType === 'horizontal') {
+                // Горизонтальная модель - проекция сверху
+                if (ny > nx && ny > nz) {
+                    u = (x - min.x) / sizeX;
+                    v = (z - min.z) / sizeZ;
+                } else {
+                    u = (x - min.x) / sizeX;
+                    v = 1 - (y - min.y) / sizeY;
+                }
+            } else {
+                // Вертикальная модель - проекция на лицевую плоскость
+                // Определяем доминирующую грань
+                if (nz > nx && nz > ny) {
+                    // Передняя/задняя грань
+                    u = (x - min.x) / sizeX;
+                    v = 1 - (y - min.y) / sizeY;
+                } else if (nx > ny && nx > nz) {
+                    // Левая/правая грань
+                    u = (z - min.z) / sizeZ;
+                    v = 1 - (y - min.y) / sizeY;
+                } else {
+                    // Верхняя/нижняя грань
+                    u = (x - min.x) / sizeX;
+                    v = (z - min.z) / sizeZ;
+                }
+            }
+        } else {
+            // Если нет нормалей - простая проекция
+            u = (x - min.x) / sizeX;
+            v = 1 - (y - min.y) / sizeY;
+        }
+        
+        // Ограничиваем значения
+        uv.setXY(i, Math.max(0, Math.min(1, u)), Math.max(0, Math.min(1, v)));
+    }
+    
+    geometry.setAttribute('uv', uv);
+    geometry.attributes.uv.needsUpdate = true;
+}
+
+export async function applyMaterialToCustomModel(model, materialType, modelId = null, modelType = 'vertical') {
+    if (!model) return;
+    
+    const pbrMat = await loadPBRMaterial(materialType);
+    const texture = pbrMat?.map || null;
+    
+    if (texture) {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+        texture.needsUpdate = true;
+    }
+    
+    // Создаем материал
+    const material = createSteleMaterial(texture);
+    
+    model.traverse((child) => {
+        if (child.isMesh) {
+            const geometry = child.geometry;
+            const pos = geometry.attributes.position;
+            
+            if (!pos) return;
+            
+            // ⭐ Генерируем UV для модели
+            generateUVsForModel(geometry, modelType);
+            geometry.computeVertexNormals();
+            
+            // Сохраняем оригинальный материал если нужно
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+            
+            // Применяем новый материал
+            child.material = material.clone();
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+    
+    console.log(`✅ Материал ${materialType} применён к модели ${modelId || 'текущей'}`);
+}
+
+export function createCustomSteleMesh(modelId, width, height, depth, materialType = 'granite', modelType = 'vertical') {
+    const group = new THREE.Group();
+    group.userData.modelId = modelId;
+    group.userData.isCustomStele = true;
+	group.userData.isLoaded = false;
+    currentModelId = modelId;
+    
+    // Сразу создаём контейнер для декалей
+    const decalsContainer = new THREE.Group();
+    decalsContainer.name = 'decalsContainer';
+    group.add(decalsContainer);
+    
+    loadCustomStele(modelId).then(async (model) => {
+        if (model) {
+            // Очищаем старую модель
+            const oldModel = group.userData.modelRef;
+            if (oldModel) {
+                group.remove(oldModel);
+            }
+            
+            // Вычисляем bounding box модели
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            
+            // Масштабируем модель под заданные размеры
+            const scaleX = width / size.x;
+            const scaleY = height / size.y;
+            const scaleZ = depth / size.z;
+            
+            model.scale.set(scaleX, scaleY, scaleZ);
+            
+            // Центрируем модель
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.set(-center.x * scaleX, -center.y * scaleY, -center.z * scaleZ);
+            
+            group.userData.modelRef = model;
+            
+            // Применяем материал
+            await applyMaterialToCustomModel(model, materialType, modelId, modelType);
+            
+            group.add(model);
+            
+            // ⭐ ПОЗИЦИОНИРУЕМ ДЕКАЛИ ПОСЛЕ ЗАГРУЗКИ
+            // Ждём один кадр, чтобы модель отрендерилась
+            requestAnimationFrame(() => {
+                // Импортируем функцию позиционирования (нужно будет передать state)
+                if (window.positionDecalsOnCustomStele && window.decalsGroup && window.state) {
+                    window.positionDecalsOnCustomStele(group, window.decalsGroup, window.state);
+                }
+            });
+            
+            console.log(`✅ Модель ${modelId} создана (размер: ${width}x${height}x${depth}, тип: ${modelType})`);
+        }
+    });
+    
+    return group;
+}
+
+export async function updateCurrentCustomSteleMaterial(materialType) {
+    if (!window.monumentGroup) {
+        console.warn('monumentGroup не найден');
+        return;
+    }
+    
+    const children = window.monumentGroup.children;
+    let found = false;
+    
+    for (const child of children) {
+        if (child.type === 'Group' && child.userData && child.userData.modelId) {
+            const modelId = child.userData.modelId;
+            const modelRef = child.userData.modelRef;
+            
+            if (modelRef) {
+                const config = customModels[modelId];
+                const modelType = config?.modelType || 'vertical';
+                console.log(`🔄 Обновляем материал для модели ${modelId}`);
+                await applyMaterialToCustomModel(modelRef, materialType, modelId, modelType);
+                found = true;
+            }
+        }
+    }
+    
+    if (found) {
+        console.log(`✅ Материал ${materialType} применён ко всем кастомным моделям`);
+    } else {
+        console.warn('⚠️ Кастомные модели не найдены');
+    }
+}
+
+export function getModelList() {
+    return Object.keys(customModels).map(id => ({
+        id: id,
+        name: customModels[id].name,
+        modelType: customModels[id].modelType || 'vertical',
+    }));
+}
+
+// ==================== ПОЛУЧЕНИЕ РЕАЛЬНЫХ РАЗМЕРОВ МОДЕЛИ ====================
+
+export function getModelDimensions(model) {
+    if (!model) return null;
+    
+    // Вычисляем bounding box
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    
+    return {
+        width: size.x,
+        height: size.y,
+        depth: size.z,
+        centerX: center.x,
+        centerY: center.y,
+        centerZ: center.z,
+        minX: box.min.x,
+        maxX: box.max.x,
+        minY: box.min.y,
+        maxY: box.max.y,
+        minZ: box.min.z,
+        maxZ: box.max.z,
+    };
+}
+
+// ==================== ПОЗИЦИОНИРОВАНИЕ ДЕКАЛЕЙ НА STL МОДЕЛИ ====================
+
+export function positionDecalsOnCustomStele(steleGroup, decalsGroup, state) {
+    if (!steleGroup || !decalsGroup) return;
+    
+    // Очищаем старые декали
+    while(decalsGroup.children.length > 0) {
+        const child = decalsGroup.children[0];
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+            if (child.material.map) child.material.map.dispose();
+            child.material.dispose();
+        }
+        decalsGroup.remove(child);
+    }
+    
+    // Получаем модель из группы
+    const model = steleGroup.userData.modelRef;
+    if (!model) {
+        console.warn('⚠️ Модель ещё не загружена, повторная попытка через 100ms');
+        setTimeout(() => positionDecalsOnCustomStele(steleGroup, decalsGroup, state), 100);
+        return;
+    }
+    
+    // Получаем реальные размеры модели
+    const dims = getModelDimensions(model);
+    if (!dims) {
+        console.warn('⚠️ Не удалось получить размеры модели');
+        return;
+    }
+    
+    console.log('📐 Реальные размеры модели:', dims);
+    
+    // === ОФСЕТЫ ===
+    const offsetZ = 0.005; // небольшой отступ от поверхности
+    const frontZ = dims.maxZ + offsetZ;
+    const backZ = dims.minZ - offsetZ;
+    const centerY = dims.centerY;
+    
+    // === 1. ТЕКСТ НА ЛИЦЕВОЙ СТОРОНЕ ===
+    if (state.fullName.trim() || state.dates.trim()) {
+        const texture = createFrontTexture(state);
+        const textWidth = dims.width * 0.85;
+        const textHeight = dims.height * 0.85;
+        const textGeo = new THREE.PlaneGeometry(textWidth, textHeight);
+        const textMat = new THREE.MeshBasicMaterial({ 
+            map: texture, 
+            transparent: true, 
+            side: THREE.DoubleSide, 
+            depthWrite: false, 
+            alphaTest: 0.05 
+        });
+        const textMesh = new THREE.Mesh(textGeo, textMat);
+        textMesh.position.set(0, centerY, frontZ);
+        textMesh.renderOrder = 9;
+        decalsGroup.add(textMesh);
+    }
+    
+    // === 2. ФОТО ===
+    if (state.textureUrl) {
+        const loader = new THREE.TextureLoader();
+        loader.load(state.textureUrl, (tex) => {
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            
+            let w, h;
+            if (state.photoShape === 'custom') {
+                w = mmToMeters(state.photoWidthMm) || 0.2;
+                h = mmToMeters(state.photoHeightMm) || 0.2;
+            } else {
+                const presetSizes = { 
+                    'oval':   { w: 0.22, h: 0.28 }, 
+                    'circle': { w: 0.24, h: 0.24 }, 
+                    'square': { w: 0.22, h: 0.22 } 
+                };
+                const size = presetSizes[state.photoShape] || presetSizes.oval;
+                w = size.w;
+                h = size.h;
+            }
+            
+            const scale = state.photoScale || 1.0;
+            const finalW = w * scale;
+            const finalH = h * scale;
+            
+            let geometry;
+            if (state.photoShape === 'circle') {
+                geometry = new THREE.CircleGeometry(Math.max(finalW, finalH) / 2, 64);
+            } else if (state.photoShape === 'oval') {
+                geometry = new THREE.CircleGeometry(0.5, 64);
+                geometry.scale(finalW, finalH, 1);
+            } else {
+                geometry = new THREE.PlaneGeometry(finalW, finalH);
+            }
+            
+            const photoMat = new THREE.MeshBasicMaterial({ 
+                map: tex, 
+                transparent: true, 
+                side: THREE.DoubleSide, 
+                depthWrite: false, 
+                alphaTest: 0.05 
+            });
+            const photoMesh = new THREE.Mesh(geometry, photoMat);
+            
+            const photoX = state.photoOffsetX || 0;
+            const photoY = centerY + (state.photoOffsetY || 0);
+            
+            photoMesh.position.set(photoX, photoY, frontZ);
+            photoMesh.renderOrder = 11;
+            decalsGroup.add(photoMesh);
+            
+            // Рамка
+            const frameMat = new THREE.MeshStandardMaterial({ 
+                color: 0xD4AF37, 
+                metalness: 0.85, 
+                roughness: 0.3, 
+                side: THREE.DoubleSide 
+            });
+            let frameGeometry;
+            if (state.photoShape === 'circle') {
+                frameGeometry = new THREE.CircleGeometry(Math.max(finalW, finalH) / 2 + 0.008, 64);
+            } else if (state.photoShape === 'oval') {
+                frameGeometry = new THREE.CircleGeometry(0.5, 64);
+                frameGeometry.scale(finalW + 0.015, finalH + 0.015, 1);
+            } else {
+                frameGeometry = new THREE.PlaneGeometry(finalW + 0.015, finalH + 0.015);
+            }
+            const frameMesh = new THREE.Mesh(frameGeometry, frameMat);
+            frameMesh.position.set(photoX, photoY, frontZ - 0.001);
+            frameMesh.renderOrder = 10;
+            decalsGroup.add(frameMesh);
+        });
+    }
+    
+    // === 3. ЭПИТАФИЯ ===
+    if (state.epitaph.trim()) {
+        const texture = createBackTexture(state);
+        const textWidth = dims.width * 0.85;
+        const textHeight = dims.height * 0.85;
+        const textGeo = new THREE.PlaneGeometry(textWidth, textHeight);
+        const textMat = new THREE.MeshBasicMaterial({ 
+            map: texture, 
+            transparent: true, 
+            side: THREE.DoubleSide, 
+            depthWrite: false, 
+            alphaTest: 0.05 
+        });
+        const textMesh = new THREE.Mesh(textGeo, textMat);
+        textMesh.position.set(0, centerY, backZ);
+        textMesh.rotation.y = Math.PI;
+        textMesh.renderOrder = 9;
+        decalsGroup.add(textMesh);
+    }
+    
+    // === 4. ГРАВИРОВКИ ===
+    // Лицевые
+    if (state.engravingsFront && state.engravingsFront.length > 0) {
+        state.engravingsFront.forEach(eng => {
+            const loader = new THREE.TextureLoader();
+            loader.load(eng.url, (tex) => {
+                tex.minFilter = THREE.LinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                
+                const sizeM = 0.22 * (eng.scale || 1.0);
+                const geometry = new THREE.PlaneGeometry(sizeM, sizeM);
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: tex, 
+                    transparent: true, 
+                    side: THREE.DoubleSide, 
+                    depthWrite: false, 
+                    alphaTest: 0.05
+                });
+                
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(eng.x || 0, centerY + (eng.y || 0), frontZ);
+                mesh.renderOrder = 10;
+                decalsGroup.add(mesh);
+            });
+        });
+    }
+    
+    // Задние
+    if (state.engravingsBack && state.engravingsBack.length > 0) {
+        state.engravingsBack.forEach(eng => {
+            const loader = new THREE.TextureLoader();
+            loader.load(eng.url, (tex) => {
+                tex.minFilter = THREE.LinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                
+                const sizeM = 0.22 * (eng.scale || 1.0);
+                const geometry = new THREE.PlaneGeometry(sizeM, sizeM);
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: tex, 
+                    transparent: true, 
+                    side: THREE.DoubleSide, 
+                    depthWrite: false, 
+                    alphaTest: 0.05
+                });
+                
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(eng.x || 0, centerY + (eng.y || 0), backZ);
+                mesh.rotation.y = Math.PI;
+                mesh.renderOrder = 10;
+                decalsGroup.add(mesh);
+            });
+        });
+    }
+    
+    console.log('✅ Декали размещены на STL модели');
+}
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+
+function createFrontTexture(state) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024; 
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = state.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 8;
+    
+    const offsetX = state.textOffsetX * canvas.width; 
+    const offsetY = state.textOffsetY * canvas.height;
+    
+    let currentY = 80 + offsetY;
+    
+    if (state.fullName.trim()) {
+        let fontFamily = state.fontFamily;
+        ctx.font = `bold ${state.nameFontSize * 1.5}px ${fontFamily}`;
+        
+        const rawLines = state.fullName.split(/\r?\n/);
+        const allLines = [];
+        rawLines.forEach(line => {
+            if (line.includes('/')) {
+                const subLines = line.split('/');
+                subLines.forEach(sub => {
+                    if (sub.trim()) allLines.push(sub.trim());
+                });
+            } else {
+                if (line.trim()) allLines.push(line.trim());
+            }
+        });
+        
+        allLines.forEach(line => {
+            ctx.fillText(line, canvas.width/2 + offsetX, currentY);
+            currentY += state.nameFontSize * 1.8;
+        });
+        currentY += 25;
+    }
+    
+    if (state.dates.trim()) {
+        let fontFamily = state.fontFamily;
+        ctx.font = `bold ${state.datesFontSize * 1.3}px ${fontFamily}`;
+        ctx.fillText(state.dates, canvas.width/2 + offsetX, currentY);
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    return texture;
+}
+
+function createBackTexture(state) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024; 
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = state.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 6;
+    
+    let currentY = 80 + (state.epitaphOffsetY || 0) * canvas.height;
+    
+    if (state.epitaph.trim()) {
+        const lines = state.epitaph.split(/\r?\n|\//);
+        let fontFamily = state.fontFamily;
+        ctx.font = `bold ${state.epitaphFontSize * 1.2}px ${fontFamily}`;
+        
+        lines.forEach(line => {
+            if (line.trim()) {
+                ctx.fillText(line.trim(), canvas.width/2, currentY);
+                currentY += state.epitaphFontSize * 1.5;
+            }
+        });
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    return texture;
+}
+
+function mmToMeters(mm) { return mm / 1000; }

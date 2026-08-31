@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Каменная Слобода - CNC PRO</title>
+<style>
+:root { --bg:#1e1e1e; --panel:#252526; --text:#d4d4d4; --accent:#007acc; --border:#3e3e42; --danger:#a31515; --success:#2e7d32; --tool:#4ec9b0; }
+* { box-sizing: border-box; }
+body { margin:0; font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden; }
+#sidebar { width:360px; background:var(--panel); border-right:1px solid var(--border); overflow-y:auto; padding:10px; flex-shrink:0; }
+h2,h3 { margin:8px 0 4px 0; font-size:14px; color:#fff; border-bottom:1px solid var(--border); padding-bottom:3px; }
+.control-group { margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+label { display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px; }
+label span.val { color:var(--accent); font-weight:bold; }
+input[type="range"] { width:100%; background:#3c3c3c; height:4px; border-radius:2px; margin-bottom:6px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent); }
+select,input[type="number"],input[type="text"] { width:100%; padding:4px; background:#3c3c3c; border:1px solid var(--border); color:white; border-radius:3px; margin-bottom:5px; font-size:12px; }
+input[type="number"] { width:55px; text-align:center; display:inline-block; }
+input[type="color"] { width:100%; height:28px; border:1px solid var(--border); background:#3c3c3c; cursor:pointer; }
+input[type="file"] { display:none; }
+button { background:#3c3c3c; color:white; border:1px solid var(--border); padding:5px 8px; cursor:pointer; border-radius:3px; font-size:11px; margin:1px; flex:1; }
+button:hover { background:#4c4c4c; }
+button.primary { background:var(--accent); }
+button.active-tool { background:var(--tool); color:#000; font-weight:bold; }
+button.danger { background:var(--danger); }
+button.success { background:var(--success); }
+button:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-row { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+.tool-group { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; margin:4px 0; }
+.file-label { display:inline-block; background:#3c3c3c; color:white; border:1px solid var(--border); padding:5px 8px; cursor:pointer; border-radius:3px; font-size:11px; text-align:center; flex:1; }
+.file-label:hover { background:#4c4c4c; }
+#canvas-container { flex-grow:1; position:relative; background:#111; }
+#info-overlay { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.7); padding:8px; border-radius:4px; pointer-events:none; font-size:11px; z-index:5; }
+#draw-canvas { background:#1e1e1e; border:2px dashed var(--border); cursor:crosshair; display:block; margin-bottom:6px; width:100%; height:200px; touch-action:none; }
+.hint { font-size:10px; color:#aaa; background:#333; padding:5px; border-radius:3px; margin-bottom:5px; line-height:1.3; }
+#status-bar { font-size:11px; color:#888; margin-top:auto; padding-top:8px; border-top:1px solid var(--border); }
+.points-list { font-size:10px; color:#888; background:#2a2a2a; padding:3px 5px; border-radius:3px; margin-top:3px; }
+.empty-hint { font-size:11px; color:#888; padding:8px; text-align:center; font-style:italic; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "three-csg-ts": "https://esm.sh/three-csg-ts@3.1.13?external=three"
+} }
+</script>
+</head>
+<body>
+
+<div id="sidebar">
+<h2>🛠️ Каменная Слобода CNC PRO</h2>
+
+<div class="control-group">
+<h3>📐 Габариты и Форма</h3>
+<label>Форма верха: <select id="sel-top-shape">
+    <option value="flat">Прямая</option>
+    <option value="arch">Арка</option>
+    <option value="gable">Домик</option>
+</select></label>
+<label>Высота: <span class="val" id="val-h">1.40</span> м</label>
+<input type="range" id="inp-height" min="0.5" max="2.5" step="0.05" value="1.4">
+<label>Ширина: <span class="val" id="val-w">0.80</span> м</label>
+<input type="range" id="inp-width" min="0.4" max="1.5" step="0.05" value="0.8">
+<label>Толщина: <span class="val" id="val-d">0.12</span> м</label>
+<input type="range" id="inp-depth" min="0.05" max="0.3" step="0.01" value="0.12">
+<label>Радиус кромки: <span class="val" id="val-bevel">0.01</span> м</label>
+<input type="range" id="inp-bevel" min="0" max="0.05" step="0.005" value="0.01">
+</div>
+
+<div class="control-group">
+<h3>🎨 Материал</h3>
+<select id="sel-material">
+    <option value="granite_black">Гранит чёрный</option>
+    <option value="granite_gray">Гранит серый</option>
+    <option value="granite_red">Гранит красный</option>
+    <option value="marble_white">Мрамор белый</option>
+    <option value="bronze">Бронза</option>
+</select>
+</div>
+
+<div class="control-group">
+<h3>✏️ Инструменты рисования</h3>
+<div class="tool-group">
+    <button id="btn-tool-poly" class="active-tool">⬡ Полигон</button>
+    <button id="btn-tool-line">📏 Линия</button>
+    <button id="btn-tool-rect">⬜ Прямоуг.</button>
+    <button id="btn-tool-circle">⭕ Круг</button>
+    <button id="btn-tool-arc">⌒ Дуга</button>
+    <button id="btn-tool-triangle">△ Треуг.</button>
+</div>
+<div class="tool-group">
+    <button id="btn-tool-brush">🖌️ Кисть</button>
+    <button id="btn-tool-eraser">🧹 Ластик</button>
+    <button id="btn-undo">↶ Отмена</button>
+</div>
+<div class="hint" id="tool-hint"><b>Полигон:</b> Кликайте для точек. Тяните точки для правки.</div>
+<div style="display:flex;gap:4px;margin-bottom:4px;">
+    <button id="btn-zoom-in" style="flex:0">➕</button>
+    <button id="btn-zoom-out" style="flex:0">➖</button>
+    <button id="btn-zoom-reset" style="flex:0">⟲</button>
+    <span id="zoom-level" style="font-size:11px;min-width:35px;text-align:center;">100%</span>
+</div>
+<canvas id="draw-canvas" width="320" height="200"></canvas>
+<div id="poly-points-list" class="points-list"></div>
+<div class="btn-row">
+    <button id="btn-draw-clear" class="danger">🗑️ Очистить</button>
+    <button id="btn-draw-finish" class="success" disabled>✅ Применить</button>
+</div>
+<div class="btn-row">
+    <button id="btn-delete-point" class="danger" disabled>✖ Удалить выбр.</button>
+    <input type="number" id="inp-delete-idx" min="1" placeholder="№" style="width:40px;">
+    <button id="btn-delete-by-idx" class="danger" style="flex:0">✖</button>
+</div>
+</div>
+
+<div class="control-group">
+<h3>📥 Импорт 3D модели</h3>
+<div class="btn-row">
+    <label for="inp-3d-file" class="file-label">📂 Загрузить STL/OBJ</label>
+    <input type="file" id="inp-3d-file" accept=".stl,.obj">
+    <button id="btn-clear-import" class="danger">✖</button>
+</div>
+<div class="hint">При импорте стела будет скрыта. Модель отобразится зелёным wireframe.</div>
+</div>
+
+<div class="control-group" id="csg-tools" style="display:none;">
+<h3>⚙️ Параметры выреза</h3>
+<label>Позиция X: <span class="val" id="val-cx">0.00</span> м</label>
+<input type="range" id="inp-cx" min="-0.5" max="0.5" step="0.01" value="0">
+<label>Позиция Y: <span class="val" id="val-cy">0.70</span> м</label>
+<input type="range" id="inp-cy" min="0" max="2.0" step="0.01" value="0.7">
+<label>Масштаб: <span class="val" id="val-cs">0.40</span></label>
+<input type="range" id="inp-cs" min="0.1" max="1.5" step="0.01" value="0.4">
+<label>Поворот: <span class="val" id="val-cr">0</span>°</label>
+<input type="range" id="inp-cr" min="-180" max="180" step="1" value="0">
+<label>Глубина: <span class="val" id="val-cd">0.03</span> м</label>
+<input type="range" id="inp-cd" min="0.005" max="0.15" step="0.005" value="0.03">
+<div class="btn-row">
+    <button id="btn-cut" class="danger">✂️ ВЫРЕЗАТЬ</button>
+    <button id="btn-reset-mesh">↺ Сброс</button>
+</div>
+</div>
+
+<div class="control-group">
+    <h3>🔤 Гравировка текста (многострочная)</h3>
+    
+    <div class="btn-row" style="margin-bottom: 6px;">
+        <button id="btn-add-line" class="primary" style="flex:0 0 auto; padding:4px 12px;">➕ Строка</button>
+        <button id="btn-add-dates" class="success" style="flex:0 0 auto; padding:4px 12px;">📅 Даты</button>
+        <button id="btn-clear-lines" class="danger" style="flex:0 0 auto; padding:4px 12px;">🗑️</button>
+    </div>
+    
+    <div id="text-lines-container">
+        <div class="empty-hint">Добавьте строки текста для гравировки</div>
+    </div>
+    
+    <div class="btn-row">
+        <label style="flex:1">Размер (м): <input type="number" id="inp-text-size" value="0.12" step="0.01" min="0.01" max="1.0"></label>
+        <label style="flex:1">Глубина (м): <input type="number" id="inp-text-depth" value="0.008" step="0.001" min="0.001" max="0.100"></label>
+    </div>
+    <div class="btn-row">
+        <label style="flex:1">Поз. X: <input type="number" id="inp-text-x" value="0" step="0.01"></label>
+        <label style="flex:1">Поз. Y: <input type="number" id="inp-text-y" value="1.2" step="0.01"></label>
+    </div>
+    <div class="btn-row">
+        <label style="flex:1">Смещ. Z (м): <input type="number" id="inp-text-z" value="0.000" step="0.001"></label>
+        <label style="flex:1">Интервал: <input type="number" id="inp-text-spacing" value="0.15" step="0.01" min="0.05"></label>
+    </div>
+    
+    <div class="btn-row" style="margin-top: 8px; background: #2a2a2a; padding: 6px; border-radius: 4px;">
+        <label style="flex:1; align-items: center; gap: 8px;">
+            <span>Цвет заполнения:</span>
+            <input type="color" id="inp-text-color" value="#FFD700">
+        </label>
+    </div>
+
+    <div class="btn-row" style="margin-top:5px;">
+        <button id="btn-text-preview" class="primary" disabled>👁️ Предпросмотр</button>
+    </div>
+    <div class="btn-row">
+        <button id="btn-engrave-text" class="success" disabled>✂️ ВЫГРАВИРОВАТЬ</button>
+        <button id="btn-text-cancel" class="danger" disabled>Отмена</button>
+    </div>
+    <div class="hint" style="margin-top:5px; color: #4caf50;">
+        💡 Перетаскивайте блок текста в 3D окне (стрелки X/Y) для подгонки.<br>
+        ✅ При экспорте в STL текст вырежется автоматически!
+    </div>
+</div>
+
+<div class="control-group">
+<h3>💼 Экспорт</h3>
+<div class="btn-row">
+    <button id="btn-export-stl" class="primary">📦 STL</button>
+    <button id="btn-export-dxf" class="success">📐 DXF</button>
+    <button id="btn-calc">💰 Объем</button>
+</div>
+</div>
+
+<div id="status-bar">✅ Готово</div>
+</div>
+
+<div id="canvas-container">
+<div id="info-overlay"><b>Управление:</b><br>ЛКМ: Вращение | ПКМ: Панорама | Колесо: Зум</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { CSG } from 'three-csg-ts';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+// --- THREE.js сцена ---
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111111);
+scene.add(new THREE.GridHelper(10, 10, 0x444444, 0x222222));
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(10,10), new THREE.MeshBasicMaterial({color:0x0a0a0a, side:THREE.DoubleSide}));
+floor.rotation.x = -Math.PI/2; floor.position.y = -0.001; scene.add(floor);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5,10,7); scene.add(dirLight);
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.01, 100);
+camera.position.set(2.5, 2, 3);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0,1,0);
+
+// --- Материалы ---
+const materials = {
+    granite_black: new THREE.MeshStandardMaterial({color:0x111111, roughness:0.15, metalness:0.1}),
+    granite_gray: new THREE.MeshStandardMaterial({color:0x666666, roughness:0.3, metalness:0.1}),
+    granite_red: new THREE.MeshStandardMaterial({color:0x8a3324, roughness:0.2, metalness:0.1}),
+    marble_white: new THREE.MeshStandardMaterial({color:0xf5f5f5, roughness:0.1, metalness:0.05}),
+    bronze: new THREE.MeshStandardMaterial({color:0xcd7f32, roughness:0.4, metalness:0.8})
+};
+
+const params = { height:1.4, width:0.8, depth:0.12, bevel:0.01, topShape:'flat', material:'granite_black', cutX:0, cutY:0.7, cutScale:0.4, cutDepth:0.03, cutRotation:0 };
+
+// --- Глобальные переменные ---
+let stellaMesh, previewMesh, loadedFont, importedModel;
+let textGroup = null;
+let textPreviewMesh = null;
+let textFillMesh = null;
+let textMeshes = [];
+let textLines = ['ИВАНОВ И.И.'];
+let textPosition = { x: 0, y: 1.2, z: 0 }; // Сохраняем позицию текста
+
+// --- Transform Controls ---
+const transformControl = new TransformControls(camera, renderer.domElement);
+transformControl.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
+transformControl.addEventListener('change', () => {
+    if (textGroup) {
+        // Обновляем позицию в глобальной переменной
+        textPosition.x = textGroup.position.x;
+        textPosition.y = textGroup.position.y;
+        textPosition.z = textGroup.position.z;
+        // Обновляем поля ввода
+        document.getElementById('inp-text-x').value = textGroup.position.x.toFixed(3);
+        document.getElementById('inp-text-y').value = textGroup.position.y.toFixed(3);
+    }
+});
+transformControl.showX = true; transformControl.showY = true; transformControl.showZ = false;
+scene.add(transformControl);
+
+// --- Стела ---
+function createStellaShape() {
+    const shape = new THREE.Shape();
+    const w = params.width, h = params.height, hw = w/2;
+    shape.moveTo(-hw,0); shape.lineTo(-hw,h);
+    if (params.topShape === 'flat') shape.lineTo(hw,h);
+    else if (params.topShape === 'arch') shape.absarc(0,h,hw,Math.PI,0,false);
+    else if (params.topShape === 'gable') { shape.lineTo(0,h+w*0.3); shape.lineTo(hw,h); }
+    shape.lineTo(hw,0); shape.closePath();
+    return shape;
+}
+
+function createStella() {
+    if (stellaMesh) { 
+        scene.remove(stellaMesh); 
+        stellaMesh.geometry.dispose(); 
+    }
+    const shape = createStellaShape();
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+        steps:1, depth:params.depth,
+        bevelEnabled: params.bevel>0, bevelThickness:params.bevel, bevelSize:params.bevel,
+        bevelSegments:3, curveSegments:12
+    });
+    geometry.center();
+    const box = new THREE.Box3().setFromObject(new THREE.Mesh(geometry));
+    geometry.translate(0, -box.min.y, 0);
+    stellaMesh = new THREE.Mesh(geometry, materials[params.material]);
+    stellaMesh.castShadow = true; stellaMesh.receiveShadow = true;
+    scene.add(stellaMesh);
+    
+    // После пересоздания стелы обновляем текст, если он есть
+    if (textGroup) {
+        // Сохраняем текущую позицию
+        const currentX = textGroup.position.x;
+        const currentY = textGroup.position.y;
+        const currentZ = textGroup.position.z;
+        textPosition.x = currentX;
+        textPosition.y = currentY;
+        textPosition.z = currentZ;
+        updateTextPreview();
+    }
+    
+    const maxCx = params.width/2 - 0.05;
+    const cxInp = document.getElementById('inp-cx');
+    cxInp.max = maxCx; cxInp.min = -maxCx;
+    if (Math.abs(params.cutX) > maxCx) { 
+        params.cutX = 0; 
+        cxInp.value = 0; 
+        document.getElementById('val-cx').textContent = '0.00'; 
+    }
+}
+createStella();
+
+// --- Шрифт ---
+const fontLoader = new FontLoader();
+fontLoader.load('./droid_sans_regular.typeface.json', 
+    function(font) {
+        loadedFont = font;
+        document.getElementById('btn-text-preview').disabled = false;
+        setStatus('✅ Шрифт загружен (локально)');
+    },
+    undefined,
+    function(err) {
+        console.warn('Локальный шрифт не найден, пробуем CDN...', err);
+        fontLoader.load('https://cdn.jsdelivr.net/gh/nicokoenig/threejs-fonts@master/fonts/roboto-regular.json',
+            function(font) {
+                loadedFont = font;
+                document.getElementById('btn-text-preview').disabled = false;
+                setStatus('✅ Шрифт Roboto загружен (CDN)');
+            },
+            undefined,
+            function() {
+                setStatus('❌ Ошибка загрузки шрифта.');
+            }
+        );
+    }
+);
+
+// --- Импорт 3D ---
+document.getElementById('inp-3d-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        if (stellaMesh) { scene.remove(stellaMesh); stellaMesh.geometry.dispose(); stellaMesh = null; }
+        if (importedModel) { scene.remove(importedModel); importedModel = null; }
+        cancelTextPreview();
+        if (previewMesh) { scene.remove(previewMesh); previewMesh.geometry.dispose(); previewMesh = null; }
+        
+        const mat = new THREE.MeshBasicMaterial({color:0x00ff00, wireframe:true, transparent:true, opacity:0.6});
+        if (ext === 'stl') {
+            const geom = new STLLoader().parse(ev.target.result);
+            importedModel = new THREE.Mesh(geom, mat);
+            geom.center();
+            scene.add(importedModel);
+            setStatus('✅ STL загружен (стела скрыта)');
+        } else if (ext === 'obj') {
+            const blob = new Blob([ev.target.result], {type:'text/plain'});
+            const url = URL.createObjectURL(blob);
+            new OBJLoader().load(url, obj => {
+                importedModel = obj;
+                importedModel.traverse(c => { if (c.isMesh) c.material = mat; });
+                const b = new THREE.Box3().setFromObject(obj);
+                const center = b.getCenter(new THREE.Vector3());
+                obj.position.sub(center);
+                scene.add(importedModel);
+                setStatus('✅ OBJ загружен (стела скрыта)');
+            });
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('btn-clear-import').addEventListener('click', () => {
+    if (importedModel) { scene.remove(importedModel); importedModel = null; }
+    createStella();
+    document.getElementById('inp-3d-file').value = '';
+    setStatus('🗑️ Модель удалена, стела восстановлена');
+});
+
+// --- Управление строками текста ---
+function renderTextLinesInputs() {
+    const container = document.getElementById('text-lines-container');
+    container.innerHTML = '';
+    if (textLines.length === 0) {
+        container.innerHTML = '<div class="empty-hint">Добавьте строки текста для гравировки</div>';
+        return;
+    }
+    textLines.forEach((line, index) => {
+        const div = document.createElement('div');
+        div.className = 'btn-row';
+        div.style.marginBottom = '4px';
+        div.innerHTML = `
+            <span style="font-size:11px; color:#888; width:15px; line-height:28px;">${index + 1}.</span>
+            <input type="text" class="text-line-input" value="${line}" placeholder="Текст строки" style="flex:1;">
+            <button class="btn-remove-line danger" data-index="${index}" style="flex:0 0 auto; padding:4px 8px;">✖</button>
+        `;
+        container.appendChild(div);
+    });
+
+    container.querySelectorAll('.text-line-input').forEach((input, idx) => {
+        input.addEventListener('input', (e) => { 
+            textLines[idx] = e.target.value;
+        });
+    });
+    container.querySelectorAll('.btn-remove-line').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            const idx = parseInt(e.target.dataset.index);
+            textLines.splice(idx, 1);
+            renderTextLinesInputs();
+        });
+    });
+}
+
+document.getElementById('btn-add-line').addEventListener('click', () => {
+    textLines.push('');
+    renderTextLinesInputs();
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.text-line-input');
+        if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 10);
+});
+
+document.getElementById('btn-add-dates').addEventListener('click', () => {
+    textLines.push('01.01.1950');
+    textLines.push('01.01.2020');
+    renderTextLinesInputs();
+});
+
+document.getElementById('btn-clear-lines').addEventListener('click', () => {
+    textLines = [];
+    renderTextLinesInputs();
+});
+
+renderTextLinesInputs();
+
+// --- Canvas Drawing ---
+const canvas = document.getElementById('draw-canvas');
+const ctx = canvas.getContext('2d');
+let currentTool = 'poly', isDrawing = false, canvasZoom = 1.0;
+let points = [], currentStroke = [];
+let dragIndex = -1, dragOffset = null, hoverIndex = -1, selectedIndex = -1;
+let startPoint = null, tempEndPoint = null;
+let history = [];
+
+const toolHints = {
+    poly: '<b>Полигон:</b> Кликайте для точек. Тяните точки для правки.',
+    line: '<b>Линия:</b> Нажмите и тяните.',
+    rect: '<b>Прямоугольник:</b> Нажмите и тяните.',
+    circle: '<b>Круг:</b> Нажмите (центр) и тяните (радиус).',
+    arc: '<b>Дуга:</b> Нажмите (начало), тяните (конец дуги).',
+    triangle: '<b>Треугольник:</b> Нажмите и тяните.',
+    brush: '<b>Кисть:</b> Зажмите ЛКМ и рисуйте.',
+    eraser: '<b>Ластик:</b> Стирает нарисованное.'
+};
+
+function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+    const rawX = (e.clientX - rect.left) * scaleX, rawY = (e.clientY - rect.top) * scaleY;
+    const cx = canvas.width/2, cy = canvas.height/2;
+    return { x: (rawX - cx)/canvasZoom + cx, y: (rawY - cy)/canvasZoom + cy };
+}
+
+function getValidPoints() { return points.filter(p => p !== null); }
+function saveHistory() { history.push(JSON.parse(JSON.stringify(points))); if (history.length > 30) history.shift(); }
+function undo() { if (history.length > 0) { points = history.pop(); redraw(); setStatus('↶ Отменено'); } }
+
+function generateLine(p1, p2, seg=30) {
+    const pts = [];
+    for (let i=0; i<=seg; i++) { const t=i/seg; pts.push({x:p1.x+(p2.x-p1.x)*t, y:p1.y+(p2.y-p1.y)*t}); }
+    return pts;
+}
+function generateRect(p1, p2) { return [{x:p1.x,y:p1.y},{x:p2.x,y:p1.y},{x:p2.x,y:p2.y},{x:p1.x,y:p2.y}]; }
+function generateCircle(center, radius, seg=48) {
+    const pts = [];
+    for (let i=0; i<seg; i++) { const a = (i/seg) * Math.PI * 2; pts.push({x: center.x + radius * Math.cos(a), y: center.y + radius * Math.sin(a)}); }
+    return pts;
+}
+function generateArc(p1, p2, seg=30) {
+    const pts = [];
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const radius = Math.hypot(dx, dy);
+    const startAngle = Math.atan2(0, -radius);
+    const endAngle = Math.atan2(dy, dx);
+    const totalAngle = endAngle - startAngle;
+    for (let i=0; i<=seg; i++) { 
+        const t = i / seg;
+        const angle = startAngle + totalAngle * t;
+        const centerX = (p1.x + p2.x) / 2, centerY = (p1.y + p2.y) / 2;
+        pts.push({ x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) });
+    }
+    return pts;
+}
+function generateTriangle(p1, p2) { const cx = (p1.x+p2.x)/2; return [{x:cx,y:p1.y},{x:p2.x,y:p2.y},{x:p1.x,y:p2.y}]; }
+
+function redraw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle='#333'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(canvas.width/2,0); ctx.lineTo(canvas.width/2,canvas.height);
+    ctx.moveTo(0,canvas.height/2); ctx.lineTo(canvas.width,canvas.height/2); ctx.stroke();
+
+    const valid = getValidPoints();
+    if (valid.length === 0) { updateFinishButton(); updatePointsList(); return; }
+
+    const cx = canvas.width/2, cy = canvas.height/2;
+    ctx.save(); ctx.translate(cx,cy); ctx.scale(canvasZoom,canvasZoom); ctx.translate(-cx,-cy);
+
+    ctx.strokeStyle='#007acc'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath(); ctx.moveTo(valid[0].x, valid[0].y);
+    for (let i=1; i<valid.length; i++) ctx.lineTo(valid[i].x, valid[i].y);
+    if (valid.length > 2) { ctx.closePath(); ctx.fillStyle='rgba(0,122,204,0.15)'; ctx.fill(); }
+    ctx.stroke();
+
+    for (let i=0; i<valid.length; i++) {
+        const p = valid[i];
+        const isSel = (i === selectedIndex), isHov = (i === hoverIndex);
+        ctx.fillStyle = isSel ? '#f44336' : (isHov ? '#ff9800' : '#fff');
+        ctx.beginPath(); ctx.arc(p.x,p.y, isSel?7:5, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = isSel ? '#f44336' : '#007acc'; ctx.lineWidth = isSel ? 2 : 1.5;
+        ctx.beginPath(); ctx.arc(p.x,p.y, isSel?9:6, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle='#888'; ctx.font='bold 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ctx.fillText(i+1, p.x, p.y-10);
+    }
+
+    if (isDrawing && startPoint && tempEndPoint && ['line','rect','circle','arc','triangle'].includes(currentTool)) {
+        ctx.strokeStyle='#ff9800'; ctx.lineWidth=1.5; ctx.setLineDash([5,3]);
+        ctx.beginPath();
+        let previewPts = [];
+        if (currentTool === 'line') previewPts = generateLine(startPoint, tempEndPoint, 20);
+        else if (currentTool === 'rect') previewPts = generateRect(startPoint, tempEndPoint);
+        else if (currentTool === 'circle') { const r = Math.hypot(tempEndPoint.x-startPoint.x, tempEndPoint.y-startPoint.y); previewPts = generateCircle(startPoint, r, 30); }
+        else if (currentTool === 'arc') previewPts = generateArc(startPoint, tempEndPoint, 20);
+        else if (currentTool === 'triangle') previewPts = generateTriangle(startPoint, tempEndPoint);
+        if (previewPts.length > 0) {
+            ctx.moveTo(previewPts[0].x, previewPts[0].y);
+            for (let i=1; i<previewPts.length; i++) ctx.lineTo(previewPts[i].x, previewPts[i].y);
+            ctx.closePath(); ctx.fillStyle='rgba(255,152,0,0.15)'; ctx.fill(); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+    }
+    ctx.restore();
+    updateFinishButton(); updatePointsList();
+}
+
+function updateFinishButton() { document.getElementById('btn-draw-finish').disabled = getValidPoints().length < 3; }
+function updatePointsList() {
+    const valid = getValidPoints();
+    document.getElementById('poly-points-list').textContent = valid.length > 0 ? `Точки: ${valid.map((_,i)=>i+1).join(', ')}` : '';
+    document.getElementById('btn-delete-point').disabled = selectedIndex === -1 || valid.length <= 3;
+}
+
+function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-group button').forEach(b => b.classList.remove('active-tool'));
+    const btn = document.getElementById(`btn-tool-${tool}`);
+    if (btn) btn.classList.add('active-tool');
+    document.getElementById('tool-hint').innerHTML = toolHints[tool] || '';
+    isDrawing = false; startPoint = null; tempEndPoint = null; dragIndex = -1; hoverIndex = -1;
+    canvas.style.cursor = 'crosshair'; redraw();
+}
+
+function findClosestPoint(pos, radius=10) {
+    const valid = getValidPoints(); let minD=Infinity, minI=-1;
+    for (let i=0; i<valid.length; i++) {
+        const d = Math.hypot(valid[i].x-pos.x, valid[i].y-pos.y);
+        if (d < radius && d < minD) { minD=d; minI=i; }
+    }
+    return minI;
+}
+
+canvas.addEventListener('mousedown', e => {
+    const pos = getCanvasPos(e);
+    if (currentTool === 'brush') { isDrawing = true; currentStroke = [pos]; points.push(pos); saveHistory(); redraw(); } 
+    else if (currentTool === 'eraser') { isDrawing = true; eraseAt(pos); } 
+    else if (['line','rect','circle','arc','triangle'].includes(currentTool)) { isDrawing = true; startPoint = pos; tempEndPoint = pos; redraw(); } 
+    else if (currentTool === 'poly') {
+        const idx = findClosestPoint(pos);
+        if (idx !== -1) { selectedIndex = idx; dragIndex = idx; const valid = getValidPoints(); dragOffset = {x:pos.x-valid[idx].x, y:pos.y-valid[idx].y}; } 
+        else { saveHistory(); points.push(pos); selectedIndex = getValidPoints().length-1; }
+        redraw();
+    }
+});
+
+canvas.addEventListener('mousemove', e => {
+    const pos = getCanvasPos(e);
+    if (currentTool === 'brush' && isDrawing) { points.push(pos); currentStroke.push(pos); redraw(); } 
+    else if (currentTool === 'eraser' && isDrawing) { eraseAt(pos); } 
+    else if (isDrawing && startPoint && ['line','rect','circle','arc','triangle'].includes(currentTool)) { tempEndPoint = pos; redraw(); } 
+    else if (currentTool === 'poly' && dragIndex !== -1) {
+        const valid = getValidPoints();
+        if (dragIndex < valid.length) {
+            let actualIdx=0, found=0;
+            for (let i=0; i<points.length; i++) { if (points[i] !== null) { if (found===dragIndex) { actualIdx=i; break; } found++; } }
+            if (points[actualIdx]) { points[actualIdx] = {x:pos.x-dragOffset.x, y:pos.y-dragOffset.y}; redraw(); }
+        }
+    } else if (currentTool === 'poly') {
+        const idx = findClosestPoint(pos);
+        if (idx !== hoverIndex) { hoverIndex = idx; canvas.style.cursor = idx!==-1?'grab':'crosshair'; redraw(); }
+    }
+});
+
+canvas.addEventListener('mouseup', e => {
+    const pos = getCanvasPos(e);
+    if (['line','rect','circle','arc','triangle'].includes(currentTool) && isDrawing && startPoint) {
+        saveHistory(); let newPts = [];
+        if (currentTool === 'line') newPts = generateLine(startPoint, pos);
+        else if (currentTool === 'rect') newPts = generateRect(startPoint, pos);
+        else if (currentTool === 'circle') { const r = Math.hypot(pos.x-startPoint.x, pos.y-startPoint.y); newPts = generateCircle(startPoint, r); }
+        else if (currentTool === 'arc') newPts = generateArc(startPoint, pos);
+        else if (currentTool === 'triangle') newPts = generateTriangle(startPoint, pos);
+        if (points.length > 0 && points[points.length-1] !== null) points.push(null);
+        points = points.concat(newPts);
+        isDrawing = false; startPoint = null; tempEndPoint = null; redraw();
+        setStatus(`✅ ${currentTool} добавлен`);
+    } else if (currentTool === 'brush') {
+        isDrawing = false; if (currentStroke.length > 0) { points.push(null); currentStroke = []; }
+    } else if (currentTool === 'poly') { dragIndex = -1; dragOffset = null; }
+});
+
+function eraseAt(pos) {
+    const radius = 8; let changed = false;
+    points = points.map(p => { if (p === null) return null; if (Math.hypot(p.x-pos.x, p.y-pos.y) < radius) { changed = true; return null; } return p; });
+    if (changed) {
+        points = points.filter((p,i,arr) => { if (p === null) { const prev=i>0?arr[i-1]:null, next=i<arr.length-1?arr[i+1]:null; return prev!==null && next!==null; } return true; });
+        redraw();
+    }
+}
+
+function deleteSelectedPoint() {
+    if (selectedIndex === -1) return;
+    const valid = getValidPoints();
+    if (valid.length <= 3) { setStatus('❌ Минимум 3 точки'); return; }
+    saveHistory(); let count = 0;
+    for (let i=0; i<points.length; i++) { if (points[i] !== null) { if (count === selectedIndex) { points.splice(i, 1); break; } count++; } }
+    selectedIndex = -1; redraw(); setStatus('✖ Точка удалена');
+}
+
+function deletePointByIndex() {
+    const idx = parseInt(document.getElementById('inp-delete-idx').value) - 1;
+    const valid = getValidPoints();
+    if (isNaN(idx) || idx < 0 || idx >= valid.length) { setStatus('❌ Неверный номер'); return; }
+    if (valid.length <= 3) { setStatus('❌ Минимум 3 точки'); return; }
+    saveHistory(); let count = 0;
+    for (let i=0; i<points.length; i++) { if (points[i] !== null) { if (count === idx) { points.splice(i, 1); break; } count++; } }
+    document.getElementById('inp-delete-idx').value = ''; redraw(); setStatus('✖ Точка удалена');
+}
+
+// --- 2D в 3D с поворотом ---
+function getCutGeometry() {
+    const valid = getValidPoints();
+    if (valid.length < 3) return null;
+    const shape = new THREE.Shape();
+    const cx = canvas.width/2, cy = canvas.height/2;
+    const scale = Math.min(params.width/(canvas.width*0.8), params.height/(canvas.height*0.8));
+    const rotationRad = params.cutRotation * Math.PI / 180;
+    const cos = Math.cos(rotationRad), sin = Math.sin(rotationRad);
+    const pts = valid.map(p => {
+        const x = (p.x - cx) * scale, y = -(p.y - cy) * scale;
+        return {x: x * cos - y * sin, y: x * sin + y * cos};
+    });
+    shape.moveTo(pts[0].x, pts[0].y);
+    for (let i=1; i<pts.length; i++) shape.lineTo(pts[i].x, pts[i].y);
+    shape.closePath();
+    const geom = new THREE.ExtrudeGeometry(shape, {depth:params.cutDepth*2, bevelEnabled:false});
+    geom.center(); return geom;
+}
+
+function updatePreview() {
+    if (previewMesh) { scene.remove(previewMesh); previewMesh.geometry.dispose(); previewMesh = null; }
+    const geom = getCutGeometry();
+    if (!geom) return;
+    geom.scale(params.cutScale, params.cutScale, 1);
+    previewMesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({color:0xff6600, wireframe:true, transparent:true, opacity:0.8}));
+    previewMesh.position.set(params.cutX, params.cutY, params.depth/2);
+    scene.add(previewMesh);
+    setStatus('✅ Предпросмотр обновлён');
+}
+
+function performCut() {
+    if (getValidPoints().length < 3 || !stellaMesh) { setStatus('❌ Нарисуйте контур'); return; }
+    setStatus('⏳ Вырез...');
+    setTimeout(() => {
+        try {
+            const cutterGeom = getCutGeometry();
+            cutterGeom.scale(params.cutScale, params.cutScale, 1);
+            const cutterMesh = new THREE.Mesh(cutterGeom);
+            cutterMesh.position.set(params.cutX, params.cutY, params.depth/2);
+            cutterMesh.updateMatrix(); stellaMesh.updateMatrix();
+            const result = CSG.toMesh(CSG.fromMesh(stellaMesh).subtract(CSG.fromMesh(cutterMesh)), stellaMesh.matrix);
+            result.material = stellaMesh.material; result.castShadow = true; result.receiveShadow = true;
+            scene.remove(stellaMesh); stellaMesh.geometry.dispose(); stellaMesh = result; scene.add(stellaMesh);
+            if (previewMesh) { scene.remove(previewMesh); previewMesh.geometry.dispose(); previewMesh = null; }
+            setStatus('✅ Вырез выполнен');
+        } catch(e) { console.error(e); setStatus('❌ Ошибка CSG'); }
+    }, 50);
+}
+
+// --- Логика Гравировки Текста (исправленная) ---
+function updateTextPreview() {
+    if (!loadedFont) { setStatus('⏳ Шрифт еще загружается...'); return; }
+    if (textLines.length === 0) { setStatus('❌ Добавьте текст'); return; }
+
+    // Сохраняем текущую позицию перед удалением
+    let currentPos = { x: 0, y: 1.2, z: 0 };
+    if (textGroup) {
+        currentPos.x = textGroup.position.x;
+        currentPos.y = textGroup.position.y;
+        currentPos.z = textGroup.position.z;
+        
+        transformControl.detach();
+        scene.remove(textGroup);
+        while(textGroup.children.length > 0) {
+            const child = textGroup.children[0];
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+            textGroup.remove(child);
+        }
+        textGroup = null;
+    } else {
+        // Если текста еще нет, берем позицию из полей ввода
+        currentPos.x = parseFloat(document.getElementById('inp-text-x').value) || 0;
+        currentPos.y = parseFloat(document.getElementById('inp-text-y').value) || 1.2;
+        currentPos.z = parseFloat(document.getElementById('inp-text-z').value) || 0;
+    }
+    
+    textMeshes = [];
+
+    const size = parseFloat(document.getElementById('inp-text-size').value) || 0.12;
+    const depth = parseFloat(document.getElementById('inp-text-depth').value) || 0.008;
+    const spacing = parseFloat(document.getElementById('inp-text-spacing').value) || 0.15;
+    const fillColor = document.getElementById('inp-text-color').value;
+
+    try {
+        textGroup = new THREE.Group();
+        
+        // Вычисляем общую высоту текста для центрирования
+        const totalHeight = (textLines.length - 1) * spacing;
+        const startY = currentPos.y + totalHeight / 2;
+        
+        textLines.forEach((line, index) => {
+            const yPos = startY - index * spacing;
+            const text = line.trim() || ' ';
+            
+            const textGeo = new TextGeometry(text, {
+                font: loadedFont,
+                size: size,
+                height: depth,
+                curveSegments: 8,
+                bevelEnabled: false
+            });
+            
+            textGeo.computeBoundingBox();
+            const centerX = - (textGeo.boundingBox.max.x + textGeo.boundingBox.min.x) / 2;
+            const centerY = - (textGeo.boundingBox.max.y + textGeo.boundingBox.min.y) / 2;
+            textGeo.translate(centerX, centerY, 0);
+
+            // Z позиция: от поверхности стелы внутрь
+            const targetZ = (params.depth / 2) - depth + currentPos.z;
+
+            // Меш для выреза (wireframe)
+            const mesh = new THREE.Mesh(textGeo, new THREE.MeshBasicMaterial({ 
+                color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.5 
+            }));
+            mesh.position.set(currentPos.x, yPos, targetZ);
+            textGroup.add(mesh);
+            textMeshes.push(mesh);
+            
+            // Цветное заполнение
+            const fillGeo = textGeo.clone();
+            const fillMat = new THREE.MeshStandardMaterial({
+                color: fillColor,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            const fillMesh = new THREE.Mesh(fillGeo, fillMat);
+            fillMesh.position.set(currentPos.x, yPos, targetZ + 0.0005);
+            textGroup.add(fillMesh);
+            textMeshes.push(fillMesh);
+        });
+        
+        scene.add(textGroup);
+        transformControl.attach(textGroup);
+        
+        // Обновляем позицию в глобальной переменной
+        textPosition.x = currentPos.x;
+        textPosition.y = currentPos.y;
+        textPosition.z = currentPos.z;
+        
+        document.getElementById('btn-engrave-text').disabled = false;
+        document.getElementById('btn-text-cancel').disabled = false;
+        setStatus(`✅ Предпросмотр: ${textLines.length} строк(и), глубина ${depth.toFixed(3)} м`);
+    } catch (e) {
+        console.error(e);
+        setStatus('❌ Ошибка создания текста.');
+    }
+}
+
+function commitTextEngraving() {
+    if (!textGroup || !stellaMesh) return;
+    setStatus('⏳ Гравировка текста...');
+    setTimeout(() => {
+        try {
+            let currentMesh = stellaMesh;
+            
+            // Собираем все геометрии текста для выреза
+            const textMeshesToCut = [];
+            textGroup.children.forEach(child => {
+                if (child.isMesh && child.material.wireframe) {
+                    const meshCopy = child.clone();
+                    meshCopy.updateMatrix();
+                    textMeshesToCut.push(meshCopy);
+                }
+            });
+            
+            if (textMeshesToCut.length === 0) {
+                setStatus('❌ Нет текста для гравировки');
+                return;
+            }
+            
+            // Выполняем CSG операцию для каждого текстового меша
+            for (const textMesh of textMeshesToCut) {
+                textMesh.updateMatrix();
+                currentMesh.updateMatrix();
+                
+                const csgStella = CSG.fromMesh(currentMesh);
+                const csgText = CSG.fromMesh(textMesh);
+                const csgResult = csgStella.subtract(csgText);
+                
+                const resultMesh = CSG.toMesh(csgResult, currentMesh.matrix);
+                resultMesh.material = currentMesh.material;
+                resultMesh.castShadow = true;
+                resultMesh.receiveShadow = true;
+                
+                if (currentMesh !== stellaMesh) {
+                    scene.remove(currentMesh);
+                    currentMesh.geometry.dispose();
+                }
+                currentMesh = resultMesh;
+            }
+            
+            if (currentMesh !== stellaMesh) {
+                scene.remove(stellaMesh);
+                stellaMesh.geometry.dispose();
+                stellaMesh = currentMesh;
+                scene.add(stellaMesh);
+            }
+            
+            // Очищаем предпросмотр
+            transformControl.detach();
+            scene.remove(textGroup);
+            textGroup = null;
+            textMeshes = [];
+            
+            document.getElementById('btn-engrave-text').disabled = true;
+            document.getElementById('btn-text-cancel').disabled = true;
+            setStatus('✅ Текст выгравирован!');
+        } catch (e) {
+            console.error(e); 
+            setStatus('❌ Ошибка гравировки: ' + e.message);
+        }
+    }, 50);
+}
+
+function cancelTextPreview() {
+    if (textGroup) {
+        transformControl.detach();
+        scene.remove(textGroup);
+        while(textGroup.children.length > 0) {
+            const child = textGroup.children[0];
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+            textGroup.remove(child);
+        }
+        textGroup = null;
+        textMeshes = [];
+    }
+    document.getElementById('btn-engrave-text').disabled = true;
+    document.getElementById('btn-text-cancel').disabled = true;
+    setStatus('❌ Предпросмотр отменен');
+}
+
+// --- Экспорт ---
+function exportDXF() {
+    let dxf = "0\nSECTION\n2\nENTITIES\n";
+    let layer = "0";
+    const hw = params.width / 2;
+    const h = params.height;
+    dxf += `0\nLWPOLYLINE\n8\n${layer}\n90\n4\n70\n1\n`;
+    dxf += `10\n${-hw}\n20\n0.0\n`;
+    dxf += `10\n${hw}\n20\n0.0\n`;
+    dxf += `10\n${hw}\n20\n${h}\n`;
+    dxf += `10\n${-hw}\n20\n${h}\n`;
+
+    const valid = getValidPoints();
+    if (valid.length >= 3) {
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const scaleX = params.width / (canvas.width * 0.8);
+        const scaleY = params.height / (canvas.height * 0.8);
+        
+        dxf += `0\nLWPOLYLINE\n8\nCut\n90\n${valid.length}\n70\n1\n`;
+        for (const p of valid) {
+            const x3d = (p.x - cx) * scaleX * params.cutScale + params.cutX;
+            const y3d = -(p.y - cy) * scaleY * params.cutScale + params.cutY;
+            dxf += `10\n${x3d.toFixed(4)}\n20\n${y3d.toFixed(4)}\n`;
+        }
+    }
+    dxf += "0\nENDSEC\n0\nEOF\n";
+    const blob = new Blob([dxf], { type: 'application/dxf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'stela_cnc_contour.dxf';
+    link.click();
+    setStatus('📐 DXF контур сохранен');
+}
+
+function exportSTL() {
+    if (!stellaMesh) return;
+    const exporter = new STLExporter();
+    const result = exporter.parse(stellaMesh, { binary: true });
+    const blob = new Blob([result], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'stela_3d_model.stl';
+    link.click();
+    setStatus('📦 STL модель сохранена');
+}
+
+// --- UI Setup ---
+function setupUI() {
+    ['poly','line','rect','circle','arc','triangle','brush','eraser'].forEach(t => {
+        document.getElementById(`btn-tool-${t}`).addEventListener('click', () => setTool(t));
+    });
+    document.getElementById('btn-undo').addEventListener('click', undo);
+    document.getElementById('btn-draw-clear').addEventListener('click', () => {
+        points = []; currentStroke = []; history = [];
+        if (previewMesh) { scene.remove(previewMesh); previewMesh.geometry.dispose(); previewMesh = null; }
+        document.getElementById('csg-tools').style.display = 'none';
+        redraw(); setStatus('🗑️ Очищено');
+    });
+    document.getElementById('btn-draw-finish').addEventListener('click', () => {
+        const valid = getValidPoints();
+        if (valid.length < 3) return;
+        const first = valid[0], last = valid[valid.length-1];
+        if (Math.hypot(first.x-last.x, first.y-last.y) > 10) points.push({...first});
+        if (currentTool === 'brush' && points[points.length-1] !== null) points.push(null);
+        updatePreview();
+        document.getElementById('csg-tools').style.display = 'block';
+        setStatus('✅ Контур применён');
+    });
+    document.getElementById('btn-delete-point').addEventListener('click', deleteSelectedPoint);
+    document.getElementById('btn-delete-by-idx').addEventListener('click', deletePointByIndex);
+    document.getElementById('inp-delete-idx').addEventListener('keypress', e => { if (e.key === 'Enter') deletePointByIndex(); });
+    
+    document.getElementById('btn-zoom-in').addEventListener('click', () => { canvasZoom = Math.min(5, canvasZoom+0.1); document.getElementById('zoom-level').textContent = Math.round(canvasZoom*100)+'%'; redraw(); });
+    document.getElementById('btn-zoom-out').addEventListener('click', () => { canvasZoom = Math.max(0.3, canvasZoom-0.1); document.getElementById('zoom-level').textContent = Math.round(canvasZoom*100)+'%'; redraw(); });
+    document.getElementById('btn-zoom-reset').addEventListener('click', () => { canvasZoom = 1.0; document.getElementById('zoom-level').textContent = '100%'; redraw(); });
+
+    const updateParam = (key, elId, valId, isFloat=true) => {
+        document.getElementById(elId).addEventListener('input', e => {
+            params[key] = isFloat ? parseFloat(e.target.value) : e.target.value;
+            document.getElementById(valId).textContent = isFloat ? params[key].toFixed(2) : params[key];
+            createStella();
+        });
+    };
+    updateParam('height','inp-height','val-h'); updateParam('width','inp-width','val-w');
+    updateParam('depth','inp-depth','val-d'); updateParam('bevel','inp-bevel','val-bevel');
+    document.getElementById('sel-top-shape').addEventListener('change', e => { params.topShape = e.target.value; createStella(); });
+    document.getElementById('sel-material').addEventListener('change', e => { params.material = e.target.value; if(stellaMesh) stellaMesh.material = materials[params.material]; });
+
+    const updateCut = (key, elId, valId) => {
+        document.getElementById(elId).addEventListener('input', e => {
+            params[key] = parseFloat(e.target.value);
+            document.getElementById(valId).textContent = params[key].toFixed(2);
+            updatePreview();
+        });
+    };
+    updateCut('cutX','inp-cx','val-cx'); updateCut('cutY','inp-cy','val-cy');
+    updateCut('cutScale','inp-cs','val-cs'); updateCut('cutDepth','inp-cd','val-cd');
+    document.getElementById('inp-cr').addEventListener('input', e => {
+        params.cutRotation = parseFloat(e.target.value);
+        document.getElementById('val-cr').textContent = params.cutRotation;
+        updatePreview();
+    });
+
+    document.getElementById('btn-cut').addEventListener('click', performCut);
+    document.getElementById('btn-reset-mesh').addEventListener('click', () => {
+        createStella(); points = []; history = [];
+        if (previewMesh) { scene.remove(previewMesh); previewMesh.geometry.dispose(); previewMesh = null; }
+        cancelTextPreview();
+        document.getElementById('csg-tools').style.display = 'none';
+        redraw(); setStatus('🔄 Сброшено');
+    });
+
+    document.getElementById('btn-text-preview').addEventListener('click', updateTextPreview);
+    document.getElementById('btn-engrave-text').addEventListener('click', commitTextEngraving);
+    document.getElementById('btn-text-cancel').addEventListener('click', cancelTextPreview);
+    
+    document.getElementById('inp-text-color').addEventListener('input', () => { 
+        if (textGroup) {
+            const fillColor = document.getElementById('inp-text-color').value;
+            for (let i = 1; i < textGroup.children.length; i += 2) textGroup.children[i].material.color.set(fillColor);
+        }
+    });
+    
+    // Обновляем обработчики для полей ввода позиции
+    document.getElementById('inp-text-x').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) || 0;
+        textPosition.x = val;
+        if (textGroup) {
+            textGroup.position.x = val;
+            textGroup.children.forEach(child => {
+                child.position.x = val;
+            });
+        }
+    });
+
+    document.getElementById('inp-text-y').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) || 1.2;
+        textPosition.y = val;
+        if (textGroup) {
+            updateTextPreview();
+        }
+    });
+
+    document.getElementById('inp-text-z').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) || 0;
+        textPosition.z = val;
+        if (textGroup) {
+            updateTextPreview();
+        }
+    });
+
+    document.getElementById('inp-text-size').addEventListener('change', () => { 
+        if (textGroup) updateTextPreview(); 
+    });
+
+    document.getElementById('inp-text-depth').addEventListener('change', () => { 
+        if (textGroup) updateTextPreview(); 
+    });
+
+    document.getElementById('inp-text-spacing').addEventListener('change', () => { 
+        if (textGroup) updateTextPreview(); 
+    });
+
+    document.getElementById('btn-export-stl').addEventListener('click', exportSTL);
+    document.getElementById('btn-export-dxf').addEventListener('click', exportDXF);
+    document.getElementById('btn-calc').addEventListener('click', () => { alert(`Объём: ${(params.height*params.width*params.depth).toFixed(4)} м³`); });
+}
+
+function setStatus(msg) { document.getElementById('status-bar').textContent = msg; }
+window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth/container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+});
+function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+
+setupUI();
+redraw();
+animate();
+</script>
+</body>
+</html>

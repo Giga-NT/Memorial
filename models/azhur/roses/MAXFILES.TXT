@@ -1,0 +1,12 @@
+C:\Users\Owner\Desktop\3D_models\Iron Heart-shaped Sweetheart Flower Vase\t$m$p$$$\ROSE_iron heart_01.max
+C:\Users\Owner\Desktop\3D_models\Iron Heart-shaped Sweetheart Flower Vase\t$m$p$$$\MAXFILES.TXT
+D:\JOB\TEKSTURA\textura+\oldwood2\oldwood_213.jpg
+D:\JOB\TEKSTURA\BUMP\Average_map 2_212.jpg
+D:\JOB\TEKSTURA\BUMP\bumpmap_thumb.png
+D:\JOB\TEKSTURA\BUMP\Average_map.jpg
+C:\Users\Owner\Desktop\3D_models\Leaf_01.jpg
+C:\Users\Owner\Desktop\3D_models\Leaf_01_bump.jpg
+C:\Users\Owner\Desktop\3D_models\Leaf_01_opasity.jpg
+C:\Users\Owner\Desktop\3D_models\Rose_Petals_7_by_SimplyBackgrounds.jpg
+C:\Users\Owner\Desktop\3D_models\STEBEL_01.jpg
+C:\Users\Owner\Desktop\3D_models\STEBEL_01_bump.jpg

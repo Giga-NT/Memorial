@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="3D конструктор памятников. Создайте уникальный дизайн памятника в реальном времени с визуализацией 3D. Широкий выбор материалов, форм и элементов декора.">
+    <meta name="keywords" content="3D конструктор памятников, памятник, надгробие, гранит, мрамор, стела, цветник, оградка">
+    <title>3D Конструктор Памятника | Giga-NT</title>
+    <link rel="canonical" href="https://giga-nt.ru/">
+    <link rel="stylesheet" href="style.css">
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "/modules/three.module.js",
+            "three/addons/": "/modules/"
+        }
+    }
+    </script>
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E🪦%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<!-- ============================================================
+ВЕРХНЯЯ ПАНЕЛЬ (БУРГЕР + КНОПКИ НА ОДНОМ УРОВНЕ)
+============================================================ -->
+<div class="top-bar">
+    <!-- БУРГЕР-КНОПКА (СЛЕВА) -->
+    <button class="burger-btn" id="burgerBtn" aria-label="Открыть меню">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <!-- ПАНЕЛЬ БЫСТРЫХ ДЕЙСТВИЙ (СПРАВА, НА УРОВНЕ БУРГЕРА) -->
+    <div class="quick-actions" id="quickActions">
+        <button id="applyMainBtn" class="quick-btn apply-main-btn" title="Применить к основному">
+            <span class="quick-icon">🪦</span>
+            <span class="quick-label">Применить</span>
+        </button>
+        <button id="applyDuplicatorBtn" class="quick-btn apply-duplicator-btn" title="Применить к дублеру">
+            <span class="quick-icon">📋</span>
+            <span class="quick-label">К дублеру</span>
+            <span class="badge" id="duplicatorBadge">0</span>
+        </button>
+        <button id="resetViewBtn" class="quick-btn reset-view-btn" title="Сбросить вид">
+            <span class="quick-icon">⟲</span>
+            <span class="quick-label">Сброс</span>
+        </button>
+    </div>
+</div>
+
+<!-- ============================================================
+ОВЕРЛЕЙ
+============================================================ -->
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<!-- ============================================================
+ОСНОВНОЕ МЕНЮ
+============================================================ -->
+<div class="accordion-menu" id="accordionMenu" role="navigation" aria-label="Главное меню">
+    <div class="menu-scroll" id="menuScroll">
+        
+        <!-- ============================================================
+        ШАГ 1: УПРАВЛЕНИЕ ПАМЯТНИКАМИ
+        ============================================================ -->
+        <div class="accordion-section active">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="true">
+                📋 1. Управление памятниками (<span id="monumentCount">1</span>)
+            </div>
+            <div class="section-content">
+                <div id="monumentListContainer" class="monument-list-container">
+                    <div class="loading-placeholder">Загрузка...</div>
+                </div>
+                
+                <div class="btn-group-monument">
+                    <button id="addMonumentBtn" class="btn-add-monument">➕ Добавить</button>
+                    <button id="duplicateMonumentBtn" class="btn-duplicate-monument">📋 Копировать</button>
+                    <button id="deleteMonumentBtn" class="btn-delete-monument">🗑️ Удалить</button>
+                    <button id="selectMainMonumentBtn" class="btn-select-main">🏠 Основной</button>
+                </div>
+
+                <div class="move-mode-container">
+                    <div class="btn-group">
+                        <button id="toggleMoveModeBtn" class="btn-toggle-move">✋ Переместить</button>
+                        <button id="arrangeInRowBtn" class="btn-arrange-row">📐 Выровнять</button>
+                    </div>
+                    
+                    <div id="selectedMonumentInfo" class="selected-monument-info">
+                        <span class="empty">⬤</span>
+                        <span class="empty-text">Ничего не выбрано</span>
+                        <span id="selectedMonumentBadge" class="badge">ВЫБРАНО</span>
+                    </div>
+                    
+                    <div class="hint-text">
+                        💡 Кликни по памятнику в 3D, чтобы выбрать его<br>
+                        💡 Нажми «✋ Переместить», чтобы перетаскивать дублеры
+                    </div>
+                </div>
+
+                <div class="hint-text" style="margin-top:8px;">
+                    💡 Выбранный памятник подсвечивается зелёным
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 2: ФОРМА И РАЗМЕРЫ СТЕЛЫ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                🪦 2. Форма и размеры стелы
+            </div>
+            <div class="section-content">
+                <div class="subsection">
+                    <div class="subsection-title">📦 Форма стелы</div>
+                    <div class="control-group">
+                        <div id="steleOptionsGrid" class="stele-options-grid"></div>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <div class="subsection-title">🎨 Материал стелы</div>
+                    <div class="control-group">
+                        <select id="materialSelect">
+                            <optgroup label="Черные граниты">
+                                <option value="granite">⚫ Габбро-Диабаз</option>
+                                <option value="black_galaxy">⭐ Галактика черный</option>
+                                <option value="ninimyaki">🌲 Нинимяки</option>
+                            </optgroup>
+                            <optgroup label="Цветные граниты">
+                                <option value="marble">⚪ Белый Мрамор</option>
+                                <option value="red_granite">🔴 Красный Гранит</option>
+                                <option value="beige_granite">🏜️ Бежевый Гранит</option>
+                                <option value="gray_granite">🌫️ Серый Гранит</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <div class="subsection-title">📏 Размеры стелы</div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="widthRange">Ширина</label>
+                        <div class="input-with-range">
+                            <input type="range" id="widthRange" min="0.4" max="1.2" step="0.05" value="0.6">
+                            <input type="number" id="widthInput" class="number-input" value="0.6" min="0.4" max="1.2" step="0.05">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="widthVal">0.6 м</span>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="heightRange">Высота</label>
+                        <div class="input-with-range">
+                            <input type="range" id="heightRange" min="0.8" max="1.8" step="0.05" value="1.2">
+                            <input type="number" id="heightInput" class="number-input" value="1.2" min="0.8" max="1.8" step="0.05">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="heightVal">1.2 м</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 3: ОСНОВАНИЕ И ОГРАДКА
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                📐 3. Основание и оградка
+            </div>
+            <div class="section-content">
+                <div class="subsection">
+                    <div class="subsection-title">📐 Размеры основания</div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="graveWidth">Ширина</label>
+                        <div class="input-with-range">
+                            <input type="range" id="graveWidth" min="0.6" max="3.0" step="0.1" value="0.9">
+                            <input type="number" id="graveWidthInput" class="number-input" value="0.9" min="0.6" max="3.0" step="0.1">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="graveWidthVal">0.9 м</span>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="graveLength">Длина</label>
+                        <div class="input-with-range">
+                            <input type="range" id="graveLength" min="0.6" max="4.0" step="0.1" value="1.5">
+                            <input type="number" id="graveLengthInput" class="number-input" value="1.5" min="0.6" max="4.0" step="0.1">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="graveLengthVal">1.5 м</span>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="baseHeight">Высота</label>
+                        <div class="input-with-range">
+                            <input type="range" id="baseHeight" min="0.05" max="0.4" step="0.01" value="0.15">
+                            <input type="number" id="baseHeightInput" class="number-input" value="0.15" min="0.05" max="0.4" step="0.01">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="baseHeightVal">0.15 м</span>
+                    </div>
+                    
+                    <div class="grave-area-info">
+                        📐 Площадь: <span id="graveArea">1.35</span> м²
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-title">🌺 Цветник</div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="flowerEnabled" checked>
+                        <label for="flowerEnabled">✅ Показывать цветник</label>
+                    </div>
+                    <div id="flowerControls" class="flower-controls">
+                        <div class="control-group-with-input">
+                            <label for="flowerWidth">Ширина</label>
+                            <div class="input-with-range">
+                                <input type="range" id="flowerWidth" min="0.3" max="3.0" step="0.1" value="0.6">
+                                <input type="number" id="flowerWidthInput" class="number-input" value="0.6" min="0.3" max="3.0" step="0.1">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="flowerWidthVal">0.6 м</span>
+                        </div>
+                        <div class="control-group-with-input">
+                            <label for="flowerLength">Длина</label>
+                            <div class="input-with-range">
+                                <input type="range" id="flowerLength" min="0.3" max="3.6" step="0.1" value="0.9">
+                                <input type="number" id="flowerLengthInput" class="number-input" value="0.9" min="0.3" max="3.6" step="0.1">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="flowerLengthVal">0.9 м</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="flowerbedType">Покрытие</label>
+                            <select id="flowerbedType">
+                                <option value="grass">🌿 Газон</option>
+                                <option value="gravel">🪨 Гравий</option>
+                                <option value="marble_chips">⚪ Мраморная крошка</option>
+                                <option value="red_gravel">🔴 Красный гравий</option>
+                                <option value="blue_gravel">💙 Синий гравий</option>
+                                <option value="black_gravel">⚫ Чёрная галька</option>
+                                <option value="sand">🏜️ Песок</option>
+                                <option value="flowers">🌻 Цветы</option>
+                                <option value="moss">🍃 Мох</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-title">🚧 Оградка</div>
+                    
+                    <div class="checkbox-group" style="margin-bottom:10px;">
+                        <input type="checkbox" id="fenceEnabled" checked>
+                        <label for="fenceEnabled">🚧 Показать оградку</label>
+                    </div>
+                    <div class="checkbox-group" style="margin-bottom:15px;">
+                        <input type="checkbox" id="pathEnabled" checked>
+                        <label for="pathEnabled">🛤️ Показать дорожку</label>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="fenceWidth">Ширина оградки</label>
+                        <div class="input-with-range">
+                            <input type="range" id="fenceWidth" min="1.0" max="10.0" step="0.1" value="1.5">
+                            <input type="number" id="fenceWidthInput" class="number-input" value="1.5" min="1.0" max="10.0" step="0.1">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="fenceWidthVal">1.5 м</span>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="fenceLength">Длина оградки</label>
+                        <div class="input-with-range">
+                            <input type="range" id="fenceLength" min="1.0" max="10.0" step="0.1" value="2.5">
+                            <input type="number" id="fenceLengthInput" class="number-input" value="2.5" min="1.0" max="10.0" step="0.1">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="fenceLengthVal">2.5 м</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="fenceType">Тип</label>
+                        <select id="fenceType">
+                            <option value="pipe">🔘 Труба</option>
+                            <option value="chain">⛓️ Цепь</option>
+                            <option value="casting">🏺 Литье</option>
+                            <option value="none">⭕ Только столбы</option>
+                            <option value="model_3d">🎨 3D Модель</option>
+                            <option value="venzel">✨ Вензель</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="fenceMaterial">Материал</label>
+                        <select id="fenceMaterial">
+                            <option value="black_metal">⚫ Черный металл</option>
+                            <option value="steel" selected>⚪ Нержавеющая сталь</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="fenceHeight">Высота</label>
+                        <div class="input-with-range">
+                            <input type="range" id="fenceHeight" min="0.2" max="2.0" step="0.05" value="0.6">
+                            <input type="number" id="fenceHeightInput" class="number-input" value="0.6" min="0.2" max="2.0" step="0.05">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="fenceHeightVal">0.6 м</span>
+                    </div>
+                    
+                    <div class="subsection-title" style="margin-top:15px;">🚪 Вход</div>
+                    <div class="control-group">
+                        <label for="fenceGateSide">Сторона</label>
+                        <select id="fenceGateSide">
+                            <option value="none">🚫 Нет</option>
+                            <option value="front">⬆️ Передняя</option>
+                            <option value="back" selected>⬇️ Задняя</option>
+                            <option value="left">⬅️ Левая</option>
+                            <option value="right">➡️ Правая</option>
+                        </select>
+                    </div>
+                    <div class="control-group-with-input">
+                        <label for="gateWidth">Ширина</label>
+                        <div class="input-with-range">
+                            <input type="range" id="gateWidth" min="0.4" max="3.0" step="0.05" value="0.8">
+                            <input type="number" id="gateWidthInput" class="number-input" value="0.8" min="0.4" max="3.0" step="0.05">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="gateWidthVal">0.8 м</span>
+                    </div>
+                    
+                    <div class="subsection-title" style="margin-top:15px;">📍 Смещение</div>
+                    <div class="fence-offset-buttons">
+                        <button id="moveFenceModeBtn" class="btn-move-fence">✋ Перемещать</button>
+                        <button id="resetFencePositionBtn" class="btn-reset-fence">⟲ В центр</button>
+                    </div>
+                    <div class="fence-offset-grid">
+                        <div class="fence-offset-item">
+                            <label>X: <span id="fenceOffsetXDisplay" class="value">0.00</span></label>
+                            <input type="range" id="fenceOffsetX" min="-9.5" max="9.5" step="0.05" value="0">
+                        </div>
+                        <div class="fence-offset-item">
+                            <label>Z: <span id="fenceOffsetZDisplay" class="value">0.00</span></label>
+                            <input type="range" id="fenceOffsetZ" min="-9.5" max="9.5" step="0.05" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-title">🛤️ Дорожка</div>
+                    <div id="pathControls" class="path-controls">
+                        <div class="control-group-with-input">
+                            <label for="pathWidth">Ширина</label>
+                            <div class="input-with-range">
+                                <input type="range" id="pathWidth" min="0.2" max="2.0" step="0.05" value="0.5">
+                                <input type="number" id="pathWidthInput" class="number-input" value="0.5" min="0.2" max="2.0" step="0.05">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="pathWidthVal">0.50 м</span>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="pathMaterial">Покрытие</label>
+                            <select id="pathMaterial">
+                                <option value="tile_black">⬛ Чёрная брусчатка</option>
+                                <option value="tile_gray" selected>⬜ Серая брусчатка</option>
+                                <option value="tile_beige">🟨 Бежевая брусчатка</option>
+                                <option value="tile_dark">⬛ Тёмная брусчатка</option>
+                                <option value="tile_light">⬜ Светлая брусчатка</option>
+                                <option value="tile_marble">⚪ Мраморная брусчатка</option>
+                                <option value="gravel">🪨 Гравий</option>
+                                <option value="sand">🏜️ Песок</option>
+                                <option value="grass">🌿 Газон</option>
+                                <option value="flowers">🌸 Цветы</option>
+                            </select>
+                        </div>
+                        
+                        <div id="pathTileSettings" class="path-tile-settings">
+                            <div class="control-group-with-input">
+                                <label for="pathTileSize">Размер брусчатки</label>
+                                <div class="input-with-range">
+                                    <input type="range" id="pathTileSize" min="0.1" max="0.6" step="0.05" value="0.3">
+                                    <input type="number" id="pathTileSizeInput" class="number-input" value="0.3" min="0.1" max="0.6" step="0.05">
+                                    <span class="unit">м</span>
+                                </div>
+                                <span class="value-display" id="pathTileSizeVal">0.30 м</span>
+                            </div>
+                            
+                            <div class="control-group">
+                                <label for="pathJointColor">Цвет швов</label>
+                                <div class="color-picker-row">
+                                    <input type="color" id="pathJointColor" value="#666666">
+                                </div>
+                            </div>
+                            
+                            <div class="control-group">
+                                <label for="pathTileLayout">Укладка</label>
+                                <select id="pathTileLayout">
+                                    <option value="straight">📐 Прямая</option>
+                                    <option value="brick" selected>🧱 Вразбежку</option>
+                                    <option value="diagonal">🔲 Диагональная</option>
+                                    <option value="herringbone">〰️ Ёлочка</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 4: ТЕКСТ НА ПАМЯТНИКЕ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                📝 4. Текст на памятнике
+            </div>
+            <div class="section-content">
+                <div class="control-group">
+                    <label for="fullName">ФИО (используйте / для переноса)</label>
+                    <input type="text" id="fullName" value="Иванов Иван Иванович" maxlength="200">
+                </div>
+                
+                <div class="control-group">
+                    <label for="datesText">Даты</label>
+                    <input type="text" id="datesText" value="01.01.1950 — 01.01.2026" maxlength="100">
+                </div>
+                
+                <div class="control-group">
+                    <label for="fontFamily">Шрифт</label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <select id="fontFamily" style="flex:1; font-size:14px; padding:10px;">
+                            <optgroup label="✝️ Славянские / Православные">
+                                <option value="'Yermak', sans-serif" style="font-family:'Yermak', sans-serif; font-size:16px;">Yermak (кал.черт)</option>
+                                <option value="'Bodega Script', cursive" style="font-family:'Bodega Script', cursive; font-size:16px;">Bodega Script</option>
+                                <option value="'Brusher', cursive" style="font-family:'Brusher', cursive; font-size:16px;">Brusher</option>
+                                <option value="'Drevnerusskij', serif" style="font-family:'Drevnerusskij', serif; font-size:16px;">Drevnerusskij</option>
+                                <option value="'Drina', cursive" style="font-family:'Drina', cursive; font-size:16px;">Drina</option>
+                                <option value="'Federico', cursive" style="font-family:'Federico', cursive; font-size:16px;">Federico</option>
+                                <option value="'Feofan', serif" style="font-family:'Feofan', serif; font-size:16px;">Feofan</option>
+                                <option value="'Figurny', cursive" style="font-family:'Figurny', cursive; font-size:16px;">Figurny</option>
+                                <option value="'Pochaevsk', serif" style="font-family:'Pochaevsk', serif; font-size:16px;">Pochaevsk</option>
+                                <option value="'Remeslo', cursive" style="font-family:'Remeslo', cursive; font-size:16px;">Remeslo</option>
+                                <option value="'Tsarevich', serif" style="font-family:'Tsarevich', serif; font-size:16px;">Tsarevich</option>
+                            </optgroup>
+                            <optgroup label="📜 Классические">
+                                <option value="'Times New Roman', Times, serif" style="font-family:'Times New Roman', serif; font-size:16px;">Times New Roman</option>
+                                <option value="'Georgia', serif" style="font-family:'Georgia', serif; font-size:16px;">Georgia</option>
+                                <option value="'Garamond', serif" style="font-family:'Garamond', serif; font-size:16px;">Garamond</option>
+                                <option value="'Baskerville', serif" style="font-family:'Baskerville', serif; font-size:16px;">Baskerville</option>
+                                <option value="'Palatino', serif" style="font-family:'Palatino', serif; font-size:16px;">Palatino</option>
+                            </optgroup>
+                            <optgroup label="✍️ Рукописные">
+                                <option value="'Brush Script MT', cursive" style="font-family:'Brush Script MT', cursive; font-size:16px;">Brush Script MT</option>
+                                <option value="'Lucida Handwriting', cursive" style="font-family:'Lucida Handwriting', cursive; font-size:16px;">Lucida Handwriting</option>
+                            </optgroup>
+                            <optgroup label="🔲 Современные">
+                                <option value="Arial, Helvetica, sans-serif" style="font-family:Arial, sans-serif; font-size:16px;">Arial</option>
+                                <option value="'Helvetica Neue', Helvetica, sans-serif" style="font-family:'Helvetica Neue', sans-serif; font-size:16px;">Helvetica Neue</option>
+                                <option value="'Verdana', sans-serif" style="font-family:'Verdana', sans-serif; font-size:16px;">Verdana</option>
+                                <option value="'Calibri', sans-serif" style="font-family:'Calibri', sans-serif; font-size:16px;">Calibri</option>
+                                <option value="'Roboto', sans-serif" style="font-family:'Roboto', sans-serif; font-size:16px;">Roboto</option>
+                                <option value="'Montserrat', sans-serif" style="font-family:'Montserrat', sans-serif; font-size:16px;">Montserrat</option>
+                            </optgroup>
+                        </select>
+                        <button id="forceFontUpdateBtn" class="btn-force-font" style="flex-shrink:0; padding:8px 12px; width:auto;">🔄</button>
+                    </div>
+                    <div id="fontPreview" style="margin-top:10px; padding:12px 16px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid rgba(255,255,255,0.1); text-align:center; transition:all 0.3s ease; min-height:60px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                        <span id="fontPreviewText" style="font-size:24px; color:#fff; line-height:1.4;">Пример текста</span>
+                        <span id="fontPreviewName" style="font-size:11px; color:#666; margin-top:4px;">Шрифт: <span id="fontPreviewFamily">Arial</span></span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="textColor">Цвет</label>
+                    <input type="color" id="textColor" value="#FFFFFF">
+                </div>
+                
+                <div class="control-group-with-input">
+                    <label for="nameFontSize">Размер (ФИО)</label>
+                    <div class="input-with-range">
+                        <input type="range" id="nameFontSize" min="20" max="80" step="1" value="48">
+                        <input type="number" id="nameFontSizeInput" class="number-input" value="48" min="20" max="80" step="1">
+                        <span class="unit">px</span>
+                    </div>
+                    <span class="value-display" id="nameFontSizeVal">48</span>
+                </div>
+                
+                <div class="control-group-with-input">
+                    <label for="datesFontSize">Размер (Даты)</label>
+                    <div class="input-with-range">
+                        <input type="range" id="datesFontSize" min="16" max="60" step="1" value="32">
+                        <input type="number" id="datesFontSizeInput" class="number-input" value="32" min="16" max="60" step="1">
+                        <span class="unit">px</span>
+                    </div>
+                    <span class="value-display" id="datesFontSizeVal">32</span>
+                </div>
+<div class="checkbox-group" style="margin-bottom:10px;">
+    <input type="checkbox" id="enableDragText">
+    <label for="enableDragText">✋ Двигать текст мышкой</label>
+    <span style="font-size:11px; color:#666; margin-left:8px;">(перетащите текст на стеле)</span>
+</div>
+                <div class="control-group">
+                    <label class="position-label">📍 Положение текста</label>
+                    <div class="position-grid">
+                        <div></div>
+                        <button id="btnTextUp" class="pos-btn">⬆️</button>
+                        <div></div>
+                        <button id="btnTextLeft" class="pos-btn">⬅️</button>
+                        <button id="btnTextReset" class="pos-btn reset">⟲</button>
+                        <button id="btnTextRight" class="pos-btn">➡️</button>
+                        <div></div>
+                        <button id="btnTextDown" class="pos-btn">⬇️</button>
+                        <div></div>
+                    </div>
+                    <div class="position-display">
+                        X: <span id="textOffsetXVal">0.00</span> | Y: <span id="textOffsetYVal">0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 5: ЭПИТАФИЯ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                ✍️ 5. Эпитафия
+            </div>
+            <div class="section-content">
+                <div class="control-group">
+                    <label for="epitaphText">Текст эпитафии</label>
+                    <textarea id="epitaphText" rows="3" maxlength="500">Светлая память</textarea>
+                </div>
+                
+                <div class="control-group-with-input">
+                    <label for="epitaphFontSize">Размер шрифта</label>
+                    <div class="input-with-range">
+                        <input type="range" id="epitaphFontSize" min="20" max="80" step="1" value="40">
+                        <input type="number" id="epitaphFontSizeInput" class="number-input" value="40" min="20" max="80" step="1">
+                        <span class="unit">px</span>
+                    </div>
+                    <span class="value-display" id="epitaphFontSizeVal">40</span>
+                </div>
+<div class="checkbox-group" style="margin-bottom:10px;">
+    <input type="checkbox" id="enableDragText">
+    <label for="enableDragText">✋ Двигать текст мышкой</label>
+    <span style="font-size:11px; color:#666; margin-left:8px;">(перетащите текст на стеле)</span>
+</div>               
+                <div class="control-group">
+                    <label class="position-label" style="color: #e74c3c;">📍 Положение</label>
+                    <div class="position-grid">
+                        <div></div>
+                        <button id="btnEpitaphUp" class="pos-btn">⬆️</button>
+                        <div></div>
+                        <button id="btnEpitaphLeft" class="pos-btn">⬅️</button>
+                        <button id="btnEpitaphReset" class="pos-btn reset">⟲</button>
+                        <button id="btnEpitaphRight" class="pos-btn">➡️</button>
+                        <div></div>
+                        <button id="btnEpitaphDown" class="pos-btn">⬇️</button>
+                        <div></div>
+                    </div>
+                    <div class="position-display">
+                        X: <span id="epitaphOffsetXVal">0.00</span> | Y: <span id="epitaphOffsetYVal">0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 6: ФОТОГРАФИЯ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                🖼️ 6. Фотография
+            </div>
+            <div class="section-content">
+                <div class="control-group">
+                    <label for="textureUpload">Загрузить фото</label>
+                    <input type="file" id="textureUpload" accept="image/*">
+                </div>
+                
+                <div class="control-group">
+                    <label>Форма фото</label>
+                    <div class="photo-shape-options" id="photoShapeOptions">
+                        <div class="shape-option active" data-shape="oval">Овал</div>
+                        <div class="shape-option" data-shape="circle">Круг</div>
+                        <div class="shape-option" data-shape="square">Квадрат</div>
+                        <div class="shape-option" data-shape="custom">Свой</div>
+                    </div>
+                </div>
+                
+                <div id="customPhotoSize" class="custom-photo-size" style="display: none;">
+                    <div class="mm-inputs">
+                        <div>
+                            <label for="photoWidthMm">Ширина (мм)</label>
+                            <input type="number" id="photoWidthMm" value="100" min="30" max="300">
+                        </div>
+                        <div>
+                            <label for="photoHeightMm">Высота (мм)</label>
+                            <input type="number" id="photoHeightMm" value="140" min="30" max="400">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group-with-input">
+                    <label for="photoScale">Масштаб</label>
+                    <div class="input-with-range">
+                        <input type="range" id="photoScale" min="0.3" max="2.0" step="0.05" value="1.0">
+                        <input type="number" id="photoScaleInput" class="number-input" value="1.0" min="0.3" max="2.0" step="0.05">
+                        <span class="unit">x</span>
+                    </div>
+                    <span class="value-display" id="photoScaleVal">1.0</span>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="enableMovePhoto">
+                    <label for="enableMovePhoto">✋ Двигать фото мышкой</label>
+                    <span class="photo-drag-hint">(перетащите фото на стеле)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 7: ГРАВИРОВКИ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                🎨 7. Гравировки
+            </div>
+            <div class="section-content">
+                <div class="engravings-subsection">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-weight:bold; color:#00a896;">▶ Лицевая сторона</span>
+                    </div>
+                    <div id="engravingsFrontList" class="engravings-list">
+                        <div class="empty">Нет гравировок</div>
+                    </div>
+                    <div class="engravings-controls">
+                        <select id="addEngravingFrontSelect" class="engraving-select">
+                            <option value="">-- Выберите --</option>
+                            <option value="cross">✝️ Крест</option>
+                            <option value="heart">❤️ Сердце</option>
+                            <option value="dove">🕊️ Голубь</option>
+                            <option value="flower">🌺 Цветок</option>
+                            <option value="angel">👼 Ангел</option>
+                            <option value="orthodox_cross">☦️ Православный крест</option>
+                        </select>
+                        <button id="addEngravingFrontBtn" class="btn-add-engraving-front">➕ Добавить</button>
+                    </div>
+                </div>
+                
+                <div class="engravings-subsection" style="margin-top:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-weight:bold; color:#e74c3c;">🔙 Задняя сторона</span>
+                    </div>
+                    <div id="engravingsBackList" class="engravings-list">
+                        <div class="empty">Нет гравировок</div>
+                    </div>
+                    <div class="engravings-controls">
+                        <select id="addEngravingBackSelect" class="engraving-select">
+                            <option value="">-- Выберите --</option>
+                            <option value="cross">✝️ Крест</option>
+                            <option value="heart">❤️ Сердце</option>
+                            <option value="dove">🕊️ Голубь</option>
+                            <option value="flower">🌺 Цветок</option>
+                            <option value="angel">👼 Ангел</option>
+                            <option value="orthodox_cross">☦️ Православный крест</option>
+                        </select>
+                        <button id="addEngravingBackBtn" class="btn-add-engraving-back">➕ Добавить</button>
+                    </div>
+                </div>
+                
+                <hr>
+
+                <div id="engravingEditorModal" class="engraving-editor-modal" role="dialog" aria-modal="true">
+                    <div class="modal-box">
+                        <h3 id="editorModalTitle">✏️ Редактирование</h3>
+                        <div class="control-group-with-input">
+                            <label for="editorX">Позиция X</label>
+                            <div class="input-with-range">
+                                <input type="range" id="editorX" min="-0.4" max="0.4" step="0.01" value="0">
+                                <input type="number" id="editorXInput" class="number-input" value="0" min="-0.4" max="0.4" step="0.01">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="editorXVal">0.00</span>
+                        </div>
+                        <div class="control-group-with-input">
+                            <label for="editorY">Позиция Y</label>
+                            <div class="input-with-range">
+                                <input type="range" id="editorY" min="-0.5" max="0.8" step="0.01" value="0">
+                                <input type="number" id="editorYInput" class="number-input" value="0" min="-0.5" max="0.8" step="0.01">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="editorYVal">0.00</span>
+                        </div>
+                        <div class="control-group-with-input">
+                            <label for="editorScale">Масштаб</label>
+                            <div class="input-with-range">
+                                <input type="range" id="editorScale" min="0.3" max="2.0" step="0.05" value="1.0">
+                                <input type="number" id="editorScaleInput" class="number-input" value="1.0" min="0.3" max="2.0" step="0.05">
+                                <span class="unit">x</span>
+                            </div>
+                            <span class="value-display" id="editorScaleVal">1.00</span>
+                        </div>
+                        <div class="btn-group">
+                            <button id="editorSaveBtn" class="btn-save">💾 Сохранить</button>
+                            <button id="editorCancelBtn" class="btn-cancel">❌ Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 8: ДЕКОР
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                🪑 8. Декор
+            </div>
+            <div class="section-content">
+                <!-- МЕБЕЛЬ -->
+                <div class="subsection">
+                    <div class="subsection-title">🪑 Мебель</div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showFurniture" checked>
+                        <label for="showFurniture">🪑 Показать мебель</label>
+                    </div>
+                    
+                    <div id="selectedFurnitureInfo" class="selected-furniture-info">
+                        <span class="indicator">⬤</span>
+                        <span class="name">Ничего не выбрано</span>
+                        <span id="selectedBadge" class="badge">ВЫБРАНО</span>
+                    </div>
+                    
+                    <div class="furniture-controls">
+                        <div class="furniture-mode-buttons">
+                            <button id="moveModeBtn" class="btn-move-mode">✋ Перемещение</button>
+                            <button id="rotateModeBtn" class="btn-rotate-mode">🔄 Поворот</button>
+                        </div>
+                        <div class="furniture-action-buttons">
+                            <button id="rotateLeftBtn" class="btn-rotate-left">↺ -15°</button>
+                            <button id="rotateRightBtn" class="btn-rotate-right">↻ +15°</button>
+                            <button id="rotateResetBtn" class="btn-rotate-reset">⟲ 0°</button>
+                            <button id="deleteSelectedBtn" class="btn-delete-selected">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="furniture-add-buttons">
+                        <button id="addTableBtn" class="btn-add-table">🪵 Стол</button>
+                        <button id="addBenchBtn" class="btn-add-bench">🪑 Скамейка</button>
+                        <button id="addPicnicSetBtn" class="btn-add-picnic">🧺 Набор</button>
+                        <button id="addTableGardenBtn" class="btn-add-table-garden">🌳 Садовый</button>
+                    </div>
+                    
+                    <button id="clearFurnitureBtn" class="btn-clear-furniture">🗑️ Убрать всё</button>
+                    
+                    <div class="control-group-with-input">
+                        <label for="furnitureScale">Размер</label>
+                        <div class="input-with-range">
+                            <input type="range" id="furnitureScale" min="0.5" max="1.5" step="0.05" value="1.0">
+                            <input type="number" id="furnitureScaleInput" class="number-input" value="1.0" min="0.5" max="1.5" step="0.05">
+                            <span class="unit">x</span>
+                        </div>
+                        <span class="value-display" id="furnitureScaleVal">1.0</span>
+                    </div>
+                </div>
+
+                <!-- ВАЗЫ -->
+                <div class="subsection">
+                    <div class="subsection-title">🏺 Вазы</div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showVases" checked>
+                        <label for="showVases">🏺 Показать вазы</label>
+                    </div>
+                    
+                    <div id="selectedVaseInfo" class="selected-vase-info">
+                        <span class="indicator">⬤</span>
+                        <span class="name">Ничего не выбрано</span>
+                        <span id="selectedVaseBadge" class="badge">ВЫБРАНО</span>
+                    </div>
+                    
+                    <div class="vases-control-buttons">
+                        <button id="addVaseBtn" class="btn-add-vase">➕ Добавить</button>
+                        <button id="removeSelectedVaseBtn" class="btn-remove-vase">🗑️ Удалить</button>
+                        <button id="clearVasesBtn" class="btn-clear-vases">🗑️ Всё</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="vaseTypeSelect">Тип</label>
+                        <select id="vaseTypeSelect">
+                            <option value="vase1">🏺 Классическая</option>
+                            <option value="vase2">🏺 С узором</option>
+                            <option value="vase3">🏺 Высокая</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="vaseMaterialSelect">Материал</label>
+                        <select id="vaseMaterialSelect">
+                            <option value="granite">⚫ Габбро-Диабаз</option>
+                            <option value="marble" selected>⚪ Белый Мрамор</option>
+                            <option value="red_granite">🔴 Красный Гранит</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="vaseScale">Размер</label>
+                        <div class="input-with-range">
+                            <input type="range" id="vaseScale" min="0.5" max="2.0" step="0.05" value="1.0">
+                            <input type="number" id="vaseScaleInput" class="number-input" value="1.0" min="0.5" max="2.0" step="0.05">
+                            <span class="unit">x</span>
+                        </div>
+                        <span class="value-display" id="vaseScaleVal">1.0</span>
+                    </div>
+                    
+                    <div id="vasesList" class="vases-list">
+                        <div class="empty">Нет ваз</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        ШАГ 9: ИТОГИ И ЗАКАЗ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                💰 9. Итоги и заказ
+            </div>
+            <div class="section-content">
+                <div class="price-block">
+                    <div class="price-value" id="totalPriceDisplay">0 ₽</div>
+                    <div class="price-note">*Цена уточняется</div>
+                </div>
+                <button id="refreshPriceBtn" class="btn-secondary" style="width:100%;">🔄 Пересчитать</button>
+                
+                <hr>
+                
+                <div class="action-buttons">
+                    <button id="screenshotBtn" class="btn-screenshot">📸 Скриншот</button>
+                    <button id="resetViewBtn" class="btn-secondary">🔄 Сбросить вид</button>
+                </div>
+                <div class="action-buttons">
+                    <button id="printQuoteBtn" class="btn-secondary">🖨️ Печать</button>
+                    <button id="saveProjectBtn" class="btn-save-project">💾 Сохранить</button>
+                    <button id="loadProjectBtn" class="btn-secondary">📂 Загрузить</button>
+                </div>
+                
+                <hr>
+                
+                <div class="order-form">
+                    <p class="order-text">📩 Отправьте заявку</p>
+                    <div class="form-group">
+                        <label for="clientName">Имя *</label>
+                        <input type="text" id="clientName" placeholder="Иван Иванов" class="order-input" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="clientPhone">Телефон *</label>
+                        <input type="tel" id="clientPhone" placeholder="+7 (999) 123-45-67" class="order-input" maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label for="clientEmail">Email</label>
+                        <input type="email" id="clientEmail" placeholder="ivan@mail.ru" class="order-input" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="orderComment">Комментарий</label>
+                        <textarea id="orderComment" rows="2" placeholder="Пожелания..." class="order-textarea" maxlength="500"></textarea>
+                    </div>
+                    <button id="sendOrderBtn" class="btn-send-order">📩 ОТПРАВИТЬ</button>
+                    <div id="orderStatus" class="order-status" role="status"></div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- ============================================================
+КНОПКА ВРАЩЕНИЯ (для мобильных)
+============================================================ -->
+<button class="rotate-toggle unlocked" id="rotateToggle" aria-label="Включить/выключить вращение">
+    🔓
+</button>
+
+<!-- ============================================================
+КОНТЕЙНЕР ДЛЯ 3D СЦЕНЫ
+============================================================ -->
+<div id="loading-msg" role="status" aria-live="polite">⏳ Загрузка 3D...</div>
+<div id="canvas-container"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "/modules/three.module.js",
+            "three/addons/": "/modules/"
+        }
+    }
+    </script>
+	
+<!-- ============================================================
+ПОДКЛЮЧАЕМ СКРИПТЫ
+============================================================ -->
+<script type="module" src="script.js"></script>
+<script src="modules/menu.js" defer></script>
+<script src="modules/modeManager.js" defer></script>
+
+<script>
+// ⭐ ПРЕВЬЮ ШРИФТОВ
+function updateFontPreview() {
+    const select = document.getElementById('fontFamily');
+    const previewText = document.getElementById('fontPreviewText');
+    const previewFamily = document.getElementById('fontPreviewFamily');
+    
+    if (!select || !previewText) return;
+    
+    const selectedOption = select.options[select.selectedIndex];
+    const fontValue = select.value;
+    const fontName = selectedOption ? selectedOption.text.replace(/\(.*\)/, '').trim() : 'Arial';
+    
+    previewText.style.fontFamily = fontValue;
+    previewText.textContent = 'Аа Бб Вв Гг Дд Ее Ёё Жж Зз Ии Йй Кк Лл Мм Нн Оо Пп Рр Сс Тт Уу Фф Хх Цц Чч Шш Щщ Ъъ Ыы Ьь Ээ Юю Яя';
+    
+    if (previewFamily) {
+        previewFamily.textContent = fontName;
+    }
+    
+    if (window.state) {
+        window.state.fontFamily = fontValue;
+    }
+}
+
+document.getElementById('fontFamily')?.addEventListener('change', function() {
+    updateFontPreview();
+    if (window.throttledUpdate) {
+        window.throttledUpdate();
+    }
+});
+
+setTimeout(updateFontPreview, 500);
+
+document.getElementById('forceFontUpdateBtn')?.addEventListener('click', function() {
+    updateFontPreview();
+    if (window.throttledUpdate) {
+        window.throttledUpdate();
+    }
+    showToast('✅ Шрифт обновлен: ' + document.getElementById('fontPreviewFamily').textContent, 'success');
+});
+
+document.addEventListener('contextmenu', event => event.preventDefault());
+
+// ⭐ СИНХРОНИЗАЦИЯ ВСЕХ ПОЛЗУНКОВ И ЧИСЛОВЫХ ПОЛЕЙ
+(function() {
+    const allPairs = [
+        ['widthRange', 'widthInput', 'widthVal'],
+        ['heightRange', 'heightInput', 'heightVal'],
+        ['graveWidth', 'graveWidthInput', 'graveWidthVal'],
+        ['graveLength', 'graveLengthInput', 'graveLengthVal'],
+        ['baseHeight', 'baseHeightInput', 'baseHeightVal'],
+        ['flowerWidth', 'flowerWidthInput', 'flowerWidthVal'],
+        ['flowerLength', 'flowerLengthInput', 'flowerLengthVal'],
+        ['fenceWidth', 'fenceWidthInput', 'fenceWidthVal'],
+        ['fenceLength', 'fenceLengthInput', 'fenceLengthVal'],
+        ['fenceHeight', 'fenceHeightInput', 'fenceHeightVal'],
+        ['gateWidth', 'gateWidthInput', 'gateWidthVal'],
+        ['pathWidth', 'pathWidthInput', 'pathWidthVal'],
+        ['pathTileSize', 'pathTileSizeInput', 'pathTileSizeVal'],
+        ['photoScale', 'photoScaleInput', 'photoScaleVal'],
+        ['nameFontSize', 'nameFontSizeInput', 'nameFontSizeVal'],
+        ['datesFontSize', 'datesFontSizeInput', 'datesFontSizeVal'],
+        ['epitaphFontSize', 'epitaphFontSizeInput', 'epitaphFontSizeVal'],
+        ['furnitureScale', 'furnitureScaleInput', 'furnitureScaleVal'],
+        ['vaseScale', 'vaseScaleInput', 'vaseScaleVal']
+    ];
+    
+    allPairs.forEach(([rangeId, inputId, displayId]) => {
+        const range = document.getElementById(rangeId);
+        const input = document.getElementById(inputId);
+        const display = document.getElementById(displayId);
+        
+        if (!range || !input) return;
+        
+        range.addEventListener('input', function() {
+            const val = parseFloat(this.value);
+            input.value = val;
+            if (display) {
+                display.textContent = rangeId.includes('FontSize') ? val : val.toFixed(2) + ' м';
+            }
+            if (window.throttledUpdate) window.throttledUpdate();
+        });
+        
+        input.addEventListener('input', function() {
+            const val = parseFloat(this.value);
+            if (!isNaN(val) && val >= parseFloat(range.min) && val <= parseFloat(range.max)) {
+                range.value = val;
+                if (display) {
+                    display.textContent = rangeId.includes('FontSize') ? val : val.toFixed(2) + ' м';
+                }
+                if (window.throttledUpdate) window.throttledUpdate();
+            }
+        });
+    });
+})();
+
+</script>
+</body>
+</html>

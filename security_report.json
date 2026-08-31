@@ -1,0 +1,474 @@
+{
+  "findings": [
+    {
+      "severity": "HIGH",
+      "name": "Possible SQL injection",
+      "file": "C:\\MaxGG\\projeckt\\modules\\Monument\\MonumentManager.js",
+      "line": 136,
+      "code": "<button class=\"select-monument-btn\" data-index=\"${index}\" style=\""
+    },
+    {
+      "severity": "HIGH",
+      "name": "Possible SQL injection",
+      "file": "C:\\MaxGG\\projeckt\\modules\\multiMonumentManager.js",
+      "line": 663,
+      "code": "<button class=\"select-monument-btn\" data-index=\"${index}\" style=\""
+    },
+    {
+      "severity": "HIGH",
+      "name": "document.write()",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 6336,
+      "code": "win.document.write(html);"
+    },
+    {
+      "severity": "HIGH",
+      "name": "document.write()",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 5210,
+      "code": "win.document.write(html);"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\admin.html",
+      "line": 262,
+      "code": "container.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\admin.html",
+      "line": 313,
+      "code": "section.innerHTML = `<h2>${category}</h2>`;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\admin.html",
+      "line": 319,
+      "code": "group.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\Monument\\MonumentController.js",
+      "line": 424,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\Monument\\MonumentController.js",
+      "line": 436,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\Monument\\MonumentManager.js",
+      "line": 62,
+      "code": "newSection.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\Monument\\MonumentManager.js",
+      "line": 98,
+      "code": "container.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\Monument\\MonumentManager.js",
+      "line": 161,
+      "code": "container.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\VasesManager.js",
+      "line": 347,
+      "code": "if (infoEl) infoEl.innerHTML = '\u274c \u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\VasesManager.js",
+      "line": 363,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\VasesManager.js",
+      "line": 428,
+      "code": "if (infoEl) infoEl.innerHTML = '\u274c \u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\VasesManager.js",
+      "line": 715,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\VasesManager.js",
+      "line": 744,
+      "code": "container.innerHTML = '<div style=\"color: #aaa; text-align: center; padding: 10px; font-size: 12px;\">\u041d\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u0432\u0430\u0437</div>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\VasesManager.js",
+      "line": 780,
+      "code": "container.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\engravings.js",
+      "line": 663,
+      "code": "buttonsContainer.innerHTML = this.getSymbolButtons();"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\engravings.js",
+      "line": 704,
+      "code": "container.innerHTML = '<div style=\"color: #888; text-align: center; padding: 10px;\">\u041d\u0435\u0442 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043e\u043a. \u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u043d\u0430 \u0441\u0438\u043c\u0432\u043e\u043b \u0432\u044b\u0448\u0435, \u0447\u0442\u043e\u0431\u044b \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c.</div>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\engravings.js",
+      "line": 739,
+      "code": "container.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\epitaph.js",
+      "line": 43,
+      "code": "panel.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\epitaph.js",
+      "line": 251,
+      "code": "coordsDiv.innerHTML = `\ud83d\udccd \u041f\u043e\u0437\u0438\u0446\u0438\u044f: X: ${this.state.epitaphOffsetX.toFixed(2)}, Y: ${this.state.epitaphOffsetY.toFixed(2)}`;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\furniture3D.js",
+      "line": 763,
+      "code": "if (infoEl) infoEl.innerHTML = '\u274c \u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\furniture3D.js",
+      "line": 779,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\furniture3D.js",
+      "line": 836,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\furniture3D.js",
+      "line": 1110,
+      "code": "if (infoEl) infoEl.innerHTML = '\u274c \u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\furniture3D.js",
+      "line": 1180,
+      "code": "if (infoEl) infoEl.innerHTML = '\u274c \u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\heavy-model-loader.js",
+      "line": 65,
+      "code": "this.progressContainer.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\heavy-model-loader.js",
+      "line": 99,
+      "code": "if (this.statusText) this.statusText.innerHTML = message;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\heavy-model-loader.js",
+      "line": 102,
+      "code": "this.fileSizeSpan.innerHTML = `${loadedMB} / ${totalMB} \u041c\u0411`;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\heavy-model-loader.js",
+      "line": 106,
+      "code": "this.speedInfo.innerHTML = `\u26a1 \u0421\u043a\u043e\u0440\u043e\u0441\u0442\u044c: ${speed.toFixed(1)} \u041c\u0411/\u0441`;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\mobile-improvements.js",
+      "line": 390,
+      "code": "wrapper.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\mobile-improvements.js",
+      "line": 415,
+      "code": "wrapper.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\multiMonumentManager.js",
+      "line": 704,
+      "code": "container.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\previews\\stelePreview.js",
+      "line": 44,
+      "code": "container.innerHTML = `<div style=\"padding: 20px; text-align: center; color: #888;\">\u041d\u0435\u0442 \u043c\u043e\u0434\u0435\u043b\u0435\u0439</div>`;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\modules\\previews\\stelePreview.js",
+      "line": 72,
+      "code": "container.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 683,
+      "code": "tileInfoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 884,
+      "code": "mainSelect.innerHTML = '<option value=\"\">-- \u0411\u0435\u0437 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043a\u0438 --</option>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 897,
+      "code": "frontSelect.innerHTML = '<option value=\"\">-- \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043a\u0443 --</option>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 908,
+      "code": "backSelect.innerHTML = '<option value=\"\">-- \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043a\u0443 --</option>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 1065,
+      "code": "container.innerHTML = '<div style=\"color: #aaa; text-align: center; padding: 20px;\">\u041d\u0435\u0442 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043e\u043a</div>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 1068,
+      "code": "container.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 1072,
+      "code": "item.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 1104,
+      "code": "container.innerHTML = '<div style=\"color: #aaa; text-align: center; padding: 20px;\">\u041d\u0435\u0442 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043e\u043a</div>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 1107,
+      "code": "container.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 1111,
+      "code": "item.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 4792,
+      "code": "document.documentElement.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 4793,
+      "code": "document.body.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 4809,
+      "code": "document.body.innerHTML = '<h1 style=\"color:red;\">\u041d\u0435\u0442 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u043c \u043b\u0438\u0446\u0435\u043d\u0437\u0438\u0439.</h1>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 5159,
+      "code": "controlsPanel.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 5362,
+      "code": "preview.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\script.js",
+      "line": 5392,
+      "code": "infoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 452,
+      "code": "tileInfoEl.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 619,
+      "code": "mainSelect.innerHTML = '<option value=\"\">-- \u0411\u0435\u0437 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043a\u0438 --</option>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 632,
+      "code": "frontSelect.innerHTML = '<option value=\"\">-- \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043a\u0443 --</option>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 643,
+      "code": "backSelect.innerHTML = '<option value=\"\">-- \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043a\u0443 --</option>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 800,
+      "code": "container.innerHTML = '<div style=\"color: #aaa; text-align: center; padding: 20px;\">\u041d\u0435\u0442 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043e\u043a</div>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 803,
+      "code": "container.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 807,
+      "code": "item.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 839,
+      "code": "container.innerHTML = '<div style=\"color: #aaa; text-align: center; padding: 20px;\">\u041d\u0435\u0442 \u0433\u0440\u0430\u0432\u0438\u0440\u043e\u0432\u043e\u043a</div>';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 842,
+      "code": "container.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 846,
+      "code": "item.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 4501,
+      "code": "controlsPanel.innerHTML = `"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 4646,
+      "code": "modelGroup.innerHTML = '';"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 4722,
+      "code": "preview.innerHTML = html;"
+    },
+    {
+      "severity": "MEDIUM",
+      "name": "innerHTML assignment",
+      "file": "C:\\MaxGG\\projeckt\\server-logic.js",
+      "line": 4752,
+      "code": "infoEl.innerHTML = `"
+    }
+  ],
+  "total": 67
+}

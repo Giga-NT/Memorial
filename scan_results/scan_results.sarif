@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Multi-Language SAST Scanner",
+          "rules": [
+            {
+              "id": "hardcoded_secret_CWE-259",
+              "name": "hardcoded_secret",
+              "shortDescription": {
+                "text": "Hardcoded secret in variable 'HARDCODED_SECRET'"
+              },
+              "defaultConfiguration": {
+                "level": "high"
+              },
+              "help": {
+                "text": "Use environment variables or a secrets manager"
+              }
+            },
+            {
+              "id": "xss_CWE-79",
+              "name": "xss",
+              "shortDescription": {
+                "text": "Potential XSS via 'document.write'"
+              },
+              "defaultConfiguration": {
+                "level": "high"
+              },
+              "help": {
+                "text": "Use textContent instead of innerHTML, or sanitize with DOMPurify"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "hardcoded_secret_CWE-259",
+          "message": {
+            "text": "Hardcoded secret in variable 'HARDCODED_SECRET'"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\MaxGG\\projeckt\\pentest_scanner.py"
+                },
+                "region": {
+                  "startLine": 101,
+                  "endLine": 101,
+                  "startColumn": 4,
+                  "endColumn": 41
+                }
+              }
+            }
+          ],
+          "level": "high"
+        },
+        {
+          "ruleId": "xss_CWE-79",
+          "message": {
+            "text": "Potential XSS via 'document.write'"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\MaxGG\\projeckt\\script.js"
+                },
+                "region": {
+                  "startLine": 6336,
+                  "endLine": 6336,
+                  "startColumn": 0,
+                  "endColumn": 0
+                }
+              }
+            }
+          ],
+          "level": "high"
+        },
+        {
+          "ruleId": "xss_CWE-79",
+          "message": {
+            "text": "Potential XSS via 'document.write'"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\MaxGG\\projeckt\\script.js"
+                },
+                "region": {
+                  "startLine": 6336,
+                  "endLine": 6336,
+                  "startColumn": 0,
+                  "endColumn": 0
+                }
+              }
+            }
+          ],
+          "level": "high"
+        },
+        {
+          "ruleId": "xss_CWE-79",
+          "message": {
+            "text": "Potential XSS via 'document.write'"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\MaxGG\\projeckt\\server-logic.js"
+                },
+                "region": {
+                  "startLine": 5210,
+                  "endLine": 5210,
+                  "startColumn": 0,
+                  "endColumn": 0
+                }
+              }
+            }
+          ],
+          "level": "high"
+        },
+        {
+          "ruleId": "xss_CWE-79",
+          "message": {
+            "text": "Potential XSS via 'document.write'"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\MaxGG\\projeckt\\server-logic.js"
+                },
+                "region": {
+                  "startLine": 5210,
+                  "endLine": 5210,
+                  "startColumn": 0,
+                  "endColumn": 0
+                }
+              }
+            }
+          ],
+          "level": "high"
+        }
+      ]
+    }
+  ]
+}

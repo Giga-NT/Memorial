@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+	background: #050505;
+	min-height: 100vh;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-family: 'Orbitron', sans-serif;
+	color: #e0e0e0;
+	padding: 20px;
+}
+
+.container {
+	max-width: 900px;
+	width: 100%;
+	background: linear-gradient(145deg, #0a0a0a, #000000);
+	border: 1px solid rgba(255, 0, 0, 0.15);
+	box-shadow: 0 0 80px rgba(255, 0, 0, 0.05), inset 0 0 80px rgba(255, 0, 0, 0.02);
+	padding: 40px;
+	position: relative;
+	backdrop-filter: blur(2px);
+}
+
+/* Тонкая красная линия сканирования */
+.scan-line {
+	position: absolute;
+	top: 0; left: 0; width: 100%; height: 1px;
+	background: rgba(255, 0, 0, 0.4);
+	box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+	animation: scanDown 6s linear infinite;
+	pointer-events: none;
+}
+
+@keyframes scanDown {
+	0% { top: 0; opacity: 0; }
+	10% { opacity: 1; }
+	90% { opacity: 1; }
+	100% { top: 100%; opacity: 0; }
+}
+
+/* Заголовок */
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1px solid rgba(255, 0, 0, 0.2);
+	padding-bottom: 20px;
+	margin-bottom: 30px;
+}
+
+.header-title {
+	font-size: 24px;
+	font-weight: 900;
+	letter-spacing: 6px;
+	color: #ff1a1a;
+	text-shadow: 0 0 30px rgba(255, 26, 26, 0.2);
+}
+
+.header-badge {
+	font-family: 'Share Tech Mono', monospace;
+	color: #ff1a1a;
+	border: 1px solid rgba(255, 0, 0, 0.3);
+	padding: 6px 16px;
+	font-size: 12px;
+	letter-spacing: 2px;
+	background: rgba(255, 0, 0, 0.05);
+}
+
+/* Сетка данных */
+.grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 25px;
+	margin-bottom: 35px;
+}
+
+.card {
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	padding: 20px 25px;
+	transition: all 0.3s ease;
+}
+
+.card:hover {
+	background: rgba(255, 0, 0, 0.03);
+	border-color: rgba(255, 0, 0, 0.15);
+}
+
+.card-label {
+	font-family: 'Share Tech Mono', monospace;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 3px;
+	color: rgba(255, 255, 255, 0.3);
+	margin-bottom: 8px;
+}
+
+.card-value {
+	font-family: 'Share Tech Mono', monospace;
+	font-size: 15px;
+	color: #e0e0e0;
+	word-break: break-all;
+}
+
+.card-value.danger {
+	color: #ff1a1a;
+	text-shadow: 0 0 15px rgba(255, 0, 0, 0.15);
+}
+
+.card-value.success {
+	color: #00ff88;
+}
+
+/* Футер - страшная надпись */
+.footer {
+	border-top: 1px solid rgba(255, 0, 0, 0.1);
+	padding-top: 25px;
+	text-align: center;
+	font-family: 'Share Tech Mono', monospace;
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.15);
+	letter-spacing: 2px;
+	line-height: 1.8;
+}
+
+.footer strong {
+	color: rgba(255, 0, 0, 0.6);
+	font-weight: normal;
+	letter-spacing: 4px;
+}
+
+.footer .highlight {
+	color: #ff1a1a;
+	text-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
+}
+
+/* Адаптация под телефон */
+@media (max-width: 700px) {
+	.grid { grid-template-columns: 1fr; }
+	.header-title { font-size: 18px; }
+	.container { padding: 25px; }
+}

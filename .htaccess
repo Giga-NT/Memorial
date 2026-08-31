@@ -1,0 +1,20 @@
+ErrorDocument 404 /404.html
+
+RewriteEngine On
+
+# Если запрос к реальному файлу (CSS, JS, картинки, шрифты) — пропускаем
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Если запрос к реальной папке — пропускаем
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Все запросы к корню и подпапкам отправляем на index.html
+RewriteRule ^$ index.html [L]
+RewriteRule ^index\.html$ - [L]
+
+# ВСЁ, что не является реальным файлом или папкой — 404
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /404.html [L]
