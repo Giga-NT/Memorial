@@ -172,72 +172,112 @@ export function selectSteleModelGrid(modelId) {
         console.warn('⚠️ selectSteleModelGrid: modelId не указан');
         return;
     }
-    
+
     console.log(`✅ Выбрана модель из сетки: ${modelId}`);
-    
+
+    // Определяем режим ДО любых изменений state
+    const manager = window.multiMonumentManager;
+    const isDuplicator =
+        manager &&
+        manager.currentMode === 'duplicator' &&
+        manager.activeIndex >= 0;
+
     // 1. ОБНОВЛЯЕМ ВИЗУАЛЬНОЕ ВЫДЕЛЕНИЕ
     updateSteleGridSelection(modelId);
-    
+
     // 2. ОБНОВЛЯЕМ SELECT
     const steleSelect = document.getElementById('steleTypeSelect');
     if (steleSelect) {
         const option = steleSelect.querySelector(`option[value="${modelId}"]`);
+
         if (option) {
             steleSelect.value = modelId;
+
             const event = new Event('change', { bubbles: true });
             steleSelect.dispatchEvent(event);
         }
     }
-    
-    // 3. ОБНОВЛЯЕМ window.state
+
+    // ============================================================
+    // 3. ДУБЛЕР
+    // ============================================================
+    if (isDuplicator) {
+        console.log('🔒 ДУБЛЕР: window.state НЕ изменяем:', modelId);
+
+        const uiData = manager.collectUIData
+            ? manager.collectUIData()
+            : {};
+
+        uiData.steleModel = modelId;
+        uiData.steleType = modelId;
+
+        manager.pendingChanges = uiData;
+        manager.pendingIndex = manager.activeIndex;
+
+        if (manager.monuments[manager.activeIndex]) {
+            const mon = manager.monuments[manager.activeIndex];
+
+            mon.data.steleModel = modelId;
+            mon.data.steleType = modelId;
+
+            manager._duplicatorDataCache[manager.activeIndex] = {
+                ...mon.data
+            };
+        }
+
+        // Список дублеров обновляем после изменения данных дублера
+        manager.renderMonumentList();
+
+        document.dispatchEvent(new CustomEvent('steleModelSelected', {
+            detail: {
+                modelId,
+                isDuplicator: true
+            }
+        }));
+
+        console.log(
+            '📐 Модель сохранена ТОЛЬКО в дублере:',
+            modelId
+        );
+
+        return;
+    }
+
+    // ============================================================
+    // 4. ОСНОВНОЙ ПАМЯТНИК
+    // ============================================================
     if (window.state) {
         window.state.steleModel = modelId;
         window.state.steleType = modelId;
-        console.log('📐 window.state обновлен:', modelId);
+
+        console.log('📐 MAIN window.state обновлен:', modelId);
     }
-    
-    // 4. ЕСЛИ МЫ В РЕЖИМЕ ДУБЛЕРА - СОХРАНЯЕМ В PENDING
-    const manager = window.multiMonumentManager;
-    if (manager && manager.currentMode === 'duplicator' && manager.activeIndex >= 0) {
-        const uiData = manager.collectUIData ? manager.collectUIData() : {};
-        uiData.steleModel = modelId;
-        uiData.steleType = modelId;
-        
-        manager.pendingChanges = uiData;
-        manager.pendingIndex = manager.activeIndex;
-        manager.renderMonumentList();
-        
-        if (manager.monuments[manager.activeIndex]) {
-            const mon = manager.monuments[manager.activeIndex];
-            mon.data.steleModel = modelId;
-            mon.data.steleType = modelId;
-            manager._duplicatorDataCache[manager.activeIndex] = { ...mon.data };
-        }
-        
-        // Отправляем событие
-        document.dispatchEvent(new CustomEvent('steleModelSelected', {
-            detail: { modelId, isDuplicator: true }
-        }));
-        
-        return;
-    }
-    
-    // ⭐ 5. РЕЖИМ ОСНОВНОГО - ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ
+
+    // Принудительное обновление основной сцены
     if (!window._isDuplicatorMode && !window._disableAutoMonument) {
         if (window.updateScene) {
-            console.log('🔄 Обновляем основную сцену с моделью:', modelId);
-            
-            // ⭐ УСТАНАВЛИВАЕМ ФЛАГИ ДЛЯ ОБХОДА БЛОКИРОВКИ
+            console.log(
+                '🔄 Обновляем основную сцену с моделью:',
+                modelId
+            );
+
             window._forceMainUpdate = true;
             window._skipDuplicatorRebuild = true;
-            
+
             setTimeout(() => {
-                console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ОСНОВНОГО ИЗ СЕТКИ');
+                console.log(
+                    '🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ОСНОВНОГО ИЗ СЕТКИ'
+                );
+
                 window.updateScene();
+
                 setTimeout(() => {
                     window._forceMainUpdate = false;
                     window._skipDuplicatorRebuild = false;
-                    console.log('🔓 Сняты флаги _forceMainUpdate и _skipDuplicatorRebuild');
+
+                    console.log(
+                        '🔓 Сняты флаги _forceMainUpdate и _skipDuplicatorRebuild'
+                    );
                 }, 500);
             }, 50);
         } else {
@@ -248,12 +288,15 @@ export function selectSteleModelGrid(modelId) {
         console.log('📊 _isDuplicatorMode:', window._isDuplicatorMode);
         console.log('📊 _disableAutoMonument:', window._disableAutoMonument);
     }
-    
-    // Отправляем событие
+
+    // Событие для основного
     document.dispatchEvent(new CustomEvent('steleModelSelected', {
-        detail: { modelId, isDuplicator: false }
+        detail: {
+            modelId,
+            isDuplicator: false
+        }
     }));
-    
+
     console.log('✅ Модель применена:', modelId);
 }
 
@@ -295,11 +338,18 @@ export function setSteleModelSilent(modelId) {
         }
     }
     
-    // Обновляем state
-    if (window.state) {
-        window.state.steleModel = modelId;
-        window.state.steleType = modelId;
-    }
+	// Обновляем state только для основного памятника
+	const manager = window.multiMonumentManager;
+
+	const isDuplicator =
+		manager &&
+		manager.currentMode === 'duplicator' &&
+		manager.activeIndex >= 0;
+
+	if (window.state && !isDuplicator) {
+		window.state.steleModel = modelId;
+		window.state.steleType = modelId;
+	}
     
     console.log('🔇 Модель установлена без обновления сцены:', modelId);
 }

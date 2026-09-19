@@ -112,8 +112,21 @@ let updateScene = function() {
     console.log('⏳ updateScene: заглушка, реальная функция будет загружена позже');
 };
 
-let throttledUpdate = function() {
-    console.log('⏳ throttledUpdate: заглушка, реальная функция будет загружена позже');
+let throttledUpdate = function(...args) {
+    if (window._isDuplicatorMode || window._disableAutoMonument) {
+        return;
+    }
+
+    if (
+        window.multiMonumentManager &&
+        window.multiMonumentManager.currentMode === 'duplicator'
+    ) {
+        return;
+    }
+
+    if (typeof window.updateScene === 'function') {
+        return window.updateScene(...args);
+    }
 };
 
 // Добавляем в window
@@ -3561,30 +3574,56 @@ function createBackTextureWithOffset() {
 // }
 
 // ============================================================
-// ⭐ НОВАЯ updateScene - обертка
+// ⭐ UPDATE SCENE — ОСНОВНОЙ ПАМЯТНИК
 // ============================================================
 async function updateSceneReal() {
-    // ⭐ ЕСЛИ УСТАНОВЛЕН ФЛАГ ПРИНУДИТЕЛЬНОГО ОБНОВЛЕНИЯ - ПРОПУСКАЕМ ПРОВЕРКУ
-    if (window._forceMainUpdate) {
-        console.log('🔥 updateSceneReal: принудительное обновление');
-        await updateMainMonument(state, monumentGroup, decalsGroup);
-        return;
-    }
-    
-    if (window._isDuplicatorMode || window._disableAutoMonument) {
-        console.log('⏭️ updateScene пропущена (режим дублера)');
-        return;
-    }
-    
-    if (window.multiMonumentManager && window.multiMonumentManager.currentMode === 'duplicator') {
-        console.log('⏭️ updateScene пропущена (режим дублера)');
-        return;
-    }
-    
-    console.log('🔄 ВЫЗОВ updateSceneReal для основного памятника');
-    await updateMainMonument(state, monumentGroup, decalsGroup);
-}
 
+    // ============================================================
+    // 🔒 ДУБЛЕР
+    //
+    // Если сейчас редактируется дублер —
+    // MAIN вообще не пересобираем.
+    // ============================================================
+    if (
+        window.multiMonumentManager &&
+        window.multiMonumentManager.currentMode === 'duplicator'
+    ) {
+
+        console.log(
+            '⏭️ updateSceneReal пропущен: сейчас редактируется дублер'
+        );
+
+        return;
+    }
+
+    // ============================================================
+    // 🔒 ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА
+    // ============================================================
+    if (
+        window._isDuplicatorMode ||
+        window._disableAutoMonument
+    ) {
+
+        console.log(
+            '⏭️ updateSceneReal пропущен: установлен флаг дублера'
+        );
+
+        return;
+    }
+
+    // ============================================================
+    // 🔄 ОБЫЧНОЕ ОБНОВЛЕНИЕ MAIN
+    // ============================================================
+    console.log(
+        '🔄 ВЫЗОВ updateSceneReal для основного памятника'
+    );
+
+    await updateMainMonument(
+        state,
+        monumentGroup,
+        decalsGroup
+    );
+}
 // ============================================================
 // ⭐ ПЕРЕОПРЕДЕЛЯЕМ ЗАГЛУШКИ
 // ============================================================
@@ -4026,25 +4065,20 @@ document.getElementById('furnitureScale')?.addEventListener('input', function(e)
 document.addEventListener('steleModelSelected', (e) => {
     const modelId = e.detail?.modelId;
     if (!modelId) return;
-    
+
     console.log('📐 Получено событие выбора модели:', modelId);
-    
-    // Обновляем window.state
+
+    if (
+        window.multiMonumentManager?.currentMode === 'duplicator' &&
+        window.multiMonumentManager?.activeIndex >= 0
+    ) {
+        console.log('🔒 steleModelSelected: MAIN window.state НЕ изменяем');
+        return;
+    }
+
     if (window.state) {
         window.state.steleModel = modelId;
         window.state.steleType = modelId;
-    }
-    
-    // Если мы в режиме дублера - обновляем pending
-    if (window.multiMonumentManager && window.multiMonumentManager.currentMode === 'duplicator') {
-        const manager = window.multiMonumentManager;
-        const uiData = manager.collectUIData();
-        uiData.steleModel = modelId;
-        uiData.steleType = modelId;
-        manager.pendingChanges = uiData;
-        manager.pendingIndex = manager.activeIndex;
-        manager.renderMonumentList();
-        console.log('📐 Модель обновлена в pending для дублера');
     }
 });
 
