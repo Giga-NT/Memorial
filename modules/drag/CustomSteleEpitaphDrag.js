@@ -14,11 +14,14 @@ export class CustomSteleEpitaphDrag extends DragManager {
         this.sensitivity = 0.7;
     }
 
-    checkEnabled() {
-        const checkbox = document.getElementById('enableDragEpitaph');
-        return checkbox && checkbox.checked && 
-               this.state.steleType && this.state.steleType.startsWith('custom_stl');
-    }
+	checkEnabled() {
+		const checkbox = document.getElementById('enableDragEpitaph');
+
+		return !!checkbox &&
+			   checkbox.checked &&
+			   this.state.steleType &&
+			   this.state.steleType.startsWith('custom_stl');
+	}
 
     getDragType(y) {
         // Нижняя часть канваса (0.55 - 0.9) - эпитафия
@@ -49,18 +52,37 @@ export class CustomSteleEpitaphDrag extends DragManager {
         if (yVal) yVal.textContent = this.state.epitaphOffsetY.toFixed(2);
     }
 
-    onDragStart(type) {
-        this.updateDisplay();
-    }
+	onDragStart(type) {
+		this.updateDisplay();
 
-    onDragMove(type, x, y) {
-        this.updateDisplay();
-        this.forceDecalUpdate();
-    }
+		this.dragState.epitaphMesh = this.decalsGroup?.children.find(
+			child => child.userData?.isEpitaph
+		);
 
-    onDragEnd(type) {
-        this.forceDecalUpdate();
-    }
+		if (this.dragState.epitaphMesh) {
+			this.dragState.epitaphBaseX = this.dragState.epitaphMesh.position.x;
+			this.dragState.epitaphBaseY = this.dragState.epitaphMesh.position.y;
+		}
+	}
+
+	onDragMove(type, x, y) {
+		this.updateDisplay();
+
+		const mesh = this.dragState.epitaphMesh;
+		if (!mesh) return;
+
+		mesh.position.x =
+			this.dragState.epitaphBaseX -
+			(x - this.dragState.startOffsetX);
+
+		mesh.position.y =
+			this.dragState.epitaphBaseY -
+			(y - this.dragState.startOffsetY);
+	}
+
+	onDragEnd(type) {
+		this.dragState.epitaphMesh = null;
+	}
 
     forceDecalUpdate() {
         if (!window.positionDecalsOnCustomStele) return;

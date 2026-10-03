@@ -10,7 +10,7 @@
         {
             "id": "heart",
             "name": "❤️ Сердце",
-            "file": "./engravings/heart.png",
+            "file": "./engravings/heart.jpg",
             "defaultScale": 1.0,
             "defaultOffsetY": 0.35
         },
@@ -32,6 +32,20 @@
             "id": "angel",
             "name": "👼 Ангел",
             "file": "./engravings/angel.png",
+            "defaultScale": 0.9,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "fon2",
+            "name": "Фон2",
+            "file": "./engravings/fon2.jpg",
+            "defaultScale": 0.9,
+            "defaultOffsetY": 0.35
+        },
+        {
+            "id": "sea",
+            "name": "Море",
+            "file": "./engravings/sea.jpg",
             "defaultScale": 0.9,
             "defaultOffsetY": 0.35
         },

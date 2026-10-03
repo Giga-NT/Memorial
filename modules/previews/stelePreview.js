@@ -71,9 +71,31 @@ export async function renderSteleGrid() {
 
     container.innerHTML = html;
 
-    // Выбираем первую модель по умолчанию
-    if (firstId) {
-        selectSteleModelGrid(firstId);
+    // ============================================================
+    // ⭐ ИЗМЕНЕНИЕ 1: НЕ ВЫБИРАЕМ МОДЕЛЬ АВТОМАТИЧЕСКИ В РЕЖИМЕ ДУБЛЁРА
+    // ============================================================
+    const m = window.multiMonumentManager;
+    const isDuplicator = m && m.currentMode === 'duplicator' && m.activeIndex >= 0;
+
+    let activeModelId = null;
+
+    if (isDuplicator) {
+        // В режиме дублёра берём модель ИЗ ДУБЛЁРА
+        activeModelId = m.monuments[m.activeIndex]?.data?.steleModel;
+        console.log('🎯 renderSteleGrid: модель дублёра:', activeModelId);
+    } else if (window.state?.steleModel) {
+        // Иначе — из state основного
+        activeModelId = window.state.steleModel;
+    }
+
+    if (activeModelId) {
+        // Только визуальное выделение, БЕЗ вызова selectSteleModelGrid
+        // (чтобы не перезаписать state/pendingChanges)
+        updateSteleGridSelection(activeModelId);
+    } else if (firstId) {
+        // Fallback — только если совсем ничего нет
+        console.log('🎯 renderSteleGrid: fallback на первую модель');
+        updateSteleGridSelection(firstId);
     }
 
     // ⭐ ПРИВЯЗЫВАЕМ СОБЫТИЯ
@@ -145,15 +167,13 @@ export function updateSteleGridSelection(modelId) {
         }
     });
     
-    // Обновляем select
+    // Обновляем select (если он есть)
     const steleSelect = document.getElementById('steleTypeSelect');
     if (steleSelect) {
-        // Ищем опцию с таким значением
         const option = steleSelect.querySelector(`option[value="${modelId}"]`);
         if (option) {
             steleSelect.value = modelId;
         } else {
-            // Ищем по data-model
             const options = steleSelect.querySelectorAll('option');
             for (const opt of options) {
                 if (opt.dataset.model === modelId) {
@@ -356,15 +376,21 @@ export function setSteleModelSilent(modelId) {
 
 // ⭐ ИНИЦИАЛИЗАЦИЯ
 export function initStelePreview() {
-    // Загружаем сетку
+    // Загружаем сетку (уже с учётом режима дублёра)
     renderSteleGrid();
     
     // Подписываемся на события от дублеров
     document.addEventListener('steleModelSelected', (e) => {
         const modelId = e.detail?.modelId;
         if (modelId && !e.detail?.isDuplicator) {
-            // Обновляем выделение при выборе из другого места
-            updateSteleGridSelection(modelId);
+            // ⭐ ИЗМЕНЕНИЕ 2: НЕ сбиваем active, если сейчас режим дублёра
+            const m = window.multiMonumentManager;
+            const isDup = m && m.currentMode === 'duplicator' && m.activeIndex >= 0;
+            if (!isDup) {
+                updateSteleGridSelection(modelId);
+            } else {
+                console.log('🔒 steleModelSelected: режим дублёра, active НЕ сбиваем');
+            }
         }
     });
     

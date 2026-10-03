@@ -11,14 +11,7 @@
     <link rel="canonical" href="https://giga-nt.ru/">
     <link rel="stylesheet" href="style.css">
     
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "/modules/three.module.js",
-            "three/addons/": "/modules/"
-        }
-    }
-    </script>
+
 
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E🪦%3C/text%3E%3C/svg%3E">
 </head>
@@ -140,6 +133,66 @@
                     </div>
                 </div>
                 
+				<div class="subsection">
+					<div class="subsection-title">🎨 Материал основания</div>
+					<div class="control-group">
+						<select id="baseMaterialSelect">
+							<optgroup label="Черные граниты">
+								<option value="granite">⚫ Габбро-Диабаз</option>
+								<option value="black_galaxy">⭐ Галактика черный</option>
+								<option value="ninimyaki">🌲 Нинимяки</option>
+							</optgroup>
+
+							<optgroup label="Цветные граниты">
+								<option value="marble">⚪ Белый Мрамор</option>
+								<option value="red_granite">🔴 Красный Гранит</option>
+								<option value="beige_granite">🏜️ Бежевый Гранит</option>
+								<option value="gray_granite">🌫️ Серый Гранит</option>
+							</optgroup>
+						</select>
+					</div>
+				</div>
+
+				<div class="subsection">
+					<div class="subsection-title">🎨 Материал тумбы</div>
+					<div class="control-group">
+						<select id="pedestalMaterialSelect">
+							<optgroup label="Черные граниты">
+								<option value="granite">⚫ Габбро-Диабаз</option>
+								<option value="black_galaxy">⭐ Галактика черный</option>
+								<option value="ninimyaki">🌲 Нинимяки</option>
+							</optgroup>
+
+							<optgroup label="Цветные граниты">
+								<option value="marble">⚪ Белый Мрамор</option>
+								<option value="red_granite">🔴 Красный Гранит</option>
+								<option value="beige_granite">🏜️ Бежевый Гранит</option>
+								<option value="gray_granite">🌫️ Серый Гранит</option>
+							</optgroup>
+						</select>
+					</div>
+				</div>
+
+				<div class="subsection">
+					<div class="subsection-title">🎨 Материал бордюра</div>
+					<div class="control-group">
+						<select id="borderMaterialSelect">
+							<optgroup label="Черные граниты">
+								<option value="granite">⚫ Габбро-Диабаз</option>
+								<option value="black_galaxy">⭐ Галактика черный</option>
+								<option value="ninimyaki">🌲 Нинимяки</option>
+							</optgroup>
+
+							<optgroup label="Цветные граниты">
+								<option value="marble">⚪ Белый Мрамор</option>
+								<option value="red_granite">🔴 Красный Гранит</option>
+								<option value="beige_granite">🏜️ Бежевый Гранит</option>
+								<option value="gray_granite">🌫️ Серый Гранит</option>
+							</optgroup>
+						</select>
+					</div>
+				</div>
+				
                 <div class="subsection">
                     <div class="subsection-title">📏 Размеры стелы</div>
                     
@@ -416,6 +469,87 @@
             </div>
         </div>
 
+		<!-- ============================================================
+		ШАГ 3.1 : ФОН СТЕЛЫ
+		============================================================ -->
+		<div class="accordion-section">
+			<div class="section-header" role="button" tabindex="0" aria-expanded="false">
+				🖼️ 4. Фон стелы
+			</div>
+
+			<div class="section-content">
+				<div class="subsection">
+					<div class="subsection-title">🎨 Выберите фон</div>
+
+					<div id="backgroundOptionsGrid"
+						 class="background-options-grid">
+					</div>
+				</div>
+
+				<div class="subsection background-controls">
+					<div class="subsection-title">⚙️ Настройка фона</div>
+
+					<!-- Масштаб -->
+					<div class="control-group">
+						<label for="backgroundScale">
+							Масштаб:
+							<span id="backgroundScaleValue">98%</span>
+						</label>
+
+						<input
+							type="range"
+							id="backgroundScale"
+							min="0.5"
+							max="1.5"
+							step="0.01"
+							value="0.98"
+						>
+					</div>
+
+					<!-- Смещение X -->
+					<div class="control-group">
+						<label for="backgroundOffsetX">
+							Смещение X:
+							<span id="backgroundOffsetXValue">0</span>
+						</label>
+
+						<input
+							type="range"
+							id="backgroundOffsetX"
+							min="-1"
+							max="1"
+							step="0.01"
+							value="0"
+						>
+					</div>
+
+					<!-- Смещение Y -->
+					<div class="control-group">
+						<label for="backgroundOffsetY">
+							Смещение Y:
+							<span id="backgroundOffsetYValue">0</span>
+						</label>
+
+						<input
+							type="range"
+							id="backgroundOffsetY"
+							min="-1"
+							max="1"
+							step="0.01"
+							value="0"
+						>
+					</div>
+
+					<button
+						type="button"
+						id="backgroundResetButton"
+						class="secondary-button"
+					>
+						↩️ Сбросить положение
+					</button>
+				</div>
+			</div>
+		</div>
         <!-- ============================================================
         ШАГ 4: ТЕКСТ НА ПАМЯТНИКЕ
         ============================================================ -->
@@ -503,11 +637,11 @@
                     </div>
                     <span class="value-display" id="datesFontSizeVal">32</span>
                 </div>
-<div class="checkbox-group" style="margin-bottom:10px;">
-    <input type="checkbox" id="enableDragText">
-    <label for="enableDragText">✋ Двигать текст мышкой</label>
-    <span style="font-size:11px; color:#666; margin-left:8px;">(перетащите текст на стеле)</span>
-</div>
+				<div class="checkbox-group" style="margin-bottom:10px;">
+					<input type="checkbox" id="enableDragText">
+					<label for="enableDragText">✋ Двигать текст мышкой</label>
+					<span style="font-size:11px; color:#666; margin-left:8px;">(перетащите текст на стеле)</span>
+				</div>
                 <div class="control-group">
                     <label class="position-label">📍 Положение текста</label>
                     <div class="position-grid">
@@ -550,11 +684,13 @@
                     </div>
                     <span class="value-display" id="epitaphFontSizeVal">40</span>
                 </div>
-<div class="checkbox-group" style="margin-bottom:10px;">
-    <input type="checkbox" id="enableDragText">
-    <label for="enableDragText">✋ Двигать текст мышкой</label>
-    <span style="font-size:11px; color:#666; margin-left:8px;">(перетащите текст на стеле)</span>
-</div>               
+
+				<div class="checkbox-group" style="margin-bottom:10px;">
+					<input type="checkbox" id="enableDragEpitaph">
+					<label for="enableDragEpitaph">✋ Двигать эпитафию мышкой</label>
+					<span style="font-size:11px; color:#666; margin-left:8px;">(перетащите эпитафию на стеле)</span>
+				</div>
+             
                 <div class="control-group">
                     <label class="position-label" style="color: #e74c3c;">📍 Положение</label>
                     <div class="position-grid">
@@ -614,8 +750,8 @@
                 <div class="control-group-with-input">
                     <label for="photoScale">Масштаб</label>
                     <div class="input-with-range">
-                        <input type="range" id="photoScale" min="0.3" max="2.0" step="0.05" value="1.0">
-                        <input type="number" id="photoScaleInput" class="number-input" value="1.0" min="0.3" max="2.0" step="0.05">
+                        <input type="range" id="photoScale" min="0.3" max="6.0" step="0.05" value="1.0">
+                        <input type="number" id="photoScaleInput" class="number-input" value="1.0" min="0.3" max="6.0" step="0.05">
                         <span class="unit">x</span>
                     </div>
                     <span class="value-display" id="photoScaleVal">1.0</span>
@@ -705,8 +841,8 @@
                         <div class="control-group-with-input">
                             <label for="editorScale">Масштаб</label>
                             <div class="input-with-range">
-                                <input type="range" id="editorScale" min="0.3" max="2.0" step="0.05" value="1.0">
-                                <input type="number" id="editorScaleInput" class="number-input" value="1.0" min="0.3" max="2.0" step="0.05">
+                                <input type="range" id="editorScale" min="0.3" max="30.0" step="0.05" value="1.0">
+                                <input type="number" id="editorScaleInput" class="number-input" value="1.0" min="0.3" max="30.0" step="0.05">
                                 <span class="unit">x</span>
                             </div>
                             <span class="value-display" id="editorScaleVal">1.00</span>

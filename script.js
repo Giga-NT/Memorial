@@ -26,6 +26,10 @@ import { TileManager } from './modules/tileManager.min.js';
 import { EngravingsManager } from './modules/engravings.min.js';
 import { PhotoManager } from './modules/photo.min.js';
 import { EpitaphManager } from './modules/epitaph.min.js';
+import {
+    initBackgroundsUI,
+    initBackgroundControls
+} from './modules/backgrounds.js';
 import { Furniture3DManager } from './modules/furniture3D.min.js';
 import { MobileImprovements } from './modules/mobile-improvements.min.js';
 
@@ -43,6 +47,7 @@ import {
     clearMainMonument,
     clearAllScene
 } from './modules/monumentBuilder.js';
+
 
 
 // ============================================================
@@ -378,11 +383,11 @@ function initMobileOnce() {
     }
     
     try {
-        mobileInstance = new MobileImprovements({
-            enableZoomReset: true,
-            enableDragText: true,
-            enableDragEpitaph: true
-        });
+		mobileInstance = new MobileImprovements({
+			enableZoomReset: true,
+			enableDragText: false,
+			enableDragEpitaph: false
+		});
         window.mobileImprovements = mobileInstance;
         console.log('✅ Мобильные улучшения загружены');
         return mobileInstance;
@@ -761,7 +766,18 @@ let frontDecalPosition = new THREE.Vector3(-0.05, 0.74, -0.76),
 // ⭐ СОСТОЯНИЕ
 // ============================================================
 const state = {
-    width: 0.6, height: 1.2, depth: 0.1, textureUrl: null, material: 'granite',
+    width: 0.6,
+    height: 1.2,
+    depth: 0.1,
+    textureUrl: null,
+
+    // Материал стелы — старое поле, сохраняем для совместимости
+    material: 'granite',
+
+    // Независимые материалы
+    baseMaterial: 'granite',
+    pedestalMaterial: 'granite',
+    borderMaterial: 'granite',
     fullName: "Иванов Иван Иванович", dates: "01.01.1950 — 01.01.2026",
     epitaph: "Светлая память\nо дорогих людях", textColor: '#FFFFFF',
     flowerbedType: 'grass', photoScale: 1.0, photoOffsetX: 0, photoOffsetY: 0,
@@ -4935,6 +4951,31 @@ setTimeout(() => {
     }
 
 
+    // ============================================================
+    // ⭐ ИНИЦИАЛИЗАЦИЯ ФОНОВ СТЕЛЫ
+    // ============================================================
+    try {
+        initBackgroundsUI(state, () => {
+            console.log('🎨 Фон стелы изменён');
+            throttledUpdate();
+        });
+
+		initBackgroundControls(state, () => {
+			console.log('🎛️ Параметры фона изменены:', {
+				scale: state.backgroundScale,
+				offsetX: state.backgroundOffsetX,
+				offsetY: state.backgroundOffsetY
+			});
+
+			throttledUpdate();
+		});
+
+        console.log('✅ Backgrounds UI инициализирован');
+    } catch (e) {
+        console.error('❌ Ошибка инициализации Backgrounds:', e);
+    }
+
+
     loadPrices();
     loadFromURL();
     calculatePrice();
@@ -4943,6 +4984,7 @@ setTimeout(() => {
     // ⭐ СЮДА ВСТАВЛЯЕМ НОВЫЙ КОД ⭐
     // ИНИЦИАЛИЗАЦИЯ МОДУЛЯ СОХРАНЕНИЯ ПРОЕКТА
 	const projectIO = new ProjectIO(state, null);
+	window.projectIO = projectIO;
 
     // Привязываем обработчики кнопок
     document.getElementById('saveProjectBtn')?.addEventListener('click', () => {
@@ -4958,28 +5000,15 @@ setTimeout(() => {
 		input.onchange = (e) => {
 			const file = e.target.files[0];
 			if (file) {
-				const reader = new FileReader();
-				reader.onload = (event) => {
-					try {
-						const data = JSON.parse(event.target.result);
-						console.log('📂 Загружаем проект через MultiMonumentManager');
-						
-						// Используем MultiMonumentManager для загрузки
-						if (window.multiMonumentManager) {
-							window.multiMonumentManager.fromJSON(data);
-						} else {
-							console.warn('⚠️ MultiMonumentManager не найден');
-							// fallback
-							if (window.projectIO) {
-								window.projectIO.loadFromFile(file);
-							}
-						}
-					} catch (error) {
-						console.error('❌ Ошибка загрузки:', error);
-						showToast('❌ Ошибка загрузки: ' + error.message, 'error');
-					}
-				};
-				reader.readAsText(file);
+				console.log('📂 Загружаем проект через ProjectIO');
+				
+				// ⭐ Используем ProjectIO, а не fromJSON
+				if (window.projectIO) {
+					window.projectIO.loadFromFile(file);
+				} else {
+					console.error('❌ ProjectIO не найден');
+					showToast('❌ Ошибка: ProjectIO не инициализирован', 'error');
+				}
 			}
 		};
 		input.click();
@@ -5396,6 +5425,63 @@ if (materialSelect) {
         textureCache.invalidateBack();
         updateCurrentCustomSteleMaterial(state.material);
         resetTileManager();
+        throttledUpdate();
+    });
+}
+
+// ============================================================
+// НЕЗАВИСИМЫЕ МАТЕРИАЛЫ КОМПЛЕКСА
+// ============================================================
+
+const baseMaterialSelect =
+    document.getElementById('baseMaterialSelect');
+
+if (baseMaterialSelect) {
+    baseMaterialSelect.addEventListener('change', (e) => {
+
+        state.baseMaterial = e.target.value;
+
+        console.log(
+            '🎨 Материал основания:',
+            state.baseMaterial
+        );
+
+        throttledUpdate();
+    });
+}
+
+
+const pedestalMaterialSelect =
+    document.getElementById('pedestalMaterialSelect');
+
+if (pedestalMaterialSelect) {
+    pedestalMaterialSelect.addEventListener('change', (e) => {
+
+        state.pedestalMaterial = e.target.value;
+
+        console.log(
+            '🎨 Материал тумбы:',
+            state.pedestalMaterial
+        );
+
+        throttledUpdate();
+    });
+}
+
+
+const borderMaterialSelect =
+    document.getElementById('borderMaterialSelect');
+
+if (borderMaterialSelect) {
+    borderMaterialSelect.addEventListener('change', (e) => {
+
+        state.borderMaterial = e.target.value;
+
+        console.log(
+            '🎨 Материал бордюра:',
+            state.borderMaterial
+        );
+
         throttledUpdate();
     });
 }

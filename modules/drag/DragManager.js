@@ -162,9 +162,9 @@ export class DragManager {
         
         this.onDragEnd(type);
         
-        if (this.onUpdate) {
-            this.onUpdate();
-        }
+        // if (this.onUpdate) {
+            // this.onUpdate();
+        // }
         
         if (navigator.vibrate) {
             navigator.vibrate(5);

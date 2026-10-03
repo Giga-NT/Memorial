@@ -93,9 +93,7 @@ export class MobileImprovements {
             this.initZoomReset();
         }
         
-        if (this.options.enableDragText || this.options.enableDragEpitaph) {
-            this.initTextDrag();
-        }
+		this.addDragControls();
         
         this.initButtonFix();
         this.initScrollFix();
@@ -373,55 +371,53 @@ export class MobileImprovements {
     }
 
     addDragControls() {
-        // Чекбокс для ФИО
-        let textSection = this.findSectionByText('ФИО (используйте / для переноса)') ||
-                          this.findSectionByText('fullName') ||
-                          this.findSectionByText('Лицевая сторона');
-        
-        if (textSection && !textSection.querySelector('#enableDragText')) {
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = `
-                margin-top: 12px;
-                padding: 14px 16px;
-                background: linear-gradient(135deg, rgba(0,168,150,0.15), rgba(0,168,150,0.05));
-                border: 2px solid rgba(0,168,150,0.25);
-                border-radius: 12px;
-            `;
-            wrapper.innerHTML = `
-                <label style="display:flex;align-items:center;gap:14px;cursor:pointer;user-select:none;font-size:15px;font-weight:500;color:#fff;">
-                    <input type="checkbox" id="enableDragText" style="width:26px;height:26px;min-width:26px;accent-color:#00a896;cursor:pointer;">
-                    <span>✋ <span style="color:#00a896;">Перетаскивать</span> ФИО и даты</span>
-                    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3);background:rgba(0,0,0,0.3);padding:2px 10px;border-radius:20px;">👆 тапни и тяни</span>
-                </label>
-            `;
-            textSection.appendChild(wrapper);
-            console.log('✅ Чекбокс для ФИО добавлен');
-        }
-        
-        // Чекбокс для эпитафии
-        let epitaphSection = this.findSectionByText('Текст эпитафии') ||
-                            this.findSectionByText('epitaphText') ||
-                            this.findSectionByText('Задняя сторона');
-        
-        if (epitaphSection && !epitaphSection.querySelector('#enableDragEpitaph')) {
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = `
-                margin-top: 12px;
-                padding: 14px 16px;
-                background: linear-gradient(135deg, rgba(231,76,60,0.15), rgba(231,76,60,0.05));
-                border: 2px solid rgba(231,76,60,0.25);
-                border-radius: 12px;
-            `;
-            wrapper.innerHTML = `
-                <label style="display:flex;align-items:center;gap:14px;cursor:pointer;user-select:none;font-size:15px;font-weight:500;color:#fff;">
-                    <input type="checkbox" id="enableDragEpitaph" style="width:26px;height:26px;min-width:26px;accent-color:#e74c3c;cursor:pointer;">
-                    <span>✋ <span style="color:#e74c3c;">Перетаскивать</span> эпитафию</span>
-                    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3);background:rgba(0,0,0,0.3);padding:2px 10px;border-radius:20px;">👆 тапни и тяни</span>
-                </label>
-            `;
-            epitaphSection.appendChild(wrapper);
-            console.log('✅ Чекбокс для эпитафии добавлен');
-        }
+		// Чекбокс для ФИО
+		let textSection = this.findSectionByText('ФИО (используйте / для переноса)') ||
+						  this.findSectionByText('fullName') ||
+						  this.findSectionByText('Лицевая сторона');
+
+		if (textSection && !textSection.querySelector('#enableDragText')) {
+			const wrapper = document.createElement('div');
+
+			wrapper.className = 'checkbox-group';
+			wrapper.style.cssText = 'margin-bottom:10px;';
+
+			wrapper.innerHTML = `
+				<input type="checkbox" id="enableDragText">
+				<label for="enableDragText">✋ Двигать текст мышкой</label>
+				<span style="font-size:11px;color:#666;margin-left:8px;">
+					(перетащите текст на стеле)
+				</span>
+			`;
+
+			textSection.appendChild(wrapper);
+
+			console.log('✅ Чекбокс для ФИО добавлен');
+		}
+
+		// Чекбокс для эпитафии
+		let epitaphSection = this.findSectionByText('Текст эпитафии') ||
+							 this.findSectionByText('epitaphText') ||
+							 this.findSectionByText('Задняя сторона');
+
+		if (epitaphSection && !epitaphSection.querySelector('#enableDragEpitaph')) {
+			const wrapper = document.createElement('div');
+
+			wrapper.className = 'checkbox-group';
+			wrapper.style.cssText = 'margin-bottom:10px;';
+
+			wrapper.innerHTML = `
+				<input type="checkbox" id="enableDragEpitaph">
+				<label for="enableDragEpitaph">✋ Двигать эпитафию мышкой</label>
+				<span style="font-size:11px;color:#666;margin-left:8px;">
+					(перетащите эпитафию на стеле)
+				</span>
+			`;
+
+			epitaphSection.appendChild(wrapper);
+
+			console.log('✅ Чекбокс для эпитафии добавлен');
+		}
     }
 
     findSectionByText(text) {

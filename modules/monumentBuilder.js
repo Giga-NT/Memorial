@@ -10,6 +10,14 @@ import {
     createPathBetweenGraveAndFence 
 } from './sceneBuilders.js';
 import { createFenceGroup } from './fenceBuilder.js';
+import {
+    applyBackgroundToGroup
+} from './backgrounds.js';
+
+import { createFlowerbedBorder } from './flowerbedBorder.js';
+import { createStelePedestal } from './stelePedestal.js';
+
+
 // ============================================================
 // ⭐ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
@@ -213,7 +221,14 @@ function createBackTexture(params) {
 // ============================================================
 
 export async function createBase(params) {
-    const { graveWidth, graveLength, baseHeight, material, flowerWidth, flowerLength } = params;
+    const {
+        graveWidth,
+        graveLength,
+        baseHeight,
+        material,
+        flowerWidth,
+        flowerLength
+    } = params;
     
     const baseGeo = new THREE.BoxGeometry(graveWidth, baseHeight, graveLength);
     const baseTexture = await createUnifiedTextureWithJoints(
@@ -633,6 +648,11 @@ export function createDecals(params, steleObj) {
 
 
 export async function createStele(params, decalsGroup) {
+
+    const pedestalHeight =
+        Number(params.stelePedestalHeight) || 0.12;
+
+
     const { 
         steleType, width, height, depth, material,
         graveLength, baseHeight
@@ -645,7 +665,10 @@ export async function createStele(params, decalsGroup) {
     
     if (steleType === 'rectangle') {
         steleObj = Rectangle.createMesh(width, height, depth, material);
-        steleObj.position.y = baseHeight + (height / 2);
+		steleObj.position.y =
+			baseHeight +
+			pedestalHeight +
+			(height / 2);
         steleObj.position.z = -(graveLength / 2 - depth / 2 - 0.05);
         group.add(steleObj);
         console.log('✅ Прямоугольная стела создана');
@@ -663,17 +686,20 @@ export async function createStele(params, decalsGroup) {
         }
         
     } else if (steleType && steleType.startsWith('custom_stl')) {
-        steleObj = createCustomSteleMesh(
-            steleType, 
-            width, 
-            height, 
-            depth, 
-            material, 
-            'vertical', 
-            decalsGroup,
-            false
-        );
-        steleObj.position.y = baseHeight + (height / 2);
+		steleObj = await createCustomSteleMesh(
+			steleType, 
+			width, 
+			height, 
+			depth, 
+			material, 
+			'vertical', 
+			decalsGroup,
+			false
+		);
+		steleObj.position.y =
+			baseHeight +
+			pedestalHeight +
+			(height / 2);
         steleObj.position.z = -(graveLength / 2 - depth / 2 - 0.05);
         group.add(steleObj);
         console.log(`✅ Кастомная стела ${steleType} создана`);
@@ -689,6 +715,7 @@ export async function createStele(params, decalsGroup) {
         steleObj = createSteleMesh(steleType, width, height, depth);
         const materialType = getTextureTypeFromMaterial(material);
         const pbrMaterial = await loadPBRMaterial(materialType);
+
         steleObj.traverse((child) => {
             if (child.isMesh) {
                 if (pbrMaterial) {
@@ -699,28 +726,112 @@ export async function createStele(params, decalsGroup) {
                         roughness: 0.3 
                     });
                 }
+
                 child.castShadow = true;
                 child.receiveShadow = true;
             }
         });
-        steleObj.position.y = baseHeight + (height / 2);
+
+		steleObj.position.y =
+			baseHeight +
+			pedestalHeight +
+			(height / 2);
         steleObj.position.z = -(graveLength / 2 - depth / 2 - 0.05);
+
         group.add(steleObj);
+
         console.log('✅ Обычная стела создана');
         
         if (decalsGroup) {
             const decals = createDecals(params, steleObj);
+
             if (decals) {
                 while(decals.children.length > 0) {
                     const child = decals.children[0];
                     decals.remove(child);
                     decalsGroup.add(child);
                 }
+
                 console.log('✅ Декали добавлены для обычной стелы');
             }
         }
     }
-    
+
+    // 🎨 ФОН СТЕЛЫ
+    if (decalsGroup && steleObj) {
+		const boundingBox = new THREE.Box3().setFromObject(steleObj);
+
+		const size = new THREE.Vector3();
+		boundingBox.getSize(size);
+
+		const center = new THREE.Vector3();
+		boundingBox.getCenter(center);
+
+		const frontZ = boundingBox.max.z + 0.015;
+
+		console.log('🎨 Параметры поверхности стелы:', {
+			min: boundingBox.min,
+			max: boundingBox.max,
+			center,
+			size,
+			frontZ
+		});
+
+		if (decalsGroup) {
+			await applyBackgroundToGroup(
+				decalsGroup,
+				{
+					...params,
+					backgroundOffsetY:
+						params.backgroundOffsetY !== undefined
+							? Number(params.backgroundOffsetY)
+							: 0
+				},
+				size.x,
+				size.y,
+				frontZ,
+				center.y
+			);
+		}
+
+        console.log('🎨 Добавляем фон стелы:', {
+            width: size.x,
+            height: size.y,
+            frontZ,
+            backgroundId: params.backgroundId
+        });
+
+
+
+		console.log('✅ Фон стелы применён');
+    }
+
+    // ============================================================
+    // ПЬЕДЕСТАЛ ПОД СТЕЛОЙ
+    // ============================================================
+
+	const pedestalParams = {
+		...params,
+		material: params.pedestalMaterial
+	};
+
+	const pedestal =
+		await createStelePedestal(
+			steleObj,
+			pedestalParams
+		);
+
+    if (pedestal) {
+
+        group.add(
+            pedestal
+        );
+
+        console.log(
+            '✅ Пьедестал под стелой добавлен'
+        );
+    }
+
     return group;
 }
 
@@ -990,8 +1101,27 @@ export async function updateMainMonument(
                 ? Number(state.baseHeight)
                 : 0.15,
 
-        material:
-            state.material || 'granite',
+		// Материал стелы
+		material:
+			state.material || 'granite',
+
+		// Материал основания
+		baseMaterial:
+			state.baseMaterial ||
+			state.material ||
+			'granite',
+
+		// Материал тумбы
+		pedestalMaterial:
+			state.pedestalMaterial ||
+			state.material ||
+			'granite',
+
+		// Материал бордюра
+		borderMaterial:
+			state.borderMaterial ||
+			state.material ||
+			'granite',
 
         flowerEnabled:
             state.flowerEnabled !== undefined
@@ -1101,6 +1231,24 @@ export async function updateMainMonument(
         photoOffsetY:
             state.photoOffsetY || 0,
 
+
+		// ========================================================
+		// 🖼️ ФОН СТЕЛЫ
+		// ========================================================
+
+		backgroundId:
+			state.backgroundId || 'none',
+
+		backgroundOffsetX:
+			state.backgroundOffsetX !== undefined
+				? Number(state.backgroundOffsetX)
+				: 0,
+
+		backgroundOffsetY:
+			state.backgroundOffsetY !== undefined
+				? Number(state.backgroundOffsetY)
+				: 0,
+				
         // ========================================================
         // ГРАВИРОВКИ
         // ========================================================
@@ -1251,61 +1399,88 @@ export async function updateMainMonument(
 
     clearMainMonument(monumentGroup);
 
-    // ============================================================
-    // 4. ФОТО НЕ УДАЛЯЕМ
-    // ============================================================
+// ============================================================
+// 4. ФОТО И ФОН НЕ УДАЛЯЕМ
+// ============================================================
 
-    if (decalsGroup) {
+if (decalsGroup) {
 
-        const photo = [];
-        const toRemove = [];
+    const photo = [];
+    const backgrounds = [];
+    const toRemove = [];
 
-        decalsGroup.children.forEach(child => {
+    decalsGroup.children.forEach(child => {
 
-            if (
-                child.userData &&
-                child.userData.type === 'photo'
-            ) {
-                photo.push(child);
+        // 📷 Фото сохраняем
+        if (
+            child.userData &&
+            child.userData.type === 'photo'
+        ) {
+            photo.push(child);
+
+        // 🎨 Фон стелы сохраняем
+        } else if (
+            child.userData &&
+            child.userData.isSteleBackground === true
+        ) {
+            backgrounds.push(child);
+
+        // 🗑️ Остальные декали удаляем
+        } else {
+            toRemove.push(child);
+        }
+
+    });
+
+    toRemove.forEach(child => {
+
+        if (child.geometry) {
+            child.geometry.dispose();
+        }
+
+        if (child.material) {
+
+            if (Array.isArray(child.material)) {
+                child.material.forEach(
+                    mat => mat?.dispose()
+                );
             } else {
-                toRemove.push(child);
+                child.material.dispose();
             }
 
-        });
+        }
 
-        toRemove.forEach(child => {
+        decalsGroup.remove(child);
 
-            if (child.geometry) {
-                child.geometry.dispose();
-            }
+    });
 
-            if (child.material) {
+    // 📷 Возвращаем фото
+    photo.forEach(p => {
 
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(
-                        mat => mat?.dispose()
-                    );
-                } else {
-                    child.material.dispose();
-                }
-            }
+        if (!decalsGroup.children.includes(p)) {
+            decalsGroup.add(p);
+        }
 
-            decalsGroup.remove(child);
+    });
 
-        });
+    // 🎨 Возвращаем фон
+    backgrounds.forEach(background => {
 
-        photo.forEach(p => {
+        if (!decalsGroup.children.includes(background)) {
+            decalsGroup.add(background);
+        }
 
-            if (!decalsGroup.children.includes(p)) {
-                decalsGroup.add(p);
-            }
+    });
 
-        });
-
-        console.log(
-            '🧹 Декали очищены, фото сохранено'
-        );
-    }
+    console.log(
+        '🧹 Декали очищены, фото и фон сохранены',
+        {
+            photo: photo.length,
+            backgrounds: backgrounds.length,
+            removed: toRemove.length
+        }
+    );
+}
 
     // ============================================================
     // 5. ОСНОВАНИЕ
@@ -1321,28 +1496,58 @@ export async function updateMainMonument(
         );
     }
 
-    // ============================================================
-    // 6. ЦВЕТНИК
-    // ============================================================
+	// ============================================================
+	// 6. ЦВЕТНИК
+	// ============================================================
 
-    const flowerbed =
-        await createFlowerbed(params);
+	const flowerbed =
+		await createFlowerbed(params);
 
-    if (flowerbed) {
+	if (flowerbed) {
 
-        monumentGroup.add(
-            flowerbed
-        );
+		monumentGroup.add(
+			flowerbed
+		);
 
-        console.log(
-            '✅ Цветник добавлен'
-        );
-    }
+		console.log(
+			'✅ Цветник добавлен'
+		);
+	}
+
+	// ============================================================
+	// 6.1. БОРДЮР ЦВЕТНИКА
+	// ============================================================
+
+	const borderParams = {
+		...params,
+		material: params.borderMaterial
+	};
+
+	const flowerbedBorder =
+		await createFlowerbedBorder(
+			borderParams
+		);
+
+	if (flowerbedBorder) {
+
+		monumentGroup.add(
+			flowerbedBorder
+		);
+
+		console.log(
+			'✅ Бордюр цветника добавлен'
+		);
+	}
 
     // ============================================================
     // 7. СТЕЛА
     // ============================================================
-
+	console.log('🎯 BACKGROUND ПЕРЕД createStele:', {
+		stateBackgroundId: state?.backgroundId,
+		paramsBackgroundId: params?.backgroundId,
+		stateIsParams: state === params,
+		params
+	});
     console.log(
         '🔨 Вызываем createStele:',
         {
@@ -1603,7 +1808,13 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
     };
     
     // 3. Создаем элементы внутри группы
-    const base = await createBase(params);
+	const baseParams = {
+		...params,
+		material: params.baseMaterial
+	};
+
+	const base =
+		await createBase(baseParams);
     group.add(base);
     
     const flowerbed = await createFlowerbed(params);

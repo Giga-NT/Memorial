@@ -1,0 +1,58 @@
+{
+    "backgrounds": [
+        {
+            "id": "none",
+            "name": "Без фона",
+            "file": null,
+            "preview": null,
+            "defaultScale": 1.0,
+            "defaultOffsetX": 0,
+            "defaultOffsetY": 0
+        },
+        {
+            "id": "sea",
+            "name": "Море",
+            "file": "./backgrounds/sea.png",
+            "preview": "./backgrounds/sea.png",
+            "defaultScale": 1.0,
+            "defaultOffsetX": 0,
+            "defaultOffsetY": 0
+        },		
+        {
+            "id": "melt",
+            "name": "Мельница",
+            "file": "./backgrounds/heart.jpg",
+            "preview": "./backgrounds/heart.jpg",
+            "defaultScale": 1.0,
+            "defaultOffsetX": 0,
+            "defaultOffsetY": 0
+        },
+        {
+            "id": "forest",
+            "name": "Лес",
+            "file": "./backgrounds/forest.jpeg",
+            "preview": "./backgrounds/forest.jpeg",
+            "defaultScale": 1.0,
+            "defaultOffsetX": 0,
+            "defaultOffsetY": 0
+        },
+        {
+            "id": "tree",
+            "name": "Береза",
+            "file": "./backgrounds/tree.png",
+            "preview": "./backgrounds/tree.png",
+            "defaultScale": 1.0,
+            "defaultOffsetX": 0,
+            "defaultOffsetY": 0
+        },
+        {
+            "id": "see",
+            "name": "Поле",
+            "file": "./backgrounds/fon2.jpg",
+            "preview": "./backgrounds/fon2.jpg",
+            "defaultScale": 1.0,
+            "defaultOffsetX": 0,
+            "defaultOffsetY": 0
+        }
+    ]
+}

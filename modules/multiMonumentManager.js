@@ -987,6 +987,30 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const materialEl = document.getElementById('materialSelect');
         if (materialEl) data.material = materialEl.value;
+
+		const baseMaterialEl =
+			document.getElementById('baseMaterialSelect');
+
+		if (baseMaterialEl) {
+			data.baseMaterial =
+				baseMaterialEl.value;
+		}
+
+		const pedestalMaterialEl =
+			document.getElementById('pedestalMaterialSelect');
+
+		if (pedestalMaterialEl) {
+			data.pedestalMaterial =
+				pedestalMaterialEl.value;
+		}
+
+		const borderMaterialEl =
+			document.getElementById('borderMaterialSelect');
+
+		if (borderMaterialEl) {
+			data.borderMaterial =
+				borderMaterialEl.value;
+		}
         
         const textColorEl = document.getElementById('textColor');
         if (textColorEl) data.textColor = textColorEl.value;
@@ -1213,6 +1237,11 @@ updatePhotoPosition(photoMesh, x, y) {
 	}
 
 	syncStateFromUI() {
+		if (window._isLoadingProject) {
+			console.log('⏸️ syncStateFromUI пропущен: идёт загрузка проекта');
+			return;
+		}
+
 		// ⭐ ДУБЛЕР НЕ ИЗМЕНЯЕТ STATE ОСНОВНОГО
 		if (this.currentMode === 'duplicator') {
 			console.log('⏭️ syncStateFromUI пропущен: сейчас редактируется дублер');
@@ -2044,8 +2073,27 @@ updatePhotoPosition(photoMesh, x, y) {
 		// ⭐ ОБНОВЛЯЕМ АКТИВНУЮ МОДЕЛЬ В СЕТКЕ
 		if (data.steleModel) {
 			this.updateSteleGridSelection(data.steleModel);
+			
+			// ⭐ ПОВТОРНО через 100, 300, 700ms — на случай, если stelePreview перерисует
+			[100, 300, 700].forEach(delay => {
+				setTimeout(() => {
+					if (this.currentMode === 'duplicator' && this.activeIndex === index) {
+						const currentModel = this.monuments[index]?.data?.steleModel;
+						if (currentModel && currentModel !== data.steleModel) {
+							console.warn('⚠️ Модель дублёра была перезаписана!', {
+								expected: data.steleModel,
+								actual: currentModel
+							});
+							// Восстанавливаем
+							this.monuments[index].data.steleModel = data.steleModel;
+						}
+						this.updateSteleGridSelection(data.steleModel);
+						console.log(`🎯 [${delay}ms] Модель в сетке восстановлена:`, data.steleModel);
+					}
+				}, delay);
+			});
 		}
-		
+
 		this.isUpdating = false;
 	}
     

@@ -108,6 +108,9 @@ export class ProjectIO {
             'steleType',
             'steleModel',
             'material',
+			'baseMaterial',
+			'pedestalMaterial',
+			'borderMaterial',
             'textureUrl',
             'photoUrl'
         ];
@@ -663,7 +666,20 @@ export class ProjectIO {
                 this.state.material ||
                 'marble',
 
+			baseMaterial:
+				this.state.baseMaterial ||
+				this.state.material ||
+				'marble',
 
+			pedestalMaterial:
+				this.state.pedestalMaterial ||
+				this.state.material ||
+				'marble',
+
+			borderMaterial:
+				this.state.borderMaterial ||
+				this.state.material ||
+				'marble',
             // ----------------------------------------------------
             // ТЕКСТ
             // ----------------------------------------------------
@@ -1949,7 +1965,7 @@ export class ProjectIO {
                     // ==================================================
                     // 4. ОБНОВЛЯЕМ UI
                     // ==================================================
-
+					window._isLoadingProject = true;
                     this.updateAllUIFromState();
 
 
@@ -2091,15 +2107,15 @@ export class ProjectIO {
                     // 11. СНИМАЕМ БЛОКИРОВКИ
                     // ==================================================
 
-                    setTimeout(() => {
+					setTimeout(() => {
+						window._disableAutoMonument = false;
+						window._forceMainUpdate = false;
+						window._isLoadingProject = false;
 
-                        window._disableAutoMonument =
-                            false;
-
-                        window._forceMainUpdate =
-                            false;
-
-                    }, 500);
+						console.log('🟢 Защита загрузки проекта снята');
+						console.log('🏛️ Итоговый steleType:', this.state.steleType);
+						console.log('🏛️ Итоговый steleModel:', this.state.steleModel);
+					}, 500);
 
 
                     // ==================================================
@@ -2289,7 +2305,29 @@ export class ProjectIO {
             );
         }
 
+		if (state.baseMaterial) {
 
+			setSelect(
+				'baseMaterialSelect',
+				state.baseMaterial
+			);
+		}
+
+		if (state.pedestalMaterial) {
+
+			setSelect(
+				'pedestalMaterialSelect',
+				state.pedestalMaterial
+			);
+		}
+
+		if (state.borderMaterial) {
+
+			setSelect(
+				'borderMaterialSelect',
+				state.borderMaterial
+			);
+		}
         // --------------------------------------------------------
         // СТЕЛА
         // --------------------------------------------------------

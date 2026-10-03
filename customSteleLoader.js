@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createSteleMaterial } from './uvUtils.js';
 import { loadPBRMaterial } from './textures.js';
+import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 
 export const customModels = {};
 let modelCache = new Map();
@@ -185,63 +186,141 @@ export async function applyMaterialToCustomModel(model, materialType, modelId = 
     }
 }
 
-export function createCustomSteleMesh(modelId, width, height, depth, materialType = 'granite', modelType = 'vertical', externalDecalsGroup = null, skipDecals = false) {
+export async function createCustomSteleMesh(
+    modelId,
+    width,
+    height,
+    depth,
+    materialType = 'granite',
+    modelType = 'vertical',
+    externalDecalsGroup = null,
+    skipDecals = false
+) {
     const group = new THREE.Group();
+
     group.userData.modelId = modelId;
     group.userData.isCustomStele = true;
     group.userData.isLoaded = false;
+
     currentModelId = modelId;
-    
+
     const decalsContainer = new THREE.Group();
     decalsContainer.name = 'decalsContainer';
     group.add(decalsContainer);
-    
-    loadCustomStele(modelId).then(async (model) => {
-        if (model) {
-            const oldModel = group.userData.modelRef;
-            if (oldModel) {
-                group.remove(oldModel);
-            }
-            
-            const box = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            
-            const scaleX = width / size.x;
-            const scaleY = height / size.y;
-            const scaleZ = depth / size.z;
-            
-            model.scale.set(scaleX, scaleY, scaleZ);
-            
-            const center = box.getCenter(new THREE.Vector3());
-            model.position.set(-center.x * scaleX, -center.y * scaleY, -center.z * scaleZ);
-            
-            group.userData.modelRef = model;
-            group.userData.isLoaded = true;
-            
-            await applyMaterialToCustomModel(model, materialType, modelId, modelType);
-            
-            group.add(model);
-            
-            // ⭐ СОЗДАЕМ ДЕКАЛИ ТОЛЬКО ЕСЛИ:
-            // 1. НЕ skipDecals
-            // 2. externalDecalsGroup передан
-            // 3. window.positionDecalsOnCustomStele существует
-            // 4. window.state существует
-            if (!skipDecals && externalDecalsGroup && window.positionDecalsOnCustomStele && window.state) {
-                setTimeout(() => {
-                    window.positionDecalsOnCustomStele(group, externalDecalsGroup, window.state);
-                }, 50);
-            } else {
-                console.log(`⏭️ Декали пропущены для ${modelId} (skipDecals=${skipDecals})`);
-            }
-            
-            console.log(`✅ Модель ${modelId} создана (размер: ${width}x${height}x${depth}, тип: ${modelType})`);
-        }
-    });
-    
-    return group;
-}
 
+    try {
+        const model = await loadCustomStele(modelId);
+
+        if (!model) {
+            console.warn(
+                `⚠️ Модель ${modelId} не загружена`
+            );
+
+            return group;
+        }
+
+        const oldModel = group.userData.modelRef;
+
+        if (oldModel) {
+            group.remove(oldModel);
+        }
+
+        const box =
+            new THREE.Box3().setFromObject(model);
+
+        const size =
+            box.getSize(new THREE.Vector3());
+
+        if (
+            size.x === 0 ||
+            size.y === 0 ||
+            size.z === 0
+        ) {
+            console.warn(
+                `⚠️ Некорректный размер модели ${modelId}:`,
+                size
+            );
+
+            return group;
+        }
+
+        const scaleX =
+            width / size.x;
+
+        const scaleY =
+            height / size.y;
+
+        const scaleZ =
+            depth / size.z;
+
+        model.scale.set(
+            scaleX,
+            scaleY,
+            scaleZ
+        );
+
+        const center =
+            box.getCenter(
+                new THREE.Vector3()
+            );
+
+        model.position.set(
+            -center.x * scaleX,
+            -center.y * scaleY,
+            -center.z * scaleZ
+        );
+
+        group.userData.modelRef = model;
+        group.userData.isLoaded = true;
+
+        await applyMaterialToCustomModel(
+            model,
+            materialType,
+            modelId,
+            modelType
+        );
+
+        group.add(model);
+
+        // Декали
+        if (
+            !skipDecals &&
+            externalDecalsGroup &&
+            window.positionDecalsOnCustomStele &&
+            window.state
+        ) {
+            setTimeout(() => {
+                window.positionDecalsOnCustomStele(
+                    group,
+                    externalDecalsGroup,
+                    window.state
+                );
+            }, 50);
+        } else {
+            console.log(
+                `⏭️ Декали пропущены для ${modelId} ` +
+                `(skipDecals=${skipDecals})`
+            );
+        }
+
+        console.log(
+            `✅ Модель ${modelId} создана ` +
+            `(размер: ${width}x${height}x${depth}, ` +
+            `тип: ${modelType})`
+        );
+
+        return group;
+
+    } catch (error) {
+
+        console.error(
+            `❌ Ошибка создания модели ${modelId}:`,
+            error
+        );
+
+        return group;
+    }
+}
 
 export async function updateCurrentCustomSteleMaterial(materialType) {
     // ⭐ ЕСЛИ ВЫБРАН ДУБЛЕР, НЕ ТРОГАЕМ ОСНОВНОЙ
@@ -311,23 +390,288 @@ export function getModelDimensions(model) {
     };
 }
 
-export function positionDecalsOnCustomStele(steleGroup, decalsGroup, state) {
+
+function applyBackgroundToCustomStele(
+    model,
+    decalsGroup,
+    state
+) {
+    if (!model || !decalsGroup || !state) {
+        console.warn(
+            '⚠️ applyBackgroundToCustomStele: отсутствуют параметры'
+        );
+        return;
+    }
+
+    const background = decalsGroup.children.find(
+        child => child.userData?.isSteleBackground === true
+    );
+
+    if (!background) {
+        console.log('ℹ️ Фон для custom STL не найден');
+        return;
+    }
+
+    // Если это уже настоящий decal — повторно не преобразуем
+    if (background.userData?.isCustomSteleBackground) {
+        return;
+    }
+
+    const oldMaterial = background.material;
+
+    // ------------------------------------------------------------
+    // ЖДЁМ ЗАГРУЗКУ ТЕКСТУРЫ
+    // ------------------------------------------------------------
+
+    const convertToDecal = () => {
+
+        const texture = oldMaterial?.map;
+
+        if (!texture) {
+            console.warn(
+                '⚠️ Текстура фона ещё не загружена, ждём...'
+            );
+
+            requestAnimationFrame(convertToDecal);
+            return;
+        }
+
+        console.log(
+            '🎨 Текстура фона готова, создаём DecalGeometry'
+        );
+
+        // --------------------------------------------------------
+        // Ищем Mesh внутри GLB
+        // --------------------------------------------------------
+
+        let targetMesh = null;
+
+        model.traverse(child => {
+            if (
+                !targetMesh &&
+                child.isMesh &&
+                child.geometry
+            ) {
+                targetMesh = child;
+            }
+        });
+
+        if (!targetMesh) {
+            console.warn(
+                '⚠️ Не найден Mesh для проекции фона'
+            );
+            return;
+        }
+
+        // --------------------------------------------------------
+        // Размер модели
+        // --------------------------------------------------------
+
+        const box = new THREE.Box3().setFromObject(model);
+
+        const size = new THREE.Vector3();
+        box.getSize(size);
+
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        // --------------------------------------------------------
+        // Масштаб фона
+        // --------------------------------------------------------
+
+        const scale =
+            state.backgroundScale !== undefined
+                ? Number(state.backgroundScale)
+                : 0.98;
+
+        const decalWidth = size.x * scale;
+        const decalHeight = size.y * scale;
+
+        const decalDepth = Math.max(
+            size.z * 0.5,
+            0.05
+        );
+
+        // --------------------------------------------------------
+        // Положение
+        // --------------------------------------------------------
+
+        const offsetX =
+            state.backgroundOffsetX !== undefined
+                ? Number(state.backgroundOffsetX)
+                : 0;
+
+        const offsetY =
+            state.backgroundOffsetY !== undefined
+                ? Number(state.backgroundOffsetY)
+                : 0;
+
+        const position = new THREE.Vector3(
+            center.x + offsetX,
+            center.y + offsetY,
+            box.max.z + 0.001
+        );
+
+        // --------------------------------------------------------
+        // Направление decal
+        // --------------------------------------------------------
+
+        const orientation = new THREE.Euler(
+            0,
+            Math.PI,
+            0
+        );
+
+        // --------------------------------------------------------
+        // Создаём decal
+        // --------------------------------------------------------
+
+        let decalGeometry;
+
+        try {
+            decalGeometry = new DecalGeometry(
+                targetMesh,
+                position,
+                orientation,
+                new THREE.Vector3(
+                    decalWidth,
+                    decalHeight,
+                    decalDepth
+                )
+            );
+        } catch (error) {
+            console.error(
+                '❌ Ошибка создания DecalGeometry:',
+                error
+            );
+            return;
+        }
+
+        // --------------------------------------------------------
+        // Материал
+        // --------------------------------------------------------
+
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+
+            transparent: true,
+
+            side: THREE.FrontSide,
+
+            depthWrite: false,
+            depthTest: true,
+
+            alphaTest: 0.01,
+
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -1
+        });
+
+        // --------------------------------------------------------
+        // Новый decal
+        // --------------------------------------------------------
+
+        const decal = new THREE.Mesh(
+            decalGeometry,
+            material
+        );
+
+        decal.name = 'steleBackgroundDecal';
+
+        decal.renderOrder = 8;
+
+        decal.userData.isSteleBackground = true;
+        decal.userData.isCustomSteleBackground = true;
+        decal.userData.backgroundId =
+            background.userData.backgroundId;
+
+        // --------------------------------------------------------
+        // Удаляем старый Plane
+        // --------------------------------------------------------
+
+        decalsGroup.remove(background);
+
+        if (background.geometry) {
+            background.geometry.dispose();
+        }
+
+        // Старый материал больше не нужен.
+        // Текстуру НЕ dispose(), потому что она используется
+        // новым материалом.
+        if (oldMaterial) {
+            oldMaterial.dispose();
+        }
+
+        // --------------------------------------------------------
+        // Добавляем decal
+        // --------------------------------------------------------
+
+        decalsGroup.add(decal);
+
+        console.log(
+            '🎨 Фон преобразован в DecalGeometry:',
+            {
+                width: decalWidth,
+                height: decalHeight,
+                depth: decalDepth,
+                position,
+                scale
+            }
+        );
+    };
+
+    convertToDecal();
+}
+
+
+export function positionDecalsOnCustomStele(
+    steleGroup,
+    decalsGroup,
+    state
+) {
     if (!steleGroup || !decalsGroup) return;
-    
-    // Очистка
-    while (decalsGroup.children.length > 0) {
-        const child = decalsGroup.children[0];
-        if (child.geometry) child.geometry.dispose();
+
+    // ============================================================
+    // 🧹 ОЧИСТКА ДЕКАЛЕЙ
+    // 🎨 ФОН СТЕЛЫ И ФОТО НЕ УДАЛЯЕМ
+    // ============================================================
+
+    const childrenToRemove = [];
+
+    decalsGroup.children.forEach(child => {
+
+        // 🎨 Фон стелы сохраняем
+        if (child.userData?.isSteleBackground === true) {
+            return;
+        }
+
+        // 📷 Фото сохраняем
+        if (child.userData?.type === 'photo') {
+            return;
+        }
+
+        // 🗑️ Остальные декали удаляем
+        childrenToRemove.push(child);
+    });
+
+    childrenToRemove.forEach(child => {
+
+        if (child.geometry) {
+            child.geometry.dispose();
+        }
+
         if (child.material) {
             if (Array.isArray(child.material)) {
-                child.material.forEach(m => m.dispose());
+                child.material.forEach(m => m?.dispose());
             } else {
                 child.material.dispose();
             }
         }
+
         decalsGroup.remove(child);
-    }
-    
+    });
+
     // Проверяем флаги обновления
     if (state.frontTextureNeedsUpdate) {
         state.frontTextureCache = null;
@@ -352,7 +696,18 @@ export function positionDecalsOnCustomStele(steleGroup, decalsGroup, state) {
         return;
     }
     
-    const dims = getModelDimensions(model);
+	// ============================================================
+	// 🎨 ФОН CUSTOM STL
+	// Проецируем изображение непосредственно на геометрию модели
+	// ============================================================
+
+	applyBackgroundToCustomStele(
+		model,
+		decalsGroup,
+		state
+	);
+	
+	const dims = getModelDimensions(model);
     if (!dims) {
         console.warn('⚠️ Не удалось получить размеры модели');
         return;
@@ -482,6 +837,7 @@ export function positionDecalsOnCustomStele(steleGroup, decalsGroup, state) {
         textMesh.position.set(0, textCenterY, backZ);
         textMesh.rotation.y = Math.PI;
         textMesh.renderOrder = 9;
+		textMesh.userData.isEpitaph = true;
         decalsGroup.add(textMesh);
     }
     
