@@ -768,7 +768,7 @@ let frontDecalPosition = new THREE.Vector3(-0.05, 0.74, -0.76),
 const state = {
     width: 0.6,
     height: 1.2,
-    depth: 0.1,
+    depth: 0.08,
     textureUrl: null,
 
     // Материал стелы — старое поле, сохраняем для совместимости

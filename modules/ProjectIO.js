@@ -662,24 +662,21 @@ export class ProjectIO {
                 this.state.depth ??
                 0.08,
 
-            material:
-                this.state.material ||
-                'marble',
+			material:
+				this.state.material ||
+				'granite',
 
 			baseMaterial:
 				this.state.baseMaterial ||
-				this.state.material ||
-				'marble',
+				'granite',
 
 			pedestalMaterial:
 				this.state.pedestalMaterial ||
-				this.state.material ||
-				'marble',
+				'granite',
 
 			borderMaterial:
 				this.state.borderMaterial ||
-				this.state.material ||
-				'marble',
+				'granite',
             // ----------------------------------------------------
             // ТЕКСТ
             // ----------------------------------------------------

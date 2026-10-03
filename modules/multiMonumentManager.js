@@ -2,6 +2,9 @@
 
 import * as THREE from 'three';
 import { loadFlowerbedTexture } from './textures.min.js';
+import { createStelePedestal } from './stelePedestal.js';
+import { createFlowerbedBorder } from './flowerbedBorder.js';
+
 
 // ⭐ КАРТА ТЕКСТУР
 const TEXTURE_PATHS = {
@@ -985,8 +988,12 @@ updatePhotoPosition(photoMesh, x, y) {
         const depthEl = document.getElementById('depthRange');
         if (depthEl) data.depth = parseFloat(depthEl.value) || 0.1;
         
-        const materialEl = document.getElementById('materialSelect');
-        if (materialEl) data.material = materialEl.value;
+		const materialEl =
+			document.getElementById('materialSelect');
+
+		if (materialEl) {
+			data.material = materialEl.value;
+		}
 
 		const baseMaterialEl =
 			document.getElementById('baseMaterialSelect');
@@ -1307,6 +1314,21 @@ updatePhotoPosition(photoMesh, x, y) {
 		
 		const materialEl = document.getElementById('materialSelect');
 		if (materialEl) window.state.material = materialEl.value;
+
+		const baseMaterialEl = document.getElementById('baseMaterialSelect');
+		if (baseMaterialEl) {
+			window.state.baseMaterial = baseMaterialEl.value;
+		}
+
+		const pedestalMaterialEl = document.getElementById('pedestalMaterialSelect');
+		if (pedestalMaterialEl) {
+			window.state.pedestalMaterial = pedestalMaterialEl.value;
+		}
+
+		const borderMaterialEl = document.getElementById('borderMaterialSelect');
+		if (borderMaterialEl) {
+			window.state.borderMaterial = borderMaterialEl.value;
+		}
 		
 		const fontEl = document.getElementById('fontFamily');
 		if (fontEl) window.state.fontFamily = fontEl.value;
@@ -1451,7 +1473,30 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const materialEl = document.getElementById('materialSelect');
         if (materialEl) data.material = materialEl.value;
-        
+
+		const baseMaterialEl =
+			document.getElementById('baseMaterialSelect');
+
+		if (baseMaterialEl) {
+			data.baseMaterial = baseMaterialEl.value;
+		}
+
+		const pedestalMaterialEl =
+			document.getElementById('pedestalMaterialSelect');
+
+		if (pedestalMaterialEl) {
+			data.pedestalMaterial =
+				pedestalMaterialEl.value;
+		}
+
+		const borderMaterialEl =
+			document.getElementById('borderMaterialSelect');
+
+		if (borderMaterialEl) {
+			data.borderMaterial =
+				borderMaterialEl.value;
+		}
+       
         const textColorEl = document.getElementById('textColor');
         if (textColorEl) data.textColor = textColorEl.value;
         
@@ -1969,6 +2014,10 @@ updatePhotoPosition(photoMesh, x, y) {
 			'heightRange': 'height',
 			'depthRange': 'depth',
 			'materialSelect': 'material',
+			'baseMaterialSelect': 'baseMaterial',
+			'pedestalMaterialSelect': 'pedestalMaterial',
+			'borderMaterialSelect': 'borderMaterial',
+			'textColor': 'textColor',
 			'textColor': 'textColor',
 			'fontFamily': 'fontFamily',
 			'graveWidth': 'graveWidth',
@@ -2158,7 +2207,12 @@ updatePhotoPosition(photoMesh, x, y) {
         // ⭐ Сохраняем ID
         dataToApply.id = mon.id;
         
-        console.log('📋 Данные для применения:', dataToApply);
+		console.log('📋 Данные для применения:', dataToApply);
+
+		console.log('🧱 BASE:', dataToApply.baseMaterial);
+		console.log('🟫 PEDESTAL:', dataToApply.pedestalMaterial);
+		console.log('🌺 BORDER:', dataToApply.borderMaterial);
+		console.log('🗿 STELE:', dataToApply.material);
         
         // Обновляем данные
         mon.data = { ...dataToApply };
@@ -2413,8 +2467,12 @@ updatePhotoPosition(photoMesh, x, y) {
 
 
 
-    // ⭐ ПЕРЕСТРОЕНИЕ ДУБЛЕРА
+	// ============================================================
+	// ⭐ ПЕРЕСТРОЕНИЕ ДУБЛЕРА
+	// ============================================================
+
 	async rebuildSimpleMonument(index) {
+
 		console.log('🚦 rebuildSimpleMonument START', {
 			index,
 			isRebuilding: this.isRebuilding
@@ -2424,230 +2482,729 @@ updatePhotoPosition(photoMesh, x, y) {
 			console.log('⏳ Пропуск (уже идёт перестроение)');
 			return;
 		}
+
 		this.isRebuilding = true;
 
-		if (index < 0 || index >= this.monuments.length) {
-			this.isRebuilding = false;
-			return;
-		}
-		
-		const mon = this.monuments[index];
-		
-		while (mon.group.children.length > 0) {
-			const child = mon.group.children[0];
-			if (child.geometry) child.geometry.dispose();
-			if (child.material) {
-				if (Array.isArray(child.material)) {
-					child.material.forEach(m => m.dispose());
-				} else {
-					child.material.dispose();
-				}
+		try {
+
+			if (
+				index < 0 ||
+				index >= this.monuments.length
+			) {
+				return;
 			}
-			mon.group.remove(child);
-		}
-		
-		const data = mon.data;
-		const materialType = data.material || 'granite';
-		
-		console.log(`🔨 Перестраиваем дублер #${mon.id} с данными:`, {
-			fullName: data.fullName,
-			dates: data.dates,
-			epitaph: data.epitaph,
-			steleModel: data.steleModel,
-			hasPhoto: !!data.textureUrl,
-			flowerEnabled: data.flowerEnabled,
-			position: mon.group.position
-		});
-		
-		// 1. ОСНОВАНИЕ
-		const graveW = data.graveWidth || 0.9;
-		const graveL = data.graveLength || 1.5;
-		const baseH = data.baseHeight || 0.15;
-		
-		const baseGeo = new THREE.BoxGeometry(graveW, baseH, graveL);
-		const baseMat = await createSteleMaterialWithTexture(materialType, true);
-		
-		const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-		baseMesh.position.y = baseH / 2;
-		baseMesh.castShadow = true;
-		baseMesh.receiveShadow = true;
-		mon.group.add(baseMesh);
-		
-		// ⭐ 2. ЦВЕТНИК (ЕСЛИ ВКЛЮЧЕН)
-		if (data.flowerEnabled !== false) {
-			const flowerW = data.flowerWidth || 0.6;
-			const flowerL = data.flowerLength || 0.9;
-			
-			if (flowerW > 0.05 && flowerL > 0.05) {
-				try {
-					const flowerBedGeo = new THREE.PlaneGeometry(flowerW, flowerL);
-					const flowerbedTexture = await loadFlowerbedTexture(data.flowerbedType || 'grass');
-					
-					let flowerMat;
-					if (flowerbedTexture) {
-						flowerMat = new THREE.MeshStandardMaterial({
-							map: flowerbedTexture,
-							roughness: 0.7,
-							metalness: 0.05
-						});
-					} else {
-						const fallbackColors = {
-							grass: 0x4caf50,
-							gravel: 0x888888,
-							marble_chips: 0xf5f5f5,
-							red_gravel: 0xcd5c5c,
-							blue_gravel: 0x4682b4,
-							black_gravel: 0x333333,
-							sand: 0xf4e4a0,
-							flowers: 0x7cb342,
-							moss: 0x5d8c3e
-						};
-						flowerMat = new THREE.MeshStandardMaterial({ 
-							color: fallbackColors[data.flowerbedType || 'grass'] || 0x4caf50, 
-							roughness: 0.8 
-						});
+
+			const mon = this.monuments[index];
+
+			// ========================================================
+			// ОЧИСТКА СТАРОГО ДУБЛЕРА
+			// ========================================================
+
+			while (mon.group.children.length > 0) {
+
+				const child =
+					mon.group.children[0];
+
+				child.traverse((obj) => {
+
+					if (obj.geometry) {
+						obj.geometry.dispose();
 					}
-					
-					const flowerBed = new THREE.Mesh(flowerBedGeo, flowerMat);
-					flowerBed.rotation.x = -Math.PI / 2;
-					flowerBed.position.set(0, baseH + 0.005, 0);
-					flowerBed.receiveShadow = true;
-					mon.group.add(flowerBed);
-					
-					console.log(`🌺 Цветник создан для дублера #${mon.id}`);
-				} catch (e) {
-					console.warn('⚠️ Ошибка создания цветника для дублера:', e);
-				}
+
+					if (obj.material) {
+
+						if (Array.isArray(obj.material)) {
+
+							obj.material.forEach(
+								m => m.dispose()
+							);
+
+						} else {
+
+							obj.material.dispose();
+						}
+					}
+				});
+
+				mon.group.remove(child);
 			}
-		}
-		
-		// 3. СТЕЛА
-		let steleName = data.steleModel || data.steleType || 'custom_stl_cupol';
-		
-		const modelMap = {
-			'book': 'custom_stl0',
-			'rectangle': 'custom_stl_Rectangle',
-			'cupol': 'custom_stl_cupol',
-			'stele1': 'custom_stl',
-			'stele2': 'custom_stl2',
-			'stele3': 'custom_stl3',
-			'stele4': 'custom_stl4',
-			'stele5': 'custom_stl5',
-			'stele6': 'custom_stl6',
-			'stele7': 'custom_stl7',
-			'test': 'custom_stl8',
-			'monument': 'custom_stl_monument',
-			'custom_stl0': 'custom_stl0',
-			'custom_stl': 'custom_stl',
-			'custom_stl2': 'custom_stl2',
-			'custom_stl3': 'custom_stl3',
-			'custom_stl4': 'custom_stl4',
-			'custom_stl5': 'custom_stl5',
-			'custom_stl6': 'custom_stl6',
-			'custom_stl7': 'custom_stl7',
-			'custom_stl8': 'custom_stl8',
-			'custom_stl_Rectangle': 'custom_stl_Rectangle',
-			'custom_stl_cupol': 'custom_stl_cupol',
-			'custom_stl_monument': 'custom_stl_monument'
-		};
-		
-		if (modelMap[steleName]) {
-			steleName = modelMap[steleName];
-		}
-		
-		console.log(`📐 Используем модель стелы: ${steleName} (было: ${data.steleModel || data.steleType})`);
-		
-		const loader = window.customSteleLoader;
-		if (!loader) {
-			console.error('❌ customSteleLoader не найден!');
-			this.isRebuilding = false;
-			return;
-		}
-		
-		const config = loader.customModels?.[steleName];
-		if (!config) {
-			console.warn(`⚠️ Модель ${steleName} не найдена, используем custom_stl_cupol`);
-			steleName = 'custom_stl_cupol';
-		}
-		
-		const modelType = config?.modelType || 'vertical';
 
-		// Нужно добавить 7-й и 8-й параметры:
-		const steleGroup = loader.createCustomSteleMesh(
-			steleName,
-			data.width || 0.6,
-			data.height || 1.3,
-			data.depth || 0.08,
-			materialType,
-			'vertical',
-			null,   // ⭐ ДОБАВИТЬ: externalDecalsGroup = null
-			true    // ⭐ ДОБАВИТЬ: skipDecals = true (НЕ создаем декали)
-		);
-		
-		if (steleGroup) {
-			steleGroup.traverse((child) => {
-				if (child.isMesh) {
-					const newMat = new THREE.MeshStandardMaterial({
-						map: child.material?.map || null,
-						color: child.material?.color || new THREE.Color(0xffffff),
-						roughness: 0.25,
-						metalness: 0.05,
-					});
-					child.material = newMat;
-					child.material.needsUpdate = true;
+
+			const data = mon.data;
+
+			// ========================================================
+			// НЕЗАВИСИМЫЕ МАТЕРИАЛЫ
+			// ========================================================
+
+			const materialType =
+				data.material || 'granite';
+
+			const baseMaterialType =
+				data.baseMaterial || 'granite';
+
+			const pedestalMaterialType =
+				data.pedestalMaterial || 'granite';
+
+			const borderMaterialType =
+				data.borderMaterial || 'granite';
+
+
+			console.log(
+				`🔨 Перестраиваем дублер #${mon.id} с данными:`,
+				{
+					fullName: data.fullName,
+					dates: data.dates,
+					epitaph: data.epitaph,
+					steleModel: data.steleModel,
+
+					material:
+						materialType,
+
+					baseMaterial:
+						baseMaterialType,
+
+					pedestalMaterial:
+						pedestalMaterialType,
+
+					borderMaterial:
+						borderMaterialType,
+
+					hasPhoto:
+						!!data.textureUrl,
+
+					flowerEnabled:
+						data.flowerEnabled,
+
+					position:
+						mon.group.position
 				}
-			});
-		}
+			);
 
-		steleGroup.position.set(0, baseH + 0.6, -(graveL / 2 - 0.09));
-		mon.group.add(steleGroup);
-		console.log(`✅ Стела '${steleName}' создана для дублера #${mon.id}`);
-		
-		await new Promise((resolve) => {
-			this.waitForSteleGroup(mon.group, (foundSteleGroup) => {
-				try {
-					if (!foundSteleGroup) {
-						console.warn(`⚠️ Стела не найдена для дублера #${mon.id}`);
-						resolve();
-						return;
-					}
 
-					// Удаляем старый контейнер декалей
-					const oldDecals = mon.group.children.find(
-						c => c.name === 'decalsContainer'
-					);
+			// ========================================================
+			// РАЗМЕРЫ
+			// ========================================================
 
-					if (oldDecals) {
-						mon.group.remove(oldDecals);
-					}
+			const graveW =
+				data.graveWidth || 0.9;
 
-					// Создаём НОВЫЙ контейнер с ФИО, датами, эпитафией и т.д.
-					const decalsGroup = this.createDecalsForDuplicator(
-						foundSteleGroup,
-						data
-					);
+			const graveL =
+				data.graveLength || 1.5;
 
-					if (decalsGroup) {
-						mon.group.add(decalsGroup);
+			const baseH =
+				data.baseHeight || 0.15;
+
+
+			// ========================================================
+			// 1. ОСНОВАНИЕ / НАДГРОБИЕ
+			// ========================================================
+
+			const baseGeo =
+				new THREE.BoxGeometry(
+					graveW,
+					baseH,
+					graveL
+				);
+
+			const baseMat =
+				await createSteleMaterialWithTexture(
+					baseMaterialType,
+					true
+				);
+
+			const baseMesh =
+				new THREE.Mesh(
+					baseGeo,
+					baseMat
+				);
+
+			baseMesh.position.y =
+				baseH / 2;
+
+			baseMesh.castShadow =
+				true;
+
+			baseMesh.receiveShadow =
+				true;
+
+			mon.group.add(
+				baseMesh
+			);
+
+			console.log(
+				`🪦 Надгробие дублера: ${baseMaterialType}`
+			);
+
+
+			// ========================================================
+			// 2. ЦВЕТНИК
+			// ========================================================
+
+			if (
+				data.flowerEnabled !== false
+			) {
+
+				const flowerW =
+					data.flowerWidth || 0.6;
+
+				const flowerL =
+					data.flowerLength || 0.9;
+
+				if (
+					flowerW > 0.05 &&
+					flowerL > 0.05
+				) {
+
+					try {
+
+						const flowerBedGeo =
+							new THREE.PlaneGeometry(
+								flowerW,
+								flowerL
+							);
+
+						const flowerbedTexture =
+							await loadFlowerbedTexture(
+								data.flowerbedType || 'grass'
+							);
+
+						let flowerMat;
+
+						if (flowerbedTexture) {
+
+							flowerMat =
+								new THREE.MeshStandardMaterial({
+									map: flowerbedTexture,
+									roughness: 0.7,
+									metalness: 0.05
+								});
+
+						} else {
+
+							const fallbackColors = {
+
+								grass: 0x4caf50,
+								gravel: 0x888888,
+								marble_chips: 0xf5f5f5,
+								red_gravel: 0xcd5c5c,
+								blue_gravel: 0x4682b4,
+								black_gravel: 0x333333,
+								sand: 0xf4e4a0,
+								flowers: 0x7cb342,
+								moss: 0x5d8c3e
+							};
+
+							flowerMat =
+								new THREE.MeshStandardMaterial({
+									color:
+										fallbackColors[
+											data.flowerbedType ||
+											'grass'
+										] || 0x4caf50,
+									roughness: 0.8
+								});
+						}
+
+						const flowerBed =
+							new THREE.Mesh(
+								flowerBedGeo,
+								flowerMat
+							);
+
+						flowerBed.rotation.x =
+							-Math.PI / 2;
+
+						flowerBed.position.set(
+							0,
+							baseH + 0.005,
+							0
+						);
+
+						flowerBed.receiveShadow =
+							true;
+
+						mon.group.add(
+							flowerBed
+						);
 
 						console.log(
-							`✍️ Декали созданы для дублера #${mon.id}:`,
-							decalsGroup.children.length
+							`🌺 Цветник создан для дублера #${mon.id}`
+						);
+
+					} catch (e) {
+
+						console.warn(
+							'⚠️ Ошибка создания цветника для дублера:',
+							e
 						);
 					}
+				}
+			}
 
-				} catch (error) {
-					console.error(
-						`❌ Ошибка создания декалей дублера #${mon.id}:`,
-						error
+
+			// ========================================================
+			// 3. БОРДЮР ЦВЕТНИКА
+			// ========================================================
+
+			try {
+
+				const borderParams = {
+
+					...data,
+
+					graveWidth: graveW,
+					graveLength: graveL,
+					baseHeight: baseH,
+
+					// ⭐ СОБСТВЕННЫЙ материал бордюра
+					material:
+						borderMaterialType
+				};
+
+				const flowerbedBorder =
+					await createFlowerbedBorder(
+						borderParams
+					);
+
+				if (flowerbedBorder) {
+
+					mon.group.add(
+						flowerbedBorder
+					);
+
+					console.log(
+						`🎨 Бордюр дублера: ${borderMaterialType}`
+					);
+
+					console.log(
+						`✅ Бордюр цветника добавлен для дублера #${mon.id}`
 					);
 				}
 
-				resolve();
-			});
-		});
-		console.log(`🏁 rebuildSimpleMonument ЗАВЕРШЁН для дублера #${mon.id}`);
-		this.isRebuilding = false;
+			} catch (error) {
+
+				console.error(
+					`❌ Ошибка создания бордюра дублера #${mon.id}:`,
+					error
+				);
+			}
+
+
+			// ========================================================
+			// 4. СТЕЛА
+			// ========================================================
+
+			let steleName =
+				data.steleModel ||
+				data.steleType ||
+				'custom_stl_cupol';
+
+
+			const modelMap = {
+
+				'book': 'custom_stl0',
+
+				'rectangle':
+					'custom_stl_Rectangle',
+
+				'cupol':
+					'custom_stl_cupol',
+
+				'stele1':
+					'custom_stl',
+
+				'stele2':
+					'custom_stl2',
+
+				'stele3':
+					'custom_stl3',
+
+				'stele4':
+					'custom_stl4',
+
+				'stele5':
+					'custom_stl5',
+
+				'stele6':
+					'custom_stl6',
+
+				'stele7':
+					'custom_stl7',
+
+				'test':
+					'custom_stl8',
+
+				'monument':
+					'custom_stl_monument',
+
+				'custom_stl0':
+					'custom_stl0',
+
+				'custom_stl':
+					'custom_stl',
+
+				'custom_stl2':
+					'custom_stl2',
+
+				'custom_stl3':
+					'custom_stl3',
+
+				'custom_stl4':
+					'custom_stl4',
+
+				'custom_stl5':
+					'custom_stl5',
+
+				'custom_stl6':
+					'custom_stl6',
+
+				'custom_stl7':
+					'custom_stl7',
+
+				'custom_stl8':
+					'custom_stl8',
+
+				'custom_stl_Rectangle':
+					'custom_stl_Rectangle',
+
+				'custom_stl_cupol':
+					'custom_stl_cupol',
+
+				'custom_stl_monument':
+					'custom_stl_monument'
+			};
+
+
+			if (modelMap[steleName]) {
+
+				steleName =
+					modelMap[steleName];
+			}
+
+
+			console.log(
+				`📐 Используем модель стелы: ${steleName} (было: ${data.steleModel || data.steleType})`
+			);
+
+
+			const loader =
+				window.customSteleLoader;
+
+
+			if (!loader) {
+
+				console.error(
+					'❌ customSteleLoader не найден!'
+				);
+
+				return;
+			}
+
+
+			const config =
+				loader.customModels?.[steleName];
+
+
+			if (!config) {
+
+				console.warn(
+					`⚠️ Модель ${steleName} не найдена, используем custom_stl_cupol`
+				);
+
+				steleName =
+					'custom_stl_cupol';
+			}
+
+
+			// ========================================================
+			// ⭐ ВАЖНО: ОБЯЗАТЕЛЬНО await
+			// ========================================================
+
+			const steleGroup =
+				await loader.createCustomSteleMesh(
+					steleName,
+
+					data.steleWidth ||
+					data.width ||
+					0.6,
+
+					data.steleHeight ||
+					data.height ||
+					1.2,
+
+					data.steleDepth ||
+					data.depth ||
+					0.08,
+
+					// ⭐ МАТЕРИАЛ СТЕЛЫ
+					materialType,
+
+					'vertical',
+
+					null,
+
+					true
+				);
+
+
+			if (!steleGroup) {
+
+				console.error(
+					`❌ Не удалось создать стелу ${steleName}`
+				);
+
+				return;
+			}
+
+
+			// ========================================================
+			// МАТЕРИАЛ СТЕЛЫ
+			// ========================================================
+
+			steleGroup.traverse(
+				(child) => {
+
+					if (child.isMesh) {
+
+						const newMat =
+							new THREE.MeshStandardMaterial({
+
+								map:
+									child.material?.map ||
+									null,
+
+								color:
+									child.material?.color ||
+									new THREE.Color(
+										0xffffff
+									),
+
+								roughness: 0.25,
+
+								metalness: 0.05
+							});
+
+						child.material =
+							newMat;
+
+						child.material.needsUpdate =
+							true;
+					}
+				}
+			);
+
+
+			// ========================================================
+			// ПОЗИЦИЯ СТЕЛЫ
+			// ========================================================
+
+			steleGroup.position.set(
+
+				0,
+
+				baseH +
+				(data.stelePedestalHeight || 0.12) +
+				(
+					(data.steleHeight ||
+					data.height ||
+					1.2) / 2
+				),
+
+				-(
+					graveL / 2 -
+					(
+						data.steleDepth ||
+						data.depth ||
+						0.08
+					) / 2 -
+					0.05
+				)
+			);
+
+
+			mon.group.add(
+				steleGroup
+			);
+
+
+			console.log(
+				`✅ Стела '${steleName}' создана для дублера #${mon.id}`
+			);
+
+
+			// ========================================================
+			// 5. ТУМБА ПОД СТЕЛОЙ
+			// ========================================================
+
+			try {
+
+				const pedestalParams = {
+
+					...data,
+
+					baseHeight:
+						baseH,
+
+					// ⭐ СОБСТВЕННЫЙ материал тумбы
+					material:
+						pedestalMaterialType,
+
+					stelePedestalHeight:
+						data.stelePedestalHeight ||
+						0.12,
+
+					stelePedestalSideMargin:
+						data.stelePedestalSideMargin ||
+						0.06,
+
+					stelePedestalDepthMargin:
+						data.stelePedestalDepthMargin ||
+						0.02
+				};
+
+
+				const pedestal =
+					await createStelePedestal(
+						steleGroup,
+						pedestalParams
+					);
+
+
+				if (pedestal) {
+
+					// createStelePedestal() вернул координаты
+					// относительно модели, но тумба будет дочерней
+					// steleGroup. Поэтому X нужно обнулить,
+					// чтобы X брался от позиции группы дублера.
+
+					pedestal.position.x = 0;
+					
+					pedestal.position.y = 0.21;
+
+					pedestal.position.z =
+						data.pedestalOffsetZ ||
+						-0.645;
+
+					steleGroup.parent.add(
+						pedestal
+					);
+
+					console.log(
+						`🎨 Тумба дублера: ${pedestalMaterialType}`
+					);
+
+					console.log(
+						`📐 Позиция тумбы дублера:`,
+						pedestal.position
+					);
+
+					console.log(
+						`✅ Тумба добавлена для дублера #${mon.id}`
+					);
+				}
+
+			} catch (error) {
+
+				console.error(
+					`❌ Ошибка создания тумбы дублера #${mon.id}:`,
+					error
+				);
+			}
+
+
+			// ========================================================
+			// 6. ДЕКАЛИ
+			// ========================================================
+
+			await new Promise(
+				(resolve) => {
+
+					this.waitForSteleGroup(
+						mon.group,
+
+						(foundSteleGroup) => {
+
+							try {
+
+								if (!foundSteleGroup) {
+
+									console.warn(
+										`⚠️ Стела не найдена для дублера #${mon.id}`
+									);
+
+									resolve();
+
+									return;
+								}
+
+
+								const oldDecals =
+									mon.group.children.find(
+										c =>
+											c.name ===
+											'decalsContainer'
+									);
+
+
+								if (oldDecals) {
+
+									mon.group.remove(
+										oldDecals
+									);
+								}
+
+
+								const decalsGroup =
+									this.createDecalsForDuplicator(
+										foundSteleGroup,
+										data
+									);
+
+
+								if (decalsGroup) {
+
+									mon.group.add(
+										decalsGroup
+									);
+
+									console.log(
+										`✍️ Декали созданы для дублера #${mon.id}:`,
+										decalsGroup.children.length
+									);
+								}
+
+							} catch (error) {
+
+								console.error(
+									`❌ Ошибка создания декалей дублера #${mon.id}:`,
+									error
+								);
+							}
+
+
+							resolve();
+						}
+					);
+				}
+			);
+
+
+			console.log(
+				`🏁 rebuildSimpleMonument ЗАВЕРШЁН для дублера #${mon.id}`
+			);
+
+		} catch (error) {
+
+			console.error(
+				`❌ КРИТИЧЕСКАЯ ОШИБКА rebuildSimpleMonument #${index}:`,
+				error
+			);
+
+		} finally {
+
+			this.isRebuilding =
+				false;
+		}
 	}
 	
 	

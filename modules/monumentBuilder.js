@@ -229,21 +229,546 @@ export async function createBase(params) {
         flowerWidth,
         flowerLength
     } = params;
-    
-    const baseGeo = new THREE.BoxGeometry(graveWidth, baseHeight, graveLength);
-    const baseTexture = await createUnifiedTextureWithJoints(
-        graveWidth, graveLength, baseHeight, material, flowerWidth, flowerLength
+
+    // ========================================================
+    // ГЕОМЕТРИЯ ОСНОВАНИЯ
+    // ========================================================
+
+    const baseGeo = new THREE.BoxGeometry(
+        graveWidth,
+        baseHeight,
+        graveLength
     );
-    const baseMat = new THREE.MeshStandardMaterial({
-        map: baseTexture,
-        roughness: 0.6,
-        metalness: 0.05,
-    });
-    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-    baseMesh.position.y = baseHeight / 2;
-    baseMesh.castShadow = true;
-    baseMesh.receiveShadow = true;
-    
+
+    // ========================================================
+    // ВЕРХНЯЯ ТЕКСТУРА
+    // ========================================================
+
+    const baseTexture =
+        await createUnifiedTextureWithJoints(
+            graveWidth,
+            graveLength,
+            baseHeight,
+            material,
+            flowerWidth,
+            flowerLength
+        );
+
+    // ========================================================
+    // БОКОВАЯ ТЕКСТУРА
+    // ПЛИТКА 300 × 300 ММ
+    // ========================================================
+
+    async function createSideTexture(
+        sideLength,
+        sideHeight
+    ) {
+        const isMobile =
+            window.innerWidth < 768;
+
+        const canvasWidth =
+            isMobile ? 1024 : 2048;
+
+        const canvasHeight =
+            Math.max(
+                256,
+                Math.round(
+                    canvasWidth *
+                    (
+                        sideHeight /
+                        sideLength
+                    )
+                )
+            );
+
+        const canvas =
+            document.createElement('canvas');
+
+        canvas.width =
+            canvasWidth;
+
+        canvas.height =
+            canvasHeight;
+
+        const ctx =
+            canvas.getContext('2d');
+
+        // ====================================================
+        // ЛОКАЛЬНАЯ ФУНКЦИЯ ШВА
+        // ====================================================
+
+        function drawSideJoint(
+            x1,
+            y1,
+            x2,
+            y2,
+            color,
+            shadowColor,
+            width,
+            shadowOffset = 1
+        ) {
+            ctx.save();
+
+            // Тень шва
+            ctx.strokeStyle =
+                shadowColor;
+
+            ctx.lineWidth =
+                width;
+
+            ctx.globalAlpha =
+                0.55;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                x1 + shadowOffset,
+                y1 + shadowOffset
+            );
+
+            ctx.lineTo(
+                x2 + shadowOffset,
+                y2 + shadowOffset
+            );
+
+            ctx.stroke();
+
+            // Основной шов
+            ctx.globalAlpha =
+                1.0;
+
+            ctx.strokeStyle =
+                color;
+
+            ctx.lineWidth =
+                width;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                x1,
+                y1
+            );
+
+            ctx.lineTo(
+                x2,
+                y2
+            );
+
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // ====================================================
+        // ЗАГРУЗКА ТЕКСТУРЫ КАМНЯ
+        // ====================================================
+
+        let baseImage = null;
+
+        try {
+            const textureType =
+                getTextureTypeFromMaterial(
+                    material
+                );
+
+            const pbrMaterial =
+                await loadPBRMaterial(
+                    textureType
+                );
+
+            if (
+                pbrMaterial &&
+                pbrMaterial.map &&
+                pbrMaterial.map.image
+            ) {
+                baseImage =
+                    pbrMaterial.map.image;
+            }
+
+        } catch (e) {
+            console.warn(
+                '⚠️ Не удалось загрузить боковую текстуру:',
+                e
+            );
+        }
+
+        // ====================================================
+        // РИСУЕМ КАМЕНЬ
+        // ====================================================
+
+        if (baseImage) {
+
+            ctx.drawImage(
+                baseImage,
+                0,
+                0,
+                canvasWidth,
+                canvasHeight
+            );
+
+        } else {
+
+            const materialColors = {
+                granite: '#1a1a1a',
+                black_galaxy: '#111111',
+                ninimyaki: '#1a2a1a',
+                marble: '#e8e8e8',
+                red_granite: '#8b0000',
+                beige_granite: '#d4b896',
+                gray_granite: '#808080'
+            };
+
+            ctx.fillStyle =
+                materialColors[material] ||
+                '#1a1a1a';
+
+            ctx.fillRect(
+                0,
+                0,
+                canvasWidth,
+                canvasHeight
+            );
+
+            addStoneTextureToCanvas(
+                ctx,
+                canvasWidth,
+                canvasHeight
+            );
+        }
+
+        // ====================================================
+        // РАЗМЕР ПЛИТКИ
+        // 300 × 300 ММ
+        // ====================================================
+
+        const TILE_SIZE =
+            0.3;
+
+        const pixelsPerMeter =
+            canvasWidth /
+            sideLength;
+
+        // Шов 2 мм
+        const jointWidth =
+            Math.max(
+                1,
+                Math.round(
+                    pixelsPerMeter *
+                    0.002
+                )
+            );
+
+        const shadowOffset =
+            Math.max(
+                1,
+                Math.round(
+                    jointWidth * 0.35
+                )
+            );
+
+        // ====================================================
+        // ОПРЕДЕЛЯЕМ СВЕТЛОТУ КАМНЯ
+        // ====================================================
+
+        let avgBrightness =
+            0.5;
+
+        try {
+
+            const sampleWidth =
+                Math.min(
+                    100,
+                    canvasWidth
+                );
+
+            const sampleHeight =
+                Math.min(
+                    100,
+                    canvasHeight
+                );
+
+            const imageData =
+                ctx.getImageData(
+                    0,
+                    0,
+                    sampleWidth,
+                    sampleHeight
+                );
+
+            const data =
+                imageData.data;
+
+            let sum = 0;
+
+            for (
+                let i = 0;
+                i < data.length;
+                i += 4
+            ) {
+                sum +=
+                    data[i] * 0.299 +
+                    data[i + 1] * 0.587 +
+                    data[i + 2] * 0.114;
+            }
+
+            avgBrightness =
+                sum /
+                (data.length / 4) /
+                255;
+
+        } catch (e) {
+            // Оставляем значение 0.5
+        }
+
+        // ====================================================
+        // ЦВЕТ ШВА
+        // ====================================================
+
+        const jointColor =
+            avgBrightness > 0.5
+                ? '#333333'
+                : '#cccccc';
+
+        const jointShadow =
+            avgBrightness > 0.5
+                ? '#666666'
+                : '#777777';
+
+        // ====================================================
+        // ВЕРТИКАЛЬНЫЕ ШВЫ
+        // КАЖДЫЕ 300 ММ
+        // ====================================================
+
+        const cols =
+            Math.ceil(
+                sideLength /
+                TILE_SIZE
+            );
+
+        for (
+            let col = 1;
+            col < cols;
+            col++
+        ) {
+
+            const x =
+                col *
+                TILE_SIZE *
+                pixelsPerMeter;
+
+            drawSideJoint(
+                x,
+                0,
+                x,
+                canvasHeight,
+                jointColor,
+                jointShadow,
+                jointWidth,
+                shadowOffset
+            );
+        }
+
+        // ====================================================
+        // ГОРИЗОНТАЛЬНЫЕ ШВЫ
+        // КАЖДЫЕ 300 ММ
+        // ====================================================
+
+        const rows =
+            Math.ceil(
+                sideHeight /
+                TILE_SIZE
+            );
+
+        const pixelsPerHeightMeter =
+            canvasHeight /
+            sideHeight;
+
+        for (
+            let row = 1;
+            row < rows;
+            row++
+        ) {
+
+            const y =
+                row *
+                TILE_SIZE *
+                pixelsPerHeightMeter;
+
+            drawSideJoint(
+                0,
+                y,
+                canvasWidth,
+                y,
+                jointColor,
+                jointShadow,
+                jointWidth,
+                shadowOffset
+            );
+        }
+
+        // ====================================================
+        // РАМКА ПО КРАЯМ
+        // ====================================================
+
+        ctx.save();
+
+        ctx.strokeStyle =
+            jointColor;
+
+        ctx.lineWidth =
+            Math.max(
+                jointWidth,
+                isMobile ? 3 : 5
+            );
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            1,
+            1
+        );
+
+        ctx.lineTo(
+            canvasWidth - 1,
+            1
+        );
+
+        ctx.lineTo(
+            canvasWidth - 1,
+            canvasHeight - 1
+        );
+
+        ctx.lineTo(
+            1,
+            canvasHeight - 1
+        );
+
+        ctx.closePath();
+
+        ctx.stroke();
+
+        ctx.restore();
+
+        // ====================================================
+        // THREE.JS TEXTURE
+        // ====================================================
+
+        const texture =
+            new THREE.CanvasTexture(
+                canvas
+            );
+
+        texture.wrapS =
+            THREE.ClampToEdgeWrapping;
+
+        texture.wrapT =
+            THREE.ClampToEdgeWrapping;
+
+        texture.minFilter =
+            THREE.LinearFilter;
+
+        texture.magFilter =
+            THREE.LinearFilter;
+
+        texture.generateMipmaps =
+            false;
+
+        texture.anisotropy =
+            isMobile
+                ? 1
+                : 8;
+
+        texture.needsUpdate =
+            true;
+
+        return texture;
+    }
+
+    // ========================================================
+    // ТЕКСТУРЫ ДЛЯ ДВУХ ТИПОВ БОКОВ
+    // ========================================================
+
+    const sideLengthTexture =
+        await createSideTexture(
+            graveLength,
+            baseHeight
+        );
+
+    const sideWidthTexture =
+        await createSideTexture(
+            graveWidth,
+            baseHeight
+        );
+
+    // ========================================================
+    // МАТЕРИАЛЫ БОКОВ
+    // ========================================================
+
+    const sideMaterialLength =
+        new THREE.MeshStandardMaterial({
+            map: sideLengthTexture,
+            roughness: 0.6,
+            metalness: 0.05
+        });
+
+    const sideMaterialWidth =
+        new THREE.MeshStandardMaterial({
+            map: sideWidthTexture,
+            roughness: 0.6,
+            metalness: 0.05
+        });
+
+    // ========================================================
+    // МАТЕРИАЛ ВЕРХА
+    // ========================================================
+
+    const topMaterial =
+        new THREE.MeshStandardMaterial({
+            map: baseTexture,
+            roughness: 0.6,
+            metalness: 0.05
+        });
+
+    // ========================================================
+    // ПОРЯДОК МАТЕРИАЛОВ THREE.BOXGEOMETRY
+    //
+    // 0 = +X
+    // 1 = -X
+    // 2 = +Y (ВЕРХ)
+    // 3 = -Y
+    // 4 = +Z
+    // 5 = -Z
+    // ========================================================
+
+    const materials = [
+        sideMaterialLength,
+        sideMaterialLength,
+        topMaterial,
+        sideMaterialLength,
+        sideMaterialWidth,
+        sideMaterialWidth
+    ];
+
+    // ========================================================
+    // СОЗДАЁМ ОСНОВАНИЕ
+    // ========================================================
+
+    const baseMesh =
+        new THREE.Mesh(
+            baseGeo,
+            materials
+        );
+
+    baseMesh.position.y =
+        baseHeight / 2;
+
+    baseMesh.castShadow =
+        true;
+
+    baseMesh.receiveShadow =
+        true;
+
     return baseMesh;
 }
 
@@ -1105,23 +1630,17 @@ export async function updateMainMonument(
 		material:
 			state.material || 'granite',
 
-		// Материал основания
+		// Материал надгробия
 		baseMaterial:
-			state.baseMaterial ||
-			state.material ||
-			'granite',
+			state.baseMaterial || 'granite',
 
 		// Материал тумбы
 		pedestalMaterial:
-			state.pedestalMaterial ||
-			state.material ||
-			'granite',
+			state.pedestalMaterial || 'granite',
 
 		// Материал бордюра
 		borderMaterial:
-			state.borderMaterial ||
-			state.material ||
-			'granite',
+			state.borderMaterial || 'granite',
 
         flowerEnabled:
             state.flowerEnabled !== undefined
@@ -1399,102 +1918,117 @@ export async function updateMainMonument(
 
     clearMainMonument(monumentGroup);
 
-// ============================================================
-// 4. ФОТО И ФОН НЕ УДАЛЯЕМ
-// ============================================================
+	// ============================================================
+	// 4. ФОТО И ФОН НЕ УДАЛЯЕМ
+	// ============================================================
 
-if (decalsGroup) {
+	if (decalsGroup) {
 
-    const photo = [];
-    const backgrounds = [];
-    const toRemove = [];
+		const photo = [];
+		const backgrounds = [];
+		const toRemove = [];
 
-    decalsGroup.children.forEach(child => {
+		decalsGroup.children.forEach(child => {
 
-        // 📷 Фото сохраняем
-        if (
-            child.userData &&
-            child.userData.type === 'photo'
-        ) {
-            photo.push(child);
+			// 📷 Фото сохраняем
+			if (
+				child.userData &&
+				child.userData.type === 'photo'
+			) {
+				photo.push(child);
 
-        // 🎨 Фон стелы сохраняем
-        } else if (
-            child.userData &&
-            child.userData.isSteleBackground === true
-        ) {
-            backgrounds.push(child);
+			// 🎨 Фон стелы сохраняем
+			} else if (
+				child.userData &&
+				child.userData.isSteleBackground === true
+			) {
+				backgrounds.push(child);
 
-        // 🗑️ Остальные декали удаляем
-        } else {
-            toRemove.push(child);
-        }
+			// 🗑️ Остальные декали удаляем
+			} else {
+				toRemove.push(child);
+			}
 
-    });
+		});
 
-    toRemove.forEach(child => {
+		toRemove.forEach(child => {
 
-        if (child.geometry) {
-            child.geometry.dispose();
-        }
+			if (child.geometry) {
+				child.geometry.dispose();
+			}
 
-        if (child.material) {
+			if (child.material) {
 
-            if (Array.isArray(child.material)) {
-                child.material.forEach(
-                    mat => mat?.dispose()
-                );
-            } else {
-                child.material.dispose();
-            }
+				if (Array.isArray(child.material)) {
+					child.material.forEach(
+						mat => mat?.dispose()
+					);
+				} else {
+					child.material.dispose();
+				}
 
-        }
+			}
 
-        decalsGroup.remove(child);
+			decalsGroup.remove(child);
 
-    });
+		});
 
-    // 📷 Возвращаем фото
-    photo.forEach(p => {
+		// 📷 Возвращаем фото
+		photo.forEach(p => {
 
-        if (!decalsGroup.children.includes(p)) {
-            decalsGroup.add(p);
-        }
+			if (!decalsGroup.children.includes(p)) {
+				decalsGroup.add(p);
+			}
 
-    });
+		});
 
-    // 🎨 Возвращаем фон
-    backgrounds.forEach(background => {
+		// 🎨 Возвращаем фон
+		backgrounds.forEach(background => {
 
-        if (!decalsGroup.children.includes(background)) {
-            decalsGroup.add(background);
-        }
+			if (!decalsGroup.children.includes(background)) {
+				decalsGroup.add(background);
+			}
 
-    });
+		});
 
-    console.log(
-        '🧹 Декали очищены, фото и фон сохранены',
-        {
-            photo: photo.length,
-            backgrounds: backgrounds.length,
-            removed: toRemove.length
-        }
-    );
-}
+		console.log(
+			'🧹 Декали очищены, фото и фон сохранены',
+			{
+				photo: photo.length,
+				backgrounds: backgrounds.length,
+				removed: toRemove.length
+			}
+		);
+	}
 
-    // ============================================================
-    // 5. ОСНОВАНИЕ
-    // ============================================================
+	// ============================================================
+	// 5. НАДГРОБИЕ / ОСНОВАНИЕ
+	// ============================================================
 
-    const base =
-        await createBase(params);
+	const baseParams = {
+		...params,
+		material: params.baseMaterial
+	};
 
-    if (base) {
-        monumentGroup.add(base);
-        console.log(
-            '✅ Основание добавлено'
-        );
-    }
+	console.log(
+		'🪦 СОЗДАЁМ НАДГРОБИЕ:',
+		{
+			baseMaterial: params.baseMaterial,
+			material: baseParams.material
+		}
+	);
+
+	const base =
+		await createBase(baseParams);
+
+	if (base) {
+		monumentGroup.add(base);
+
+		console.log(
+			'✅ Надгробие добавлено:',
+			params.baseMaterial
+		);
+	}
 
 	// ============================================================
 	// 6. ЦВЕТНИК
@@ -1574,6 +2108,7 @@ if (decalsGroup) {
             '✅ Стела добавлена в сцену'
         );
     }
+
 
     // ============================================================
     // 8. 🔥 ОГРАДКА
@@ -1734,113 +2269,293 @@ if (decalsGroup) {
         '✅ Основной памятник обновлен'
     );
 }
+
 // ============================================================
 // ⭐ ОБНОВЛЕНИЕ ДУБЛЕРА
 // ============================================================
 
 export async function updateDuplicator(index, monuments, monumentGroup) {
-    console.log(`📋 === ОБНОВЛЕНИЕ ДУБЛЕРА #${index + 1} ===`);
-    
-    const mon = monuments[index];
-    if (!mon) return;
-    
-    const data = mon.data;
-    const group = mon.group;
-    
-    // 1. Очищаем группу
-    while(group.children.length > 0) {
-        const child = group.children[0];
-        disposeObject3D(child);
-        group.remove(child);
-    }
-    
-    // 2. Собираем параметры из данных дублера
-    const params = {
-        graveWidth: data.graveWidth || 0.9,
-        graveLength: data.graveLength || 1.5,
-        baseHeight: data.baseHeight || 0.15,
-        material: data.material || 'granite',
-        flowerEnabled: data.flowerEnabled !== undefined ? data.flowerEnabled : true,
-        flowerWidth: data.flowerWidth || 0.6,
-        flowerLength: data.flowerLength || 0.9,
-        flowerbedType: data.flowerbedType || 'grass',
-        steleType: data.steleType || 'custom_stl_monument',
-        width: data.width || 0.6,
-        height: data.height || 1.2,
-        depth: data.depth || 0.08,
-        fullName: data.fullName || '',
-        dates: data.dates || '',
-        epitaph: data.epitaph || '',
-        textColor: data.textColor || '#FFFFFF',
-        fontFamily: data.fontFamily || 'Arial, sans-serif',
-        nameFontSize: data.nameFontSize || 48,
-        datesFontSize: data.datesFontSize || 32,
-        epitaphFontSize: data.epitaphFontSize || 40,
-        textOffsetX: data.textOffsetX || 0,
-        textOffsetY: data.textOffsetY || 0,
-        epitaphOffsetX: data.epitaphOffsetX || 0,
-        epitaphOffsetY: data.epitaphOffsetY || 0,
-        textureUrl: data.textureUrl || null,
-        photoShape: data.photoShape || 'oval',
-        photoScale: data.photoScale || 1.0,
-        photoWidthMm: data.photoWidthMm || 100,
-        photoHeightMm: data.photoHeightMm || 140,
-        photoOffsetX: data.photoOffsetX || 0,
-        photoOffsetY: data.photoOffsetY || 0,
-        engravingsFront: data.engravingsFront || [],
-        engravingsBack: data.engravingsBack || [],
-        fenceEnabled: data.fenceEnabled !== undefined ? data.fenceEnabled : true,
-        fenceWidth: data.fenceWidth || 1.5,
-        fenceLength: data.fenceLength || 2.5,
-        fenceType: data.fenceType || 'pipe',
-        fenceHeight: data.fenceHeight || 0.6,
-        fenceMaterial: data.fenceMaterial || 'steel',
-        fenceGateSide: data.fenceGateSide || 'none',
-        gateWidth: data.gateWidth || 0.8,
-        fenceOffsetX: data.fenceOffsetX || 0,
-        fenceOffsetZ: data.fenceOffsetZ || 0,
-        pathEnabled: data.pathEnabled !== undefined ? data.pathEnabled : true,
-        pathWidth: data.pathWidth || 0.5,
-        pathMaterial: data.pathMaterial || 'tile_gray',
-        pathTileSize: data.pathTileSize || 0.3,
-        pathJointColor: data.pathJointColor || '#666666',
-        pathTileLayout: data.pathTileLayout || 'brick'
-    };
-    
-    // 3. Создаем элементы внутри группы
-	const baseParams = {
-		...params,
-		material: params.baseMaterial
-	};
 
-	const base =
-		await createBase(baseParams);
-    group.add(base);
-    
-    const flowerbed = await createFlowerbed(params);
-    if (flowerbed) group.add(flowerbed);
-    
-    const stele = await createStele(params);
-    group.add(stele);
-    
-    const fence = createFenceGroup(params);
-    if (fence) {
-        const shiftX = params.fenceOffsetX || 0;
-        const shiftZ = params.fenceOffsetZ || 0;
-        fence.position.set(shiftX, 0, shiftZ);
-        group.add(fence);
+    const data = monuments[index];
+
+    if (!data) {
+        console.warn('⚠️ Нет данных для дубликата:', index);
+        return;
     }
-    
-    const path = await createPathGroup(params);
-    if (path) {
-        const shiftX = params.fenceOffsetX || 0;
-        const shiftZ = params.fenceOffsetZ || 0;
-        path.position.set(shiftX, 0, shiftZ);
-        group.add(path);
+
+    console.log('🔄 Обновление дубликата:', index);
+
+    const group = monumentGroup || new THREE.Group();
+
+    // ============================================================
+    // ПАРАМЕТРЫ ДУБЛИКАТА
+    // ============================================================
+
+    const params = {
+
+        graveWidth:
+            data.graveWidth || 0.9,
+
+        graveLength:
+            data.graveLength || 1.5,
+
+        baseHeight:
+            data.baseHeight || 0.15,
+
+        // ========================================================
+        // СТЕЛА
+        // ========================================================
+
+        steleType:
+            data.steleType || 'rectangle',
+
+        width:
+            data.steleWidth || 0.6,
+
+        height:
+            data.steleHeight || 1.2,
+
+        depth:
+            data.steleDepth || 0.08,
+
+        steleRotation:
+            data.steleRotation || 0,
+
+        // ========================================================
+        // ТУМБА ПОД СТЕЛОЙ
+        // ========================================================
+
+        stelePedestalHeight:
+            data.stelePedestalHeight || 0.12,
+
+        stelePedestalSideMargin:
+            data.stelePedestalSideMargin || 0.06,
+
+        stelePedestalDepthMargin:
+            data.stelePedestalDepthMargin || 0.02,
+
+        // ========================================================
+        // НЕЗАВИСИМЫЕ МАТЕРИАЛЫ
+        // ========================================================
+
+        // Материал стелы
+        material:
+            data.material || 'granite',
+
+        // Материал надгробия / основания
+        baseMaterial:
+            data.baseMaterial || 'granite',
+
+        // Материал тумбы
+        pedestalMaterial:
+            data.pedestalMaterial || 'granite',
+
+        // Материал бордюра
+        borderMaterial:
+            data.borderMaterial || 'granite',
+
+        // ========================================================
+        // ЦВЕТНИК
+        // ========================================================
+
+        flowerEnabled:
+            data.flowerEnabled ?? true,
+
+        flowerWidth:
+            data.flowerWidth || 1.2,
+
+        flowerLength:
+            data.flowerLength || 0.8,
+
+        flowerHeight:
+            data.flowerHeight || 0.08,
+
+        flowerColor:
+            data.flowerColor || '#ffffff',
+
+        flowerType:
+            data.flowerType || 'rose',
+
+        // ========================================================
+        // ОГРАДА
+        // ========================================================
+
+        fenceEnabled:
+            data.fenceEnabled ?? false,
+
+        fenceMaterial:
+            data.fenceMaterial || 'metal',
+
+        fenceHeight:
+            data.fenceHeight || 0.5,
+
+        // ========================================================
+        // ДОРОЖКА
+        // ========================================================
+
+        pathEnabled:
+            data.pathEnabled ?? false,
+
+        pathWidth:
+            data.pathWidth || 0.5,
+
+        pathMaterial:
+            data.pathMaterial || 'concrete'
+    };
+
+
+    // ============================================================
+    // ОСНОВАНИЕ / НАДГРОБИЕ
+    // ============================================================
+
+    const baseParams = {
+        ...params,
+
+        // createBase() получает материал через params.material
+        material: params.baseMaterial
+    };
+
+    const base =
+        await createBase(baseParams);
+
+    if (base) {
+        group.add(base);
     }
-    
-    console.log(`✅ Дублер #${index + 1} обновлен`);
+
+
+    // ============================================================
+    // ЦВЕТНИК
+    // ============================================================
+
+    const flowerbed =
+        await createFlowerbed(params);
+
+    if (flowerbed) {
+        group.add(flowerbed);
+    }
+
+
+    // ============================================================
+    // БОРДЮР ЦВЕТНИКА
+    // ============================================================
+
+    const borderParams = {
+        ...params,
+
+        // Бордюр получает СВОЙ материал
+        material: params.borderMaterial
+    };
+
+    const flowerbedBorder =
+        await createFlowerbedBorder(borderParams);
+
+    if (flowerbedBorder) {
+        group.add(flowerbedBorder);
+    }
+
+
+    // ============================================================
+    // СТЕЛА + ТУМБА
+    // ============================================================
+
+    const stele =
+        await createStele(params);
+
+    if (stele) {
+        group.add(stele);
+    }
+
+
+    // ============================================================
+    // ОГРАДА
+    // ============================================================
+
+    if (params.fenceEnabled) {
+
+        const fence =
+            await createFence(params);
+
+        if (fence) {
+            group.add(fence);
+        }
+    }
+
+
+    // ============================================================
+    // ДОРОЖКА
+    // ============================================================
+
+    if (params.pathEnabled) {
+
+        const path =
+            await createPath(params);
+
+        if (path) {
+            group.add(path);
+        }
+    }
+
+
+    // ============================================================
+    // ПОЗИЦИЯ ДУБЛИКАТА
+    // ============================================================
+
+    if (data.position) {
+
+        group.position.set(
+            data.position.x || 0,
+            data.position.y || 0,
+            data.position.z || 0
+        );
+    }
+
+
+    // ============================================================
+    // ПОВОРОТ ДУБЛИКАТА
+    // ============================================================
+
+    if (data.rotation) {
+
+        group.rotation.set(
+            data.rotation.x || 0,
+            data.rotation.y || 0,
+            data.rotation.z || 0
+        );
+    }
+
+
+    // ============================================================
+    // МАСШТАБ ДУБЛИКАТА
+    // ============================================================
+
+    if (data.scale) {
+
+        group.scale.set(
+            data.scale.x || 1,
+            data.scale.y || 1,
+            data.scale.z || 1
+        );
+    }
+
+
+    // ============================================================
+    // ЛОГ
+    // ============================================================
+
+    console.log(
+        '✅ Дубликат обновлён:',
+        index,
+        {
+            material: params.material,
+            baseMaterial: params.baseMaterial,
+            pedestalMaterial: params.pedestalMaterial,
+            borderMaterial: params.borderMaterial
+        }
+    );
+
+    return group;
 }
+
 
 // ============================================================
 // ⭐ ПОЛНОЕ ОБНОВЛЕНИЕ СЦЕНЫ
