@@ -419,12 +419,8 @@ function applyBackgroundToCustomStele(
 
     const oldMaterial = background.material;
 
-    // ------------------------------------------------------------
     // ЖДЁМ ЗАГРУЗКУ ТЕКСТУРЫ
-    // ------------------------------------------------------------
-
     const convertToDecal = () => {
-
         const texture = oldMaterial?.map;
 
         if (!texture) {
@@ -440,10 +436,7 @@ function applyBackgroundToCustomStele(
             '🎨 Текстура фона готова, создаём DecalGeometry'
         );
 
-        // --------------------------------------------------------
         // Ищем Mesh внутри GLB
-        // --------------------------------------------------------
-
         let targetMesh = null;
 
         model.traverse(child => {
@@ -463,39 +456,39 @@ function applyBackgroundToCustomStele(
             return;
         }
 
-        // --------------------------------------------------------
         // Размер модели
-        // --------------------------------------------------------
+        const box =
+            new THREE.Box3().setFromObject(model);
 
-        const box = new THREE.Box3().setFromObject(model);
+        const size =
+            new THREE.Vector3();
 
-        const size = new THREE.Vector3();
         box.getSize(size);
 
-        const center = new THREE.Vector3();
+        const center =
+            new THREE.Vector3();
+
         box.getCenter(center);
 
-        // --------------------------------------------------------
         // Масштаб фона
-        // --------------------------------------------------------
-
         const scale =
             state.backgroundScale !== undefined
                 ? Number(state.backgroundScale)
                 : 0.98;
 
-        const decalWidth = size.x * scale;
-        const decalHeight = size.y * scale;
+        const decalWidth =
+            size.x * scale;
 
-        const decalDepth = Math.max(
-            size.z * 0.5,
-            0.05
-        );
+        const decalHeight =
+            size.y * scale;
 
-        // --------------------------------------------------------
+        const decalDepth =
+            Math.max(
+                size.z * 0.5,
+                0.05
+            );
+
         // Положение
-        // --------------------------------------------------------
-
         const offsetX =
             state.backgroundOffsetX !== undefined
                 ? Number(state.backgroundOffsetX)
@@ -506,39 +499,38 @@ function applyBackgroundToCustomStele(
                 ? Number(state.backgroundOffsetY)
                 : 0;
 
-        const position = new THREE.Vector3(
-            center.x + offsetX,
-            center.y + offsetY,
-            box.max.z + 0.001
-        );
+        const position =
+            new THREE.Vector3(
+                center.x + offsetX,
+                center.y + offsetY,
+                box.max.z + 0.001
+            );
 
-        // --------------------------------------------------------
-        // Направление decal
-        // --------------------------------------------------------
+        // ВАЖНО:
+        // DecalGeometry должен смотреть в сторону
+        // передней поверхности стелы.
+        const orientation =
+            new THREE.Euler(
+                0,
+                0,
+                0
+            );
 
-        const orientation = new THREE.Euler(
-            0,
-            Math.PI,
-            0
-        );
-
-        // --------------------------------------------------------
         // Создаём decal
-        // --------------------------------------------------------
-
         let decalGeometry;
 
         try {
-            decalGeometry = new DecalGeometry(
-                targetMesh,
-                position,
-                orientation,
-                new THREE.Vector3(
-                    decalWidth,
-                    decalHeight,
-                    decalDepth
-                )
-            );
+            decalGeometry =
+                new DecalGeometry(
+                    targetMesh,
+                    position,
+                    orientation,
+                    new THREE.Vector3(
+                        decalWidth,
+                        decalHeight,
+                        decalDepth
+                    )
+                );
         } catch (error) {
             console.error(
                 '❌ Ошибка создания DecalGeometry:',
@@ -547,49 +539,74 @@ function applyBackgroundToCustomStele(
             return;
         }
 
-        // --------------------------------------------------------
         // Материал
-        // --------------------------------------------------------
+        const material =
+            new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.FrontSide,
+                depthWrite: false,
+                depthTest: true,
+                alphaTest: 0.01,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: -1
+            });
 
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-
-            transparent: true,
-
-            side: THREE.FrontSide,
-
-            depthWrite: false,
-            depthTest: true,
-
-            alphaTest: 0.01,
-
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1
-        });
-
-        // --------------------------------------------------------
         // Новый decal
-        // --------------------------------------------------------
+        const decal =
+            new THREE.Mesh(
+                decalGeometry,
+                material
+            );
 
-        const decal = new THREE.Mesh(
-            decalGeometry,
-            material
-        );
-
-        decal.name = 'steleBackgroundDecal';
+        decal.name =
+            'steleBackgroundDecal';
 
         decal.renderOrder = 8;
 
-        decal.userData.isSteleBackground = true;
-        decal.userData.isCustomSteleBackground = true;
+        decal.userData.isSteleBackground =
+            true;
+
+        decal.userData.isCustomSteleBackground =
+            true;
+
         decal.userData.backgroundId =
             background.userData.backgroundId;
 
-        // --------------------------------------------------------
-        // Удаляем старый Plane
-        // --------------------------------------------------------
+        // =====================================================
+        // ВАЖНО:
+        // DecalGeometry создаёт геометрию в мировых координатах.
+        // Дублер уже имеет собственное смещение по X.
+        // Поэтому смещение родителя иначе применяется второй раз.
+        // Компенсируем это через локальную позицию decal.
+        // =====================================================
 
+        decalsGroup.updateMatrixWorld(true);
+
+        const parentWorldPosition =
+            decalsGroup.getWorldPosition(
+                new THREE.Vector3()
+            );
+
+        decal.position.set(
+            -parentWorldPosition.x,
+            -parentWorldPosition.y,
+            -parentWorldPosition.z
+        );
+
+        console.log(
+            '🎯 Компенсация позиции фона:',
+            {
+                parentWorldPosition:
+                    parentWorldPosition.toArray(),
+
+                decalPosition:
+                    decal.position.toArray()
+            }
+        );
+
+        // Удаляем старый Plane
         decalsGroup.remove(background);
 
         if (background.geometry) {
@@ -597,16 +614,13 @@ function applyBackgroundToCustomStele(
         }
 
         // Старый материал больше не нужен.
-        // Текстуру НЕ dispose(), потому что она используется
-        // новым материалом.
+        // Текстуру НЕ dispose(),
+        // потому что она используется новым материалом.
         if (oldMaterial) {
             oldMaterial.dispose();
         }
 
-        // --------------------------------------------------------
         // Добавляем decal
-        // --------------------------------------------------------
-
         decalsGroup.add(decal);
 
         console.log(
@@ -616,6 +630,8 @@ function applyBackgroundToCustomStele(
                 height: decalHeight,
                 depth: decalDepth,
                 position,
+                decalPosition:
+                    decal.position.toArray(),
                 scale
             }
         );

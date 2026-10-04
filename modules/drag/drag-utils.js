@@ -69,6 +69,16 @@ export function findCustomStele(monumentGroup) {
 // modules/drag/drag-utils.js
 
 export function findRectangleStele(monumentGroup) {
+    // Кастомная стела не является BoxGeometry.
+    // Для неё поиск прямоугольной стелы не нужен.
+    const steleType =
+        window.state?.steleType ||
+        window.currentMonumentData?.steleType;
+
+    if (steleType && steleType.startsWith('custom_stl')) {
+        return null;
+    }
+
     console.log('🔍 Ищем прямоугольную стелу...');
     
     // ⭐ СНАЧАЛА ПРОВЕРЯЕМ СОХРАНЁННУЮ ССЫЛКУ

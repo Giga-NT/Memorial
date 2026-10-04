@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { loadFlowerbedTexture } from './textures.min.js';
 import { createStelePedestal } from './stelePedestal.js';
 import { createFlowerbedBorder } from './flowerbedBorder.js';
-
+import { applyBackgroundToGroup} from './backgrounds.js';
 
 // ⭐ КАРТА ТЕКСТУР
 const TEXTURE_PATHS = {
@@ -638,7 +638,7 @@ updatePhotoPosition(photoMesh, x, y) {
     mon.data.photoOffsetX = x;
     mon.data.photoOffsetY = y;
     this._duplicatorDataCache[index] = { ...mon.data };
-    this.rebuildSimpleMonument(index);
+
 }
     
     // ⭐ СОЗДАНИЕ UI
@@ -1068,8 +1068,15 @@ updatePhotoPosition(photoMesh, x, y) {
 		if (gateSideEl) data.fenceGateSide = gateSideEl.value;
 
 		// ⭐ Данные фото и позиции декалей берём из window.state
-		data.textureUrl = window.state?.textureUrl || '';
+		data.textureUrl = window.state?.textureUrl || null;
 		data.photoIndex = Number(window.state?.photoIndex) || 0;
+		data.backgroundId = window.state?.backgroundId || '';
+
+		data.backgroundId =
+			window.state?.backgroundId || '';
+
+		data.textOffsetX = Number(window.state?.textOffsetX) || 0;
+		data.textOffsetY = Number(window.state?.textOffsetY) || 0;
 
 		data.textOffsetX = Number(window.state?.textOffsetX) || 0;
 		data.textOffsetY = Number(window.state?.textOffsetY) || 0;
@@ -1496,6 +1503,9 @@ updatePhotoPosition(photoMesh, x, y) {
 			data.borderMaterial =
 				borderMaterialEl.value;
 		}
+
+		data.backgroundId =
+			window.state?.backgroundId || '';
        
         const textColorEl = document.getElementById('textColor');
         if (textColorEl) data.textColor = textColorEl.value;
@@ -1611,8 +1621,30 @@ updatePhotoPosition(photoMesh, x, y) {
 		const photoHeightMmEl = document.getElementById('photoHeightMm');
 		if (photoHeightMmEl) data.photoHeightMm = parseInt(photoHeightMmEl.value) || 140;
 
-		data.photoOffsetX = parseFloat(document.getElementById('photoOffsetX')?.value) || 0;
-		data.photoOffsetY = parseFloat(document.getElementById('photoOffsetY')?.value) || 0;
+		// 📸 Позиция фото:
+		// для дублера сохраняем его собственную позицию,
+		// а не значения полей UI
+		const activeDuplicate =
+			this.activeIndex >= 0 &&
+			this.monuments?.[this.activeIndex]?.data;
+
+		if (activeDuplicate) {
+			data.photoOffsetX =
+				Number(this.monuments[this.activeIndex].data.photoOffsetX) || 0;
+
+			data.photoOffsetY =
+				Number(this.monuments[this.activeIndex].data.photoOffsetY) || 0;
+		} else {
+			data.photoOffsetX =
+				parseFloat(
+					document.getElementById('photoOffsetX')?.value
+				) || 0;
+
+			data.photoOffsetY =
+				parseFloat(
+					document.getElementById('photoOffsetY')?.value
+				) || 0;
+		}
 
 		
 
@@ -2191,21 +2223,29 @@ updatePhotoPosition(photoMesh, x, y) {
 
         console.log('🔄 Применяем изменения к дублеру #' + (index + 1));
         
-        const mon = this.monuments[index];
-        let dataToApply;
-		        if (this.pendingIndex === index && this.pendingChanges) {
-            dataToApply = { ...this.pendingChanges };
-            console.log('📝 Используем pendingChanges');
-        } else {
-            dataToApply = { ...mon.data };
-            console.log('📦 Используем текущие данные монумента');
-        }
-        
-        // ⭐ Сохраняем позицию
-        dataToApply.position = { ...mon.position };
-        
-        // ⭐ Сохраняем ID
-        dataToApply.id = mon.id;
+		const mon = this.monuments[index];
+		let dataToApply;
+
+		if (this.pendingIndex === index && this.pendingChanges) {
+			dataToApply = { ...this.pendingChanges };
+			console.log('📝 Используем pendingChanges');
+		} else {
+			dataToApply = { ...mon.data };
+			console.log('📦 Используем текущие данные монумента');
+		}
+
+		// ⭐ Сохраняем абсолютную позицию фото
+		dataToApply.photoAbsoluteX =
+			mon.data.photoAbsoluteX;
+
+		dataToApply.photoAbsoluteY =
+			mon.data.photoAbsoluteY;
+
+		// ⭐ Сохраняем позицию
+		dataToApply.position = { ...mon.position };
+
+		// ⭐ Сохраняем ID
+		dataToApply.id = mon.id;
         
 		console.log('📋 Данные для применения:', dataToApply);
 
@@ -3122,7 +3162,7 @@ updatePhotoPosition(photoMesh, x, y) {
 					this.waitForSteleGroup(
 						mon.group,
 
-						(foundSteleGroup) => {
+						async (foundSteleGroup) => {
 
 							try {
 
@@ -3162,14 +3202,40 @@ updatePhotoPosition(photoMesh, x, y) {
 
 
 								if (decalsGroup) {
-
-									mon.group.add(
-										decalsGroup
-									);
+									mon.group.add(decalsGroup);
 
 									console.log(
 										`✍️ Декали созданы для дублера #${mon.id}:`,
 										decalsGroup.children.length
+									);
+
+									const duplicateModel =
+										foundSteleGroup.userData?.modelRef;
+
+									if (duplicateModel && data.backgroundId && data.backgroundId !== 'none') {
+
+										const steleBox =
+											new THREE.Box3().setFromObject(foundSteleGroup);
+
+										await applyBackgroundToGroup(
+											decalsGroup,
+											data,
+											data.width || 0.6,
+											data.height || 1.2,
+											steleBox.max.z + 0.001,
+											(data.height || 1.2) / 2
+										);
+
+										positionDecalsOnCustomStele(
+											foundSteleGroup,
+											decalsGroup,
+											data
+										);
+									}
+
+									console.log(
+										`🎨 Фон дублера #${mon.id}:`,
+										data.backgroundId
 									);
 								}
 
@@ -3321,8 +3387,14 @@ createDecalsForDuplicator(steleGroup, data) {
 				const photoMesh = new THREE.Mesh(geometry, photoMat);
 				
 				// ⭐ ПОЗИЦИЯ ФОТО
-				const photoX = data.photoOffsetX || 0;
-				const photoY = center.y + (data.photoOffsetY || 0);
+				const photoX =
+					data.photoAbsoluteX ??
+					data.photoOffsetX ??
+					0;
+
+				const photoY =
+					data.photoAbsoluteY ??
+					(center.y + (data.photoOffsetY || 0));
 				photoMesh.position.set(photoX, photoY, frontZ - 0.013);
 				photoMesh.renderOrder = 11;
 				
