@@ -391,8 +391,14 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
         <canvas id="draw-canvas" width="300" height="200"></canvas>
         <div class="btn-row">
             <button id="btn-mode-poly" class="active-tool">⬡ Полигон</button>
+            <button id="btn-mode-line">📏 Линия</button>
+            <button id="btn-mode-arc">⌒ Дуга</button>
             <button id="btn-mode-brush">🖌️ Кисть</button>
             <button id="btn-mode-eraser">🧹 Ластик</button>
+        </div>
+        <div class="draw-instructions" id="draw-geometry-hint">
+            <b>Линия:</b> кликните начало и конец. <b>Shift</b> — строго горизонтально/вертикально.<br>
+            <b>Дуга:</b> 3 клика — начало, точка дуги, конец. Дуга превращается в точки контура.
         </div>
         <div class="btn-row" style="margin-top: 4px;">
             <span style="font-size: 10px; color: var(--text-main); opacity: 0.7;">Фигуры:</span>
@@ -1399,6 +1405,11 @@ let brushPath = [];
 let dragPointIndex = -1;
 let hoverPointIndex = -1;
 
+// CAD-помощники для ровных линий и дуг.
+let lineStartPoint = null;
+let arcPoints = []; // начало, промежуточная точка, конец
+let previewGeometryPoints = [];
+
 const POINT_RADIUS = 5;
 const HIT_RADIUS = 12;
 
@@ -1416,6 +1427,72 @@ function findPointNear(pos) {
         if (Math.hypot(p.x - pos.x, p.y - pos.y) < HIT_RADIUS) return i;
     }
     return -1;
+}
+
+function snapLinePoint(start, end, forceAxis = false) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+
+    if (!forceAxis) return { x: end.x, y: end.y };
+
+    // Shift: ближайшая горизонтальная или вертикальная ось.
+    if (Math.abs(dx) >= Math.abs(dy)) {
+        return { x: end.x, y: start.y };
+    }
+    return { x: start.x, y: end.y };
+}
+
+function buildThreePointArc(a, b, c) {
+    const ax = a.x, ay = a.y;
+    const bx = b.x, by = b.y;
+    const cx = c.x, cy = c.y;
+
+    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+    if (Math.abs(d) < 0.0001) {
+        // Три почти коллинеарные точки — вместо скачка рисуем прямой участок.
+        return [a, c];
+    }
+
+    const a2 = ax * ax + ay * ay;
+    const b2 = bx * bx + by * by;
+    const c2 = cx * cx + cy * cy;
+
+    const centerX = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / d;
+    const centerY = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
+    const radius = Math.hypot(ax - centerX, ay - centerY);
+
+    let startAngle = Math.atan2(ay - centerY, ax - centerX);
+    let midAngle = Math.atan2(by - centerY, bx - centerX);
+    let endAngle = Math.atan2(cy - centerY, cx - centerX);
+
+    const norm = a => (a + Math.PI * 2) % (Math.PI * 2);
+    startAngle = norm(startAngle);
+    midAngle = norm(midAngle);
+    endAngle = norm(endAngle);
+
+    const ccwDistance = (endAngle - startAngle + Math.PI * 2) % (Math.PI * 2);
+    const midDistance = (midAngle - startAngle + Math.PI * 2) % (Math.PI * 2);
+    const useCCW = midDistance <= ccwDistance;
+
+    let sweep = useCCW ? ccwDistance : -((startAngle - endAngle + Math.PI * 2) % (Math.PI * 2));
+    if (Math.abs(sweep) < 0.0001) return [a, c];
+
+    const segments = Math.max(8, Math.min(64, Math.ceil(Math.abs(sweep) * radius / 4)));
+    const points = [];
+
+    for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const angle = startAngle + sweep * t;
+        points.push({
+            x: centerX + radius * Math.cos(angle),
+            y: centerY + radius * Math.sin(angle)
+        });
+    }
+
+    // Гарантируем точное совпадение с заданными концами.
+    points[0] = { ...a };
+    points[points.length - 1] = { ...c };
+    return points;
 }
 
 function redrawDrawCanvas() {
@@ -1506,6 +1583,20 @@ function redrawDrawCanvas() {
         drawCtx.fillText(String(i + 1), p.x + 8, p.y - 8);
     }
 
+    // CAD-превью ровной линии или дуги.
+    if (previewGeometryPoints.length >= 2) {
+        drawCtx.beginPath();
+        drawCtx.moveTo(previewGeometryPoints[0].x, previewGeometryPoints[0].y);
+        for (let i = 1; i < previewGeometryPoints.length; i++) {
+            drawCtx.lineTo(previewGeometryPoints[i].x, previewGeometryPoints[i].y);
+        }
+        drawCtx.strokeStyle = '#ffcc00';
+        drawCtx.lineWidth = 2;
+        drawCtx.setLineDash([6, 4]);
+        drawCtx.stroke();
+        drawCtx.setLineDash([]);
+    }
+
     if (isDrawing && brushPath.length >= 2) {
         drawCtx.beginPath();
         drawCtx.moveTo(brushPath[0].x, brushPath[0].y);
@@ -1560,6 +1651,59 @@ drawCanvas.addEventListener('mousedown', e => {
         return;
     }
 
+    if (drawMode === 'line') {
+        if (!lineStartPoint) {
+            lineStartPoint = { x: pos.x, y: pos.y };
+            previewGeometryPoints = [lineStartPoint];
+            redrawDrawCanvas();
+            setStatus('📏 Линия: выберите конец');
+            return;
+        }
+
+        const end = snapLinePoint(lineStartPoint, pos, e.shiftKey);
+        drawPoints.push({ ...lineStartPoint }, { ...end });
+        lineStartPoint = null;
+        previewGeometryPoints = [];
+        document.getElementById('btn-draw-finish').disabled = drawPoints.length < 3;
+        redrawDrawCanvas();
+        setStatus('📏 Ровная линия добавлена');
+        return;
+    }
+
+    if (drawMode === 'arc') {
+        arcPoints.push({ x: pos.x, y: pos.y });
+        if (arcPoints.length === 1) {
+            previewGeometryPoints = [...arcPoints];
+            redrawDrawCanvas();
+            setStatus('⌒ Дуга: выберите точку изгиба');
+            return;
+        }
+        if (arcPoints.length === 2) {
+            previewGeometryPoints = [...arcPoints];
+            redrawDrawCanvas();
+            setStatus('⌒ Дуга: выберите конец');
+            return;
+        }
+
+        const arc = buildThreePointArc(arcPoints[0], arcPoints[1], arcPoints[2]);
+        if (arc.length >= 3) {
+            if (drawPoints.length > 0) {
+                const last = drawPoints[drawPoints.length - 1];
+                const firstArc = arc[0];
+                if (Math.hypot(last.x - firstArc.x, last.y - firstArc.y) < 3) {
+                    arc.shift();
+                }
+            }
+            drawPoints.push(...arc);
+        }
+        arcPoints = [];
+        previewGeometryPoints = [];
+        document.getElementById('btn-draw-finish').disabled = drawPoints.length < 3;
+        redrawDrawCanvas();
+        setStatus('⌒ Дуга добавлена');
+        return;
+    }
+
     if (drawMode === 'brush') {
         isDrawing = true;
         brushPath = [{ x: pos.x, y: pos.y }];
@@ -1575,6 +1719,23 @@ drawCanvas.addEventListener('mousemove', e => {
         drawPoints[dragPointIndex] = { x: pos.x, y: pos.y };
         redrawDrawCanvas();
         if (cutPreviewMesh || cutPreviewGroup) showContourIn3D();
+        return;
+    }
+
+    if (drawMode === 'line' && lineStartPoint) {
+        previewGeometryPoints = [lineStartPoint, snapLinePoint(lineStartPoint, pos, e.shiftKey)];
+        redrawDrawCanvas();
+        return;
+    }
+
+    if (drawMode === 'arc' && arcPoints.length > 0) {
+        const pts = [...arcPoints, { x: pos.x, y: pos.y }];
+        if (pts.length === 2) {
+            previewGeometryPoints = pts;
+        } else if (pts.length === 3) {
+            previewGeometryPoints = buildThreePointArc(pts[0], pts[1], pts[2]);
+        }
+        redrawDrawCanvas();
         return;
     }
 
@@ -1653,6 +1814,10 @@ drawCanvas.addEventListener('mouseup', () => {
 });
 
 drawCanvas.addEventListener('mouseleave', () => {
+    if (drawMode === 'line' || drawMode === 'arc') {
+        previewGeometryPoints = [];
+        redrawDrawCanvas();
+    }
     if (isDrawing && drawMode === 'brush') {
         isDrawing = false;
         brushPath = [];
@@ -1708,12 +1873,15 @@ document.getElementById('btn-draw-clear').addEventListener('click', () => {
     drawPoints = [];
     brushPath = [];
     isDrawing = false;
+    lineStartPoint = null;
+    arcPoints = [];
+    previewGeometryPoints = [];
     redrawDrawCanvas();
     document.getElementById('btn-draw-finish').disabled = true;
     clearCutPreview();
 });
 
-['poly', 'brush', 'eraser'].forEach(mode => {
+['poly', 'line', 'arc', 'brush', 'eraser'].forEach(mode => {
     const btn = document.getElementById('btn-mode-' + mode);
     if (!btn) return;
 
@@ -1723,15 +1891,26 @@ document.getElementById('btn-draw-clear').addEventListener('click', () => {
         hoverPointIndex = -1;
         isDrawing = false;
         brushPath = [];
+        lineStartPoint = null;
+        arcPoints = [];
+        previewGeometryPoints = [];
 
-        ['poly', 'brush', 'eraser'].forEach(m => {
+        ['poly', 'line', 'arc', 'brush', 'eraser'].forEach(m => {
             const b = document.getElementById('btn-mode-' + m);
             if (b) b.classList.remove('active-tool');
         });
         btn.classList.add('active-tool');
         drawCanvas.style.cursor = 'crosshair';
         redrawDrawCanvas();
-        setStatus(`Режим: ${mode === 'poly' ? 'Полигон' : mode === 'brush' ? 'Кисть' : 'Ластик'}`);
+
+        const names = {
+            poly: 'Полигон',
+            line: 'Линия',
+            arc: 'Дуга',
+            brush: 'Кисть',
+            eraser: 'Ластик'
+        };
+        setStatus(`Режим: ${names[mode]}`);
     });
 });
 
