@@ -430,6 +430,28 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
         <label>Глубина выреза (м): <span class="val" id="val-cd">0.05</span> м</label>
         <input type="range" id="inp-cd" min="0.005" max="0.30" step="0.005" value="0.05">
 
+        <label>Тип выреза:</label>
+        <select id="sel-cut-type">
+            <option value="normal">Обычный контур</option>
+            <option value="frame">Рамка / контурная полоса</option>
+            <option value="groove">Паз / канавка</option>
+        </select>
+
+        <div id="cut-shape-options" style="display:none;">
+            <label>Ширина полосы (м): <span class="val" id="val-cut-width">0.020</span></label>
+            <input type="range" id="inp-cut-width" min="0.003" max="0.150" step="0.001" value="0.020">
+
+            <label>Профиль:</label>
+            <select id="sel-cut-profile">
+                <option value="rectangular">Прямоугольный</option>
+                <option value="u">U-образный</option>
+                <option value="v">V-образный</option>
+            </select>
+
+            <label>Сглаживание: <span class="val" id="val-contour-smooth">0</span></label>
+            <input type="range" id="inp-contour-smooth" min="0" max="4" step="1" value="0">
+        </div>
+
         <div id="cut-z-hint">—</div>
 
         <div class="btn-row" style="margin-top:8px;">
@@ -1828,24 +1850,195 @@ function toMeters(p) {
     };
 }
 
-function buildBaseCutGeometry(cd) {
-    const shape = new THREE.Shape();
-    const first = toMeters(drawPoints[0]);
-    shape.moveTo(first.x, first.y);
+function catmullRomPointClosed(points, t) {
+    const n = points.length;
+    const ft = ((t % 1) + 1) % 1 * n;
+    const i1 = Math.floor(ft);
+    const u = ft - i1;
+    const p0 = points[(i1 - 1 + n) % n];
+    const p1 = points[i1 % n];
+    const p2 = points[(i1 + 1) % n];
+    const p3 = points[(i1 + 2) % n];
 
-    for (let i = 1; i < drawPoints.length; i++) {
-        const m = toMeters(drawPoints[i]);
-        shape.lineTo(m.x, m.y);
+    const u2 = u * u;
+    const u3 = u2 * u;
+
+    return {
+        x: 0.5 * (
+            (2 * p1.x) +
+            (-p0.x + p2.x) * u +
+            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * u2 +
+            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * u3
+        ),
+        y: 0.5 * (
+            (2 * p1.y) +
+            (-p0.y + p2.y) * u +
+            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * u2 +
+            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * u3
+        )
+    };
+}
+
+function getEffectiveContour() {
+    if (drawPoints.length < 3) return [];
+
+    const level = Math.round(readSlider('inp-contour-smooth', 0));
+    if (level <= 0 || drawPoints.length < 4) {
+        return drawPoints.map(p => ({ x: p.x, y: p.y }));
     }
+
+    // Ограничиваем количество точек, чтобы сглаживание не превращалось
+    // в тысячные вершин при последующем CSG.
+    const segmentsPerEdge = Math.min(16, 2 + level * 3);
+    const result = [];
+
+    for (let i = 0; i < drawPoints.length; i++) {
+        for (let s = 0; s < segmentsPerEdge; s++) {
+            const t = (i + s / segmentsPerEdge) / drawPoints.length;
+            result.push(catmullRomPointClosed(drawPoints, t));
+        }
+    }
+
+    return result;
+}
+
+function lineIntersection(a1, a2, b1, b2) {
+    const x1=a1.x, y1=a1.y, x2=a2.x, y2=a2.y;
+    const x3=b1.x, y3=b1.y, x4=b2.x, y4=b2.y;
+    const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+
+    if (Math.abs(den)<1e-9) {
+        return {
+            x:(a2.x+a1.x+b2.x+b1.x)/4,
+            y:(a2.y+a1.y+b2.y+b1.y)/4
+        };
+    }
+
+    const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
+    return {x:x1+t*(x2-x1),y:y1+t*(y2-y1)};
+}
+
+function signedArea2D(points) {
+    let a=0;
+    for(let i=0;i<points.length;i++){
+        const p=points[i], q=points[(i+1)%points.length];
+        a += p.x*q.y-q.x*p.y;
+    }
+    return a/2;
+}
+
+function offsetContour(points, distance) {
+    if(points.length<3 || Math.abs(distance)<1e-9) {
+        return points.map(p=>({...p}));
+    }
+
+    const area=signedArea2D(points);
+    const outward=area>=0 ? -1 : 1;
+    const result=[];
+
+    for(let i=0;i<points.length;i++){
+        const prev=points[(i-1+points.length)%points.length];
+        const cur=points[i];
+        const next=points[(i+1)%points.length];
+
+        const e1={x:cur.x-prev.x,y:cur.y-prev.y};
+        const e2={x:next.x-cur.x,y:next.y-cur.y};
+        const l1=Math.hypot(e1.x,e1.y)||1;
+        const l2=Math.hypot(e2.x,e2.y)||1;
+
+        const n1={x:outward*e1.y/l1,y:outward*(-e1.x)/l1};
+        const n2={x:outward*e2.y/l2,y:outward*(-e2.x)/l2};
+
+        const a1={x:prev.x+n1.x*distance,y:prev.y+n1.y*distance};
+        const a2={x:cur.x+n1.x*distance,y:cur.y+n1.y*distance};
+        const b1={x:cur.x+n2.x*distance,y:cur.y+n2.y*distance};
+        const b2={x:next.x+n2.x*distance,y:next.y+n2.y*distance};
+
+        result.push(lineIntersection(a1,a2,b1,b2));
+    }
+
+    return result;
+}
+
+function contourToShape(points) {
+    const shape=new THREE.Shape();
+    const first=toMeters(points[0]);
+    shape.moveTo(first.x,first.y);
+
+    for(let i=1;i<points.length;i++){
+        const p=toMeters(points[i]);
+        shape.lineTo(p.x,p.y);
+    }
+
     shape.closePath();
+    return shape;
+}
 
-    const geo = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: cd, bevelEnabled: false });
+function buildBandShape(points, width) {
+    const half=Math.max(width/2,0.001);
+    const outer=offsetContour(points,half);
+    const inner=offsetContour(points,-half);
+
+    const shape=contourToShape(outer);
+    const hole=new THREE.Path();
+    const first=toMeters(inner[0]);
+    hole.moveTo(first.x,first.y);
+
+    for(let i=1;i<inner.length;i++){
+        const p=toMeters(inner[i]);
+        hole.lineTo(p.x,p.y);
+    }
+
+    hole.closePath();
+    shape.holes.push(hole);
+    return shape;
+}
+
+function buildBaseCutGeometry(cd) {
+    const points=getEffectiveContour();
+    if(points.length<3) throw new Error('Недостаточно точек контура');
+
+    const type=document.getElementById('sel-cut-type')?.value || 'normal';
+    const profile=document.getElementById('sel-cut-profile')?.value || 'rectangular';
+    const width=readSlider('inp-cut-width',0.020);
+
+    let shape;
+    let bevelEnabled=false;
+    let bevelSize=0;
+    let bevelThickness=0;
+    let bevelSegments=1;
+
+    if(type==='normal'){
+        shape=contourToShape(points);
+    }else{
+        shape=buildBandShape(points,width);
+
+        if(type==='groove' && profile!=='rectangular'){
+            bevelEnabled=true;
+            bevelSegments=profile==='v' ? 3 : 5;
+            bevelSize=Math.min(width*0.45,cd*0.45);
+            bevelThickness=bevelSize;
+        }
+    }
+
+    const geo=new THREE.ExtrudeGeometry(shape,{
+        steps:type==='groove' ? 2 : 1,
+        depth:cd,
+        bevelEnabled,
+        bevelThickness,
+        bevelSize,
+        bevelSegments,
+        curveSegments:8
+    });
+
     geo.computeBoundingBox();
-    geo.translate(0, 0, -cd / 2);
+    geo.translate(0,0,-cd/2);
     geo.computeBoundingBox();
 
-    const bb = geo.boundingBox;
-    geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    const bb=geo.boundingBox;
+    geo.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,0);
+    geo.computeVertexNormals();
+    geo.computeBoundingSphere();
     return geo;
 }
 
@@ -1998,6 +2191,39 @@ function showContourIn3D() {
 }
 
 document.getElementById('btn-draw-finish').addEventListener('click', showContourIn3D);
+
+['inp-contour-smooth','inp-cut-width','sel-cut-type','sel-cut-profile'].forEach(id => {
+    const el=document.getElementById(id);
+    if(!el) return;
+
+    el.addEventListener('input',()=>{
+        if(id==='inp-contour-smooth'){
+            document.getElementById('val-contour-smooth').textContent=el.value;
+        }
+        if(id==='inp-cut-width'){
+            document.getElementById('val-cut-width').textContent=Number(el.value).toFixed(3);
+        }
+        if(id==='sel-cut-type'){
+            const visible=el.value!=='normal';
+            document.getElementById('cut-shape-options').style.display=visible?'block':'none';
+        }
+        if(drawPoints.length>=3 && (cutPreviewMesh || cutPreviewGroup)){
+            showContourIn3D();
+        }
+    });
+
+    el.addEventListener('change',()=>{
+        if(id==='sel-cut-type'){
+            const visible=el.value!=='normal';
+            document.getElementById('cut-shape-options').style.display=visible?'block':'none';
+        }
+        if(drawPoints.length>=3 && (cutPreviewMesh || cutPreviewGroup)){
+            showContourIn3D();
+        }
+    });
+});
+
+document.getElementById('cut-shape-options').style.display='none';
 
 ['inp-cx', 'inp-cy', 'inp-cs', 'inp-czo', 'inp-cd', 'inp-rot'].forEach(id => {
     const el = document.getElementById(id);
