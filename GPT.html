@@ -2067,7 +2067,7 @@ function buildBaseCutGeometry(cd) {
     }else{
         shape=buildInnerBandShape(points,width);
 
-        if(type==='groove' && profile!=='rectangular'){
+        if(profile!=='rectangular'){
             bevelEnabled=true;
             bevelSegments=profile==='v' ? 1 : 8;
             bevelSize=Math.min(width*0.45,cd*0.45);
@@ -2075,7 +2075,7 @@ function buildBaseCutGeometry(cd) {
         }
     }
 
-    if(type==='groove' && frameSide==='outside' && profile!=='rectangular'){
+    if(frameSide==='outside' && profile!=='rectangular'){
         bevelEnabled=true;
         bevelSegments=profile==='v' ? 1 : 8;
         bevelSize=Math.min(width*0.45,cd*0.45);
