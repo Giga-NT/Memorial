@@ -418,8 +418,8 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
         <input type="range" id="inp-cx" min="-0.5" max="0.5" step="0.01" value="0">
         <label>Позиция Y (от низа): <span class="val" id="val-cy">0.70</span> м</label>
         <input type="range" id="inp-cy" min="0" max="2.0" step="0.01" value="0.7">
-        <label>Масштаб: <span class="val" id="val-cs">1.00</span></label>
-        <input type="range" id="inp-cs" min="0.1" max="1.5" step="0.01" value="1.0">
+        <label>Масштаб: <span class="val" id="val-cs">0.50</span></label>
+        <input type="range" id="inp-cs" min="0.1" max="1.5" step="0.01" value="0.5">
 
         <label>Поворот выреза: <span class="val" id="val-rot">0</span>°</label>
         <input type="range" id="inp-rot" min="0" max="360" step="5" value="0">
@@ -434,7 +434,6 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
         <select id="sel-cut-type">
             <option value="normal">Обычный контур</option>
             <option value="frame">Контурный шов</option>
-            <option value="groove">Паз / канавка</option>
         </select>
 
         <div id="cut-shape-options" style="display:none;">
@@ -444,12 +443,12 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
                 <option value="outside">Снаружи фигуры</option>
             </select>
 
-            <label>Ширина шва: <span class="val" id="val-cut-width">0.010</span> м</label>
-            <input type="range" id="inp-cut-width" min="0.001" max="0.030" step="0.001" value="0.005">
+            <label>Ширина шва: <span class="val" id="val-cut-width">0.030</span> м</label>
+            <input type="range" id="inp-cut-width" min="0.002" max="0.100" step="0.001" value="0.030">
 
             <div id="outer-frame-options" style="display:none;">
-                <label>Зазор от фигуры: <span class="val" id="val-frame-gap">0.000</span> м</label>
-                <input type="range" id="inp-frame-gap" min="0" max="0.050" step="0.001" value="0">
+                <label>Зазор от фигуры: <span class="val" id="val-frame-gap">0.005</span> м</label>
+                <input type="range" id="inp-frame-gap" min="0" max="0.050" step="0.001" value="0.005">
                 <div class="draw-instructions">
                     💡 При режиме «Снаружи» исходная фигура остаётся нетронутой.
                 </div>
@@ -461,13 +460,6 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
                 <option value="u">U-образный</option>
                 <option value="v">V-образный</option>
             </select>
-            <div class="draw-instructions">
-                💡 Например: треугольник → «Снаружи» → 10 мм → «V-образный».
-                Вырезается именно пояс вдоль треугольника, а не весь треугольник.
-            </div>
-
-            <label>Сглаживание: <span class="val" id="val-contour-smooth">0</span></label>
-            <input type="range" id="inp-contour-smooth" min="0" max="4" step="1" value="0">
         </div>
 
         <div id="cut-z-hint">—</div>
@@ -638,8 +630,6 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
    ============================================================ */
 
 const log = (m) => console.log(`[CNC] ${m}`);
-const CSG_DEBUG = true;
-const debugLog = (label, data) => { if (!CSG_DEBUG) return; console.groupCollapsed(`[CNC][DEBUG] ${label}`); if (data !== undefined) console.log(data); console.groupEnd(); };
 
 function readSlider(id, fallback) {
     const el = document.getElementById(id);
@@ -753,8 +743,8 @@ let lineIdCounter = 0;
 let cutHistory = [];
 let undoStack = [];
 
-let activeCutSide = 'front';   // 'front' | 'back'
-let activeTextSide = 'front';  // 'front' | 'back'
+let activeCutSide = 'front';
+let activeTextSide = 'front';
 
 /* ============================================================
    4. THEME
@@ -849,9 +839,9 @@ const materials = {
     bronze:        new THREE.MeshStandardMaterial({ color: 0xcd7f32, roughness: 0.4, metalness: 0.8 })
 };
 
-const roughCutMaterial = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 1.0, metalness: 0.0, flatShading: true });
-const roughCutMarbleMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.95, metalness: 0.0, flatShading: true });
-const roughCutBronzeMaterial = new THREE.MeshStandardMaterial({ color: 0x8c5a20, roughness: 0.85, metalness: 0.4, flatShading: true });
+const roughCutMaterial = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 1.0, metalness: 0.0 });
+const roughCutMarbleMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.95, metalness: 0.0 });
+const roughCutBronzeMaterial = new THREE.MeshStandardMaterial({ color: 0x8c5a20, roughness: 0.85, metalness: 0.4 });
 
 function getRoughMaterial(key) {
     if (key === 'marble_white') return roughCutMarbleMaterial;
@@ -915,66 +905,48 @@ evaluator.useGroups = true;
 evaluator.consolidateGroups = true;
 evaluator.removeUnusedMaterials = false;
 
-/**
- * Приводим геометрию к "безопасному" виду для CSG:
- *   - удаляем UV и все атрибуты кроме position/normal
- *   - гарантируем наличие normal
- *   - оставляем одну группу materialIndex 0
- *
- * Это критично: three-bvh-csg падает с "Cannot read properties
- * of undefined (reading 'array')", если у brush'ей разные наборы
- * атрибутов (у стелы есть uv, у каттера — нет).
- */
 function normalizeForCSG(geometry, materialIndex, preserveGroups = false) {
+    const savedGroups = (preserveGroups && geometry.groups)
+        ? geometry.groups.map(g => ({ start: g.start, count: g.count, materialIndex: g.materialIndex }))
+        : null;
+
+    let g = geometry;
+    if (g.getIndex()) {
+        g = g.toNonIndexed();
+    } else {
+        g = g.clone();
+    }
+
     const keep = ['position', 'normal'];
-    const toRemove = [];
-    for (const name in geometry.attributes) {
-        if (!keep.includes(name)) toRemove.push(name);
-    }
-    toRemove.forEach(name => geometry.deleteAttribute(name));
+    Object.keys(g.attributes).forEach(name => {
+        if (!keep.includes(name)) g.deleteAttribute(name);
+    });
 
-    if (!geometry.getAttribute('normal')) {
-        geometry.computeVertexNormals();
+    if (!g.getAttribute('normal')) {
+        g.computeVertexNormals();
     }
 
-    const index = geometry.getIndex();
-    const totalCount = index ? index.count : geometry.getAttribute('position').count;
+    const total = g.getAttribute('position').count;
+    g.clearGroups();
 
-    if (!preserveGroups) {
-        geometry.clearGroups();
-        geometry.addGroup(0, totalCount, materialIndex);
-        return geometry;
+    if (!preserveGroups || !savedGroups || savedGroups.length === 0) {
+        g.addGroup(0, total, materialIndex);
+        return g;
     }
 
-    // 0 = исходная полированная поверхность, 1 = новые поверхности CSG.
-    // Сохраняем разметку предыдущих операций, но любые неизвестные
-    // materialIndex считаем исходным материалом.
-    const groups = Array.isArray(geometry.groups) ? geometry.groups.slice() : [];
-    geometry.clearGroups();
-
-    if (!groups.length) {
-        geometry.addGroup(0, totalCount, 0);
-        return geometry;
+    // toNonIndexed умножает индексы на 3
+    for (const grp of savedGroups) {
+        const start = grp.start * 3;
+        const count = grp.count * 3;
+        if (start + count > total) continue;
+        g.addGroup(start, count, grp.materialIndex === 1 ? 1 : 0);
     }
 
-    for (const group of groups) {
-        const start = Math.max(0, Math.min(group.start, totalCount));
-        const end = Math.max(start, Math.min(group.start + group.count, totalCount));
-        const count = end - start;
-        if (count <= 0) continue;
-
-        geometry.addGroup(
-            start,
-            count,
-            group.materialIndex === 1 ? 1 : 0
-        );
+    if (g.groups.length === 0) {
+        g.addGroup(0, total, 0);
     }
 
-    if (geometry.groups.length === 0) {
-        geometry.addGroup(0, totalCount, 0);
-    }
-
-    return geometry;
+    return g;
 }
 
 function disposeCSGBrush(brush) {
@@ -998,32 +970,6 @@ function popUndoState() {
     document.getElementById('btn-undo').disabled = undoStack.length === 0;
 }
 
-function getBrushWorldInfo(brush) {
-    if (!brush || !brush.geometry) return null;
-    brush.updateMatrixWorld(true);
-    const world = new THREE.Box3().setFromObject(brush);
-    const size = new THREE.Vector3();
-    world.getSize(size);
-    return {
-        worldMin: world.min.toArray(),
-        worldMax: world.max.toArray(),
-        worldSize: size.toArray(),
-        position: brush.position.toArray(),
-        scale: brush.scale.toArray(),
-        rotation: brush.rotation.toArray(),
-        vertices: brush.geometry.getAttribute('position')?.count || 0,
-        triangles: (brush.geometry.getIndex()?.count || brush.geometry.getAttribute('position')?.count || 0) / 3,
-        groups: brush.geometry.groups
-    };
-}
-
-function boxesOverlap(a, b) {
-    return !!a && !!b &&
-        a.min.x < b.max.x && a.max.x > b.min.x &&
-        a.min.y < b.max.y && a.max.y > b.min.y &&
-        a.min.z < b.max.z && a.max.z > b.min.z;
-}
-
 function createStellaBrush() {
     const geometry = stellaMesh.geometry.clone();
     normalizeForCSG(geometry, 0, true);
@@ -1039,16 +985,7 @@ function createStellaBrush() {
 }
 
 function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) {
-    debugLog('CUTTER BEFORE normalize', {
-        vertices: geometry.getAttribute('position')?.count || 0,
-        groups: geometry.groups
-    });
     normalizeForCSG(geometry, 1);
-    debugLog('CUTTER AFTER normalize', {
-        vertices: geometry.getAttribute('position')?.count || 0,
-        groups: geometry.groups,
-        materialIndices: geometry.groups.map(g => g.materialIndex)
-    });
 
     const brush = new Brush(geometry);
     brush.material = getCSGMaterials();
@@ -1057,87 +994,6 @@ function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) 
     brush.rotation.set(0, rotationY, rotationZ);
     brush.updateMatrixWorld(true);
     return brush;
-}
-
-function markInternalCutFacesGray(geometry, cutDepth) {
-    if (!geometry || !geometry.getAttribute('position')) return;
-
-    const position = geometry.getAttribute('position');
-    const index = geometry.getIndex();
-    const normals = geometry.getAttribute('normal');
-
-    // CSG уже должен пометить новые поверхности materialIndex=1.
-    // Здесь дополнительно гарантируем серый материал для пола кармана:
-    // это горизонтальная поверхность внутри толщины камня, а не исходная
-    // полированная лицевая/оборотная плоскость.
-    const pos = position.array;
-    const idx = index ? index.array : null;
-    const triCount = index ? index.count / 3 : position.count / 3;
-
-    const stoneDepth = isCustomProfile ? (params.profileDepth || params.depth) : params.depth;
-    const half = stoneDepth / 2;
-    const surfaceTol = 0.0008;
-    const floorZ = activeCutSide === 'front'
-        ? half - cutDepth
-        : -half + cutDepth;
-
-    const faceMaterials = new Uint8Array(triCount);
-
-    // Existing CSG groups are authoritative for walls/new faces.
-    if (geometry.groups && geometry.groups.length) {
-        for (const g of geometry.groups) {
-            const startTri = Math.floor(g.start / 3);
-            const endTri = Math.min(triCount, Math.ceil((g.start + g.count) / 3));
-            for (let t = startTri; t < endTri; t++) {
-                if (g.materialIndex === 1) faceMaterials[t] = 1;
-            }
-        }
-    }
-
-    const ax = new THREE.Vector3();
-    const bx = new THREE.Vector3();
-    const cxv = new THREE.Vector3();
-    const ab = new THREE.Vector3();
-    const ac = new THREE.Vector3();
-    const n = new THREE.Vector3();
-
-    for (let t = 0; t < triCount; t++) {
-        const i0 = idx ? idx[t * 3] : t * 3;
-        const i1 = idx ? idx[t * 3 + 1] : t * 3 + 1;
-        const i2 = idx ? idx[t * 3 + 2] : t * 3 + 2;
-
-        ax.fromArray(pos, i0 * 3);
-        bx.fromArray(pos, i1 * 3);
-        cxv.fromArray(pos, i2 * 3);
-
-        const cz = (ax.z + bx.z + cxv.z) / 3;
-
-        // Горизонтальный пол кармана: внутри камня, не на внешней плоскости.
-        ab.subVectors(bx, ax);
-        ac.subVectors(cxv, ax);
-        n.crossVectors(ab, ac).normalize();
-
-        if (Math.abs(n.z) > 0.90 &&
-            Math.abs(Math.abs(cz) - half) > surfaceTol &&
-            Math.abs(cz - floorZ) < Math.max(surfaceTol, cutDepth * 0.08)) {
-            faceMaterials[t] = 1;
-        }
-    }
-
-    // Пересобираем группы по непрерывным сериям треугольников.
-    geometry.clearGroups();
-    if (!triCount) return;
-
-    let runStart = 0;
-    let current = faceMaterials[0];
-    for (let t = 1; t <= triCount; t++) {
-        const next = t < triCount ? faceMaterials[t] : -1;
-        if (next !== current) {
-            geometry.addGroup(runStart * 3, (t - runStart) * 3, current);
-            runStart = t;
-            current = next;
-        }
-    }
 }
 
 function replaceStellaFromBrush(resultBrush) {
@@ -1319,8 +1175,6 @@ function markBaseGeometryPolished(geometry) {
         ? index.count
         : geometry.getAttribute('position')?.count || 0;
 
-    // Исходная стела целиком является полированной:
-    // перед CSG у неё не должно быть ни одной "серой" группы.
     geometry.clearGroups();
     if (totalCount > 0) {
         geometry.addGroup(0, totalCount, 0);
@@ -1492,7 +1346,7 @@ document.getElementById('btn-create-from-profile').addEventListener('click', () 
 });
 
 /* ============================================================
-   13. DRAW CANVAS (2D CONTOUR)
+   13. DRAW CANVAS
    ============================================================ */
 
 const drawCanvas = document.getElementById('draw-canvas');
@@ -1535,6 +1389,7 @@ function redrawDrawCanvas() {
 
     if (drawPoints.length === 0 && brushPath.length === 0) return;
 
+    // Основной контур
     if (drawPoints.length >= 2) {
         drawCtx.beginPath();
         drawCtx.moveTo(drawPoints[0].x, drawPoints[0].y);
@@ -1555,6 +1410,52 @@ function redrawDrawCanvas() {
         }
     }
 
+    // Превью кольца шва (если выбран frame)
+    const cutType = document.getElementById('sel-cut-type')?.value;
+    if (cutType === 'frame' && drawPoints.length >= 3) {
+        const ccx = drawPoints.reduce((s, p) => s + p.x, 0) / drawPoints.length;
+        const ccy = drawPoints.reduce((s, p) => s + p.y, 0) / drawPoints.length;
+        const avgR = drawPoints.reduce((s, p) => s + Math.hypot(p.x - ccx, p.y - ccy), 0) / drawPoints.length;
+
+        const widthM = readSlider('inp-cut-width', 0.03);
+        const gapM = readSlider('inp-frame-gap', 0.005);
+        const side = document.getElementById('sel-frame-side')?.value || 'inside';
+
+        // Метры → пиксели. Мир = (canvas - 150) / 200 по X, (100 - canvas_y) / 200 по Y.
+        // Значит 1 м = 200 px.
+        const wPx = widthM * 200;
+        const gPx = gapM * 200;
+
+        const wRatio = wPx / Math.max(avgR, 1);
+        const gRatio = gPx / Math.max(avgR, 1);
+
+        const drawScaled = (scale, color, dashed) => {
+            drawCtx.beginPath();
+            drawCtx.strokeStyle = color;
+            drawCtx.lineWidth = 2;
+            drawCtx.setLineDash(dashed ? [5, 5] : []);
+            for (let i = 0; i < drawPoints.length; i++) {
+                const p = drawPoints[i];
+                const sx = ccx + (p.x - ccx) * scale;
+                const sy = ccy + (p.y - ccy) * scale;
+                if (i === 0) drawCtx.moveTo(sx, sy);
+                else drawCtx.lineTo(sx, sy);
+            }
+            drawCtx.closePath();
+            drawCtx.stroke();
+            drawCtx.setLineDash([]);
+        };
+
+        if (side === 'outside') {
+            drawScaled(1 + gRatio, '#888888', true);            // внутренний край (зазор)
+            drawScaled(1 + gRatio + wRatio, '#00ff00', false);  // внешний край
+        } else {
+            drawScaled(1, '#888888', true);                     // исходный
+            drawScaled(Math.max(0.05, 1 - wRatio), '#00ff00', false); // внутренний край
+        }
+    }
+
+    // Точки управления
     for (let i = 0; i < drawPoints.length; i++) {
         const p = drawPoints[i];
         drawCtx.beginPath();
@@ -1570,6 +1471,7 @@ function redrawDrawCanvas() {
         drawCtx.fillText(String(i + 1), p.x + 8, p.y - 8);
     }
 
+    // Линия кисти
     if (isDrawing && brushPath.length >= 2) {
         drawCtx.beginPath();
         drawCtx.moveTo(brushPath[0].x, brushPath[0].y);
@@ -1935,27 +1837,15 @@ function cutterRotationY() {
     return activeCutSide === 'front' ? 0 : Math.PI;
 }
 
-function getEffectiveCutDepth() {
-    const requested = readSlider('inp-cd', 0.05);
-    const stoneDepth = isCustomProfile ? (params.profileDepth || params.depth) : params.depth;
-    // Никогда не прорезаем стелу насквозь. Оставляем минимум 10% толщины
-    // камня в основании кармана.
-    return Math.min(Math.max(requested, 0.001), Math.max(0.001, stoneDepth * 0.90));
-}
-
 function computeCutZCenter() {
     const czo = readSlider('inp-czo', 0);
-    const cd = getEffectiveCutDepth();
-    const stoneDepth = isCustomProfile ? (params.profileDepth || params.depth) : params.depth;
-    const half = stoneDepth / 2;
+    const cd = readSlider('inp-cd', 0.05);
+    const half = params.depth / 2;
 
-    // Верхняя грань резца выходит за поверхность всего на 0.5 мм,
-    // а нижняя грань находится на заданной глубине внутри камня.
-    const surfaceEpsilon = 0.0005;
     if (activeCutSide === 'front') {
-        return half - cd / 2 + surfaceEpsilon;
+        return half - cd / 2 + czo / 100;
     } else {
-        return -half + cd / 2 - surfaceEpsilon;
+        return -half + cd / 2 - czo / 100;
     }
 }
 
@@ -1963,33 +1853,17 @@ function updateCutZHint() {
     const hint = document.getElementById('cut-z-hint');
     if (!hint) return;
 
-    const cd = getEffectiveCutDepth();
+    const cd = readSlider('inp-cd', 0.05);
     const zCenter = computeCutZCenter();
     const front = params.depth / 2;
     const back = -params.depth / 2;
 
     const zMin = zCenter - cd / 2;
     const zMax = zCenter + cd / 2;
-    const surfaceEpsilon = 0.0005;
 
     const ovMin = Math.max(zMin, back);
     const ovMax = Math.min(zMax, front);
     const depth = Math.max(0, ovMax - ovMin);
-
-    debugLog('CUT Z INTERSECTION', {
-        activeCutSide,
-        stoneDepth: params.depth,
-        cutterDepth: cd,
-        zCenter,
-        zMin,
-        zMax,
-        front,
-        back,
-        surfaceEpsilonMm: surfaceEpsilon * 1000,
-        penetrationIntoStoneMm: activeCutSide === 'front'
-            ? Math.max(0, front - zMin) * 1000
-            : Math.max(0, zMax - back) * 1000
-    });
 
     const sideLabel = activeCutSide === 'front' ? 'лицо' : 'оборот';
 
@@ -2015,118 +1889,6 @@ function toMeters(p) {
     };
 }
 
-function catmullRomPointClosed(points, t) {
-    const n = points.length;
-    const ft = ((t % 1) + 1) % 1 * n;
-    const i1 = Math.floor(ft);
-    const u = ft - i1;
-    const p0 = points[(i1 - 1 + n) % n];
-    const p1 = points[i1 % n];
-    const p2 = points[(i1 + 1) % n];
-    const p3 = points[(i1 + 2) % n];
-
-    const u2 = u * u;
-    const u3 = u2 * u;
-
-    return {
-        x: 0.5 * (
-            (2 * p1.x) +
-            (-p0.x + p2.x) * u +
-            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * u2 +
-            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * u3
-        ),
-        y: 0.5 * (
-            (2 * p1.y) +
-            (-p0.y + p2.y) * u +
-            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * u2 +
-            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * u3
-        )
-    };
-}
-
-function getEffectiveContour() {
-    if (drawPoints.length < 3) return [];
-
-    const level = Math.round(readSlider('inp-contour-smooth', 0));
-    if (level <= 0 || drawPoints.length < 4) {
-        return drawPoints.map(p => ({ x: p.x, y: p.y }));
-    }
-
-    // Ограничиваем количество точек, чтобы сглаживание не превращалось
-    // в тысячные вершин при последующем CSG.
-    const segmentsPerEdge = Math.min(16, 2 + level * 3);
-    const result = [];
-
-    for (let i = 0; i < drawPoints.length; i++) {
-        for (let s = 0; s < segmentsPerEdge; s++) {
-            const t = (i + s / segmentsPerEdge) / drawPoints.length;
-            result.push(catmullRomPointClosed(drawPoints, t));
-        }
-    }
-
-    return result;
-}
-
-function lineIntersection(a1, a2, b1, b2) {
-    const x1=a1.x, y1=a1.y, x2=a2.x, y2=a2.y;
-    const x3=b1.x, y3=b1.y, x4=b2.x, y4=b2.y;
-    const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
-
-    if (Math.abs(den)<1e-9) {
-        return {
-            x:(a2.x+a1.x+b2.x+b1.x)/4,
-            y:(a2.y+a1.y+b2.y+b1.y)/4
-        };
-    }
-
-    const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
-    return {x:x1+t*(x2-x1),y:y1+t*(y2-y1)};
-}
-
-function signedArea2D(points) {
-    let a=0;
-    for(let i=0;i<points.length;i++){
-        const p=points[i], q=points[(i+1)%points.length];
-        a += p.x*q.y-q.x*p.y;
-    }
-    return a/2;
-}
-
-function offsetContour(points, distance) {
-    if (points.length < 3 || Math.abs(distance) < 1e-9) {
-        return points.map(p => ({ ...p }));
-    }
-
-    // drawPoints живут в canvas-координатах (Y вниз). Для положительного
-    // distance считаем смещение наружу относительно фактического контура.
-    const area = signedArea2D(points);
-    const outward = area >= 0 ? -1 : 1;
-    const result = [];
-
-    for (let i = 0; i < points.length; i++) {
-        const prev = points[(i - 1 + points.length) % points.length];
-        const cur = points[i];
-        const next = points[(i + 1) % points.length];
-
-        const e1 = { x: cur.x - prev.x, y: cur.y - prev.y };
-        const e2 = { x: next.x - cur.x, y: next.y - cur.y };
-        const l1 = Math.hypot(e1.x, e1.y) || 1;
-        const l2 = Math.hypot(e2.x, e2.y) || 1;
-
-        const n1 = { x: outward * e1.y / l1, y: outward * (-e1.x) / l1 };
-        const n2 = { x: outward * e2.y / l2, y: outward * (-e2.x) / l2 };
-
-        const a1 = { x: prev.x + n1.x * distance, y: prev.y + n1.y * distance };
-        const a2 = { x: cur.x + n1.x * distance, y: cur.y + n1.y * distance };
-        const b1 = { x: cur.x + n2.x * distance, y: cur.y + n2.y * distance };
-        const b2 = { x: next.x + n2.x * distance, y: next.y + n2.y * distance };
-
-        result.push(lineIntersection(a1, a2, b1, b2));
-    }
-
-    return result;
-}
-
 function contourToShape(points) {
     const shape = new THREE.Shape();
     const first = toMeters(points[0]);
@@ -2141,227 +1903,145 @@ function contourToShape(points) {
     return shape;
 }
 
-function addContourHole(shape, points) {
-    const hole = new THREE.Path();
-    const first = toMeters(points[0]);
-    hole.moveTo(first.x, first.y);
-
-    for (let i = 1; i < points.length; i++) {
-        const p = toMeters(points[i]);
-        hole.lineTo(p.x, p.y);
-    }
-
-    hole.closePath();
-    shape.holes.push(hole);
-    return shape;
+function getEffectiveContour() {
+    return drawPoints.map(p => ({ x: p.x, y: p.y }));
 }
 
-function buildBandShape(points, width, gap = 0) {
-    const w = Math.max(width, 0.001);
-    const g = Math.max(gap, 0);
-    const outer = offsetContour(points, g + w);
-    const inner = offsetContour(points, g);
-    return addContourHole(contourToShape(outer), inner);
-}
-
-function buildInnerBandShape(points, width) {
-    const w = Math.max(width, 0.001);
-    const inner = offsetContour(points, -w);
-    return addContourHole(contourToShape(points), inner);
-}
-
-/*
- * Реальный объём шва.
+/**
+ * Строит кольцо шва простым масштабированием контура от центра.
  *
- * Важный момент:
- * - outside: исходный контур НЕ вырезается. Объём лежит в кольце
- *   между offset(gap) и offset(gap + width).
- * - inside: исходный контур является внешней границей, а внутренняя
- *   граница уходит внутрь на width.
- *
- * Профиль меняет именно поперечное сечение этого кольца:
- * - rectangular: одинаковая ширина по всей глубине;
- * - v: снизу кольцо почти сходится в линию;
- * - u: кольцо плавно сужается несколькими ступенями, имитируя
- *   округлённое дно U-паза.
- *
- * Это не bevel у всего ExtrudeGeometry: CSG получает закрытый,
- * самостоятельный 3D-объём нужного профиля.
+ * inside:
+ *   внешний край = исходный контур (scale 1.0)
+ *   внутренний   = scale (1 - w/avgR)
+ * outside:
+ *   внутренний   = scale (1 + gap/avgR)
+ *   внешний      = scale (1 + (gap+width)/avgR)
  */
-function scaleContourAroundCenter(points, scale) {
-    if (!points.length) return [];
-    const minX = Math.min(...points.map(p => p.x));
-    const maxX = Math.max(...points.map(p => p.x));
-    const minY = Math.min(...points.map(p => p.y));
-    const maxY = Math.max(...points.map(p => p.y));
-    const cx = (minX + maxX) * 0.5;
-    const cy = (minY + maxY) * 0.5;
-    return points.map(p => ({
-        x: cx + (p.x - cx) * scale,
-        y: cy + (p.y - cy) * scale
-    }));
-}
-
-function getContourScaleForWidth(points, widthMeters) {
-    if (points.length < 3) return 1;
-    const minX = Math.min(...points.map(p => p.x));
-    const maxX = Math.max(...points.map(p => p.x));
-    const minY = Math.min(...points.map(p => p.y));
-    const maxY = Math.max(...points.map(p => p.y));
-    const sizeMeters = Math.max(
-        Math.min(maxX - minX, maxY - minY) / 200,
-        0.001
-    );
-    // 5 mm on a 200 mm square => 1.05.
-    return Math.max(0.01, 1 + (2 * widthMeters) / sizeMeters);
-}
-
-function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
-    const depth = Math.max(cd, 0.001);
-    const w = Math.max(width, 0.001);
-    const g = Math.max(gap, 0);
-
-    // КЛЮЧЕВАЯ МОДЕЛЬ:
-    // 1) Красный контур = исходная фигура, scale 1.00.
-    // 2) Зелёный контур = та же фигура, масштабированная вокруг
-    //    её геометрического центра.
-    // 3) CSG вырезает ТОЛЬКО кольцо между этими двумя контурами.
-    //
-    // Для 200 мм квадрата и ширины 5 мм:
-    // outside => scale 1.05
-    // inside  => scale 0.95
-    //
-    // Gap для outside дополнительно сдвигает внешний контур.
-    const scaleBase = getContourScaleForWidth(points, w);
-    const scale = frameSide === 'outside'
-        ? scaleBase + (2 * g / Math.max(
-            Math.min(
-                Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x)),
-                Math.max(...points.map(p => p.y)) - Math.min(...points.map(p => p.y))
-            ) / 200,
-            0.001
-        ))
-        : Math.max(0.01, 2 - scaleBase);
-
-    const original = points.map(p => ({ x: p.x, y: p.y }));
-    const scaled = scaleContourAroundCenter(points, scale);
-
-    const outerPx = frameSide === 'outside' ? scaled : original;
-    const innerPx = frameSide === 'outside' ? original : scaled;
-
-    const shape = contourToShape(outerPx);
-    addContourHole(shape, innerPx);
-
-    let bevelEnabled = false;
-    let bevelSegments = 0;
-    let bevelSize = 0;
-    let bevelThickness = 0;
-
-    if (profile === 'v') {
-        bevelEnabled = true;
-        bevelSegments = 1;
-        bevelSize = Math.min(w * 0.45, depth * 0.45);
-        bevelThickness = Math.min(depth * 0.22, bevelSize);
-    } else if (profile === 'u') {
-        bevelEnabled = true;
-        bevelSegments = 6;
-        bevelSize = Math.min(w * 0.46, depth * 0.42);
-        bevelThickness = Math.min(depth * 0.30, bevelSize);
-    }
-
-    const geo = new THREE.ExtrudeGeometry(shape, {
-        steps: 1,
-        depth,
-        curveSegments: 2,
-        bevelEnabled,
-        bevelSegments,
-        bevelSize,
-        bevelThickness
-    });
-
-    geo.translate(0, 0, -depth / 2);
-    geo.computeVertexNormals();
-    geo.computeBoundingBox();
-    geo.computeBoundingSphere();
-
-    debugLog('PROFILE BAND GEOMETRY', {
-        method: 'scaled-contour-ring',
-        side: frameSide,
-        profile,
-        widthMm: w * 1000,
-        gapMm: g * 1000,
-        scale,
-        expectedScale: frameSide === 'outside' ? scaleBase : (2 - scaleBase),
-        originalPoints: original.slice(0, 6),
-        scaledPoints: scaled.slice(0, 6),
-        vertices: geo.getAttribute('position')?.count || 0,
-        triangles: (geo.getIndex()?.count || geo.getAttribute('position')?.count || 0) / 3,
-        bbox: geo.boundingBox ? {
-            min: geo.boundingBox.min.toArray(),
-            max: geo.boundingBox.max.toArray()
-        } : null
-    });
-
-    return geo;
-}
 function buildBaseCutGeometry(cd) {
-    const points = getEffectiveContour();
-    if (points.length < 3) throw new Error('Недостаточно точек контура');
+    if (drawPoints.length < 3) {
+        throw new Error('Недостаточно точек контура');
+    }
 
     const type = document.getElementById('sel-cut-type')?.value || 'normal';
     const profile = document.getElementById('sel-cut-profile')?.value || 'rectangular';
-    const width = readSlider('inp-cut-width', 0.010);
-    const frameSide = document.getElementById('sel-frame-side')?.value || 'inside';
-    const gap = readSlider('inp-frame-gap', 0);
-    const scale = readSlider('inp-cs', 1.0);
-    const effectiveDepth = getEffectiveCutDepth();
 
-    debugLog('BUILD CUTTER INPUT', {
-        type,
-        frameSide,
-        widthMm: width * 1000,
-        gapMm: gap * 1000,
-        profile,
-        cd,
-        effectiveDepth,
-        scale,
-        smooth: readSlider('inp-contour-smooth', 0),
-        drawPoints: drawPoints.length,
-        effectivePoints: points.length,
-        firstPoints: points.slice(0, 8)
-    });
-
-    let geo;
-
+    // --- Обычный контур ---
     if (type === 'normal') {
-        const shape = contourToShape(points);
-        geo = new THREE.ExtrudeGeometry(shape, {
+        const shape = contourToShape(drawPoints);
+        const geo = new THREE.ExtrudeGeometry(shape, {
             steps: 1,
-            depth: effectiveDepth,
+            depth: cd,
             bevelEnabled: false,
             curveSegments: 8
         });
-        geo.translate(0, 0, -effectiveDepth / 2);
+        geo.translate(0, 0, -cd / 2);
         geo.computeBoundingBox();
         const bb = geo.boundingBox;
         geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
         geo.computeVertexNormals();
-        geo.computeBoundingSphere();
-    } else {
-        // Для шва масштабируем сам нарисованный контур вокруг его центра.
-        // После этого ширина шва добавляется поверх него в миллиметрах.
-        const scaledPoints = scaleContourAroundCenter(points, scale);
-        geo = buildProfileBandGeometry(scaledPoints, effectiveDepth, width, frameSide, gap, profile);
+        return geo;
     }
 
-    debugLog('CUTTER GEOMETRY RESULT', {
-        vertices: geo.getAttribute('position')?.count || 0,
-        triangles: (geo.getIndex()?.count || geo.getAttribute('position')?.count || 0) / 3,
-        bbox: geo.boundingBox ? {
-            min: geo.boundingBox.min.toArray(),
-            max: geo.boundingBox.max.toArray()
-        } : null,
-        groups: geo.groups
+    // --- Контурный шов ---
+    const frameSide = document.getElementById('sel-frame-side')?.value || 'inside';
+    const widthM = readSlider('inp-cut-width', 0.030);
+    const gapM = readSlider('inp-frame-gap', 0.005);
+
+    // Центр и средний радиус в пиксельных координатах
+    const ccx = drawPoints.reduce((s, p) => s + p.x, 0) / drawPoints.length;
+    const ccy = drawPoints.reduce((s, p) => s + p.y, 0) / drawPoints.length;
+    const avgR = drawPoints.reduce((s, p) => s + Math.hypot(p.x - ccx, p.y - ccy), 0) / drawPoints.length;
+
+    // Метры → пиксели: 1 м = 200 px
+    const wPx = widthM * 200;
+    const gPx = gapM * 200;
+
+    const wRatio = wPx / Math.max(avgR, 1);
+    const gRatio = gPx / Math.max(avgR, 1);
+
+    console.log('[CUT/frame]', {
+        side: frameSide,
+        avgR,
+        wRatio: wRatio.toFixed(4),
+        gRatio: gRatio.toFixed(4),
+        widthMm: widthM * 1000,
+        gapMm: gapM * 1000
+    });
+
+    const scalePts = (pts, s) => pts.map(p => ({
+        x: ccx + (p.x - ccx) * s,
+        y: ccy + (p.y - ccy) * s
+    }));
+
+    let outerPx, innerPx;
+
+    if (frameSide === 'outside') {
+        innerPx = scalePts(drawPoints, 1 + gRatio);
+        outerPx = scalePts(drawPoints, 1 + gRatio + wRatio);
+    } else {
+        outerPx = scalePts(drawPoints, 1);
+        innerPx = scalePts(drawPoints, Math.max(0.05, 1 - wRatio));
+    }
+
+    // Shape в метрах
+    const outerShape = new THREE.Shape();
+    const o0 = toMeters(outerPx[0]);
+    outerShape.moveTo(o0.x, o0.y);
+    for (let i = 1; i < outerPx.length; i++) {
+        const p = toMeters(outerPx[i]);
+        outerShape.lineTo(p.x, p.y);
+    }
+    outerShape.closePath();
+
+    const hole = new THREE.Path();
+    const h0 = toMeters(innerPx[0]);
+    hole.moveTo(h0.x, h0.y);
+    for (let i = 1; i < innerPx.length; i++) {
+        const p = toMeters(innerPx[i]);
+        hole.lineTo(p.x, p.y);
+    }
+    hole.closePath();
+    outerShape.holes.push(hole);
+
+    // Профиль через bevel
+    let bevelEnabled = false;
+    let bevelThickness = 0;
+    let bevelSize = 0;
+    let bevelSegments = 1;
+
+    if (profile === 'v') {
+        bevelEnabled = true;
+        bevelThickness = cd * 0.5;
+        bevelSize = (widthM * 200) / 200 * 0.5; // половина ширины в метрах
+        bevelSegments = 1;
+    } else if (profile === 'u') {
+        bevelEnabled = true;
+        bevelThickness = cd * 0.3;
+        bevelSize = (widthM * 200) / 200 * 0.3;
+        bevelSegments = 3;
+    }
+
+    const geo = new THREE.ExtrudeGeometry(outerShape, {
+        steps: 1,
+        depth: cd,
+        bevelEnabled,
+        bevelThickness,
+        bevelSize,
+        bevelSegments,
+        curveSegments: 8
+    });
+
+    geo.translate(0, 0, -cd / 2);
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    geo.computeVertexNormals();
+
+    console.log('[CUT/frame] geo built', {
+        vertices: geo.getAttribute('position').count,
+        triangles: (geo.getIndex()?.count || 0) / 3,
+        bbox: [bb.min.x.toFixed(3), bb.min.y.toFixed(3), bb.min.z.toFixed(3),
+               bb.max.x.toFixed(3), bb.max.y.toFixed(3), bb.max.z.toFixed(3)]
     });
 
     return geo;
@@ -2468,8 +2148,8 @@ function showContourIn3D() {
     try {
         const cx = readSlider('inp-cx', 0);
         const cy = readSlider('inp-cy', 0.7);
-        const cs = readSlider('inp-cs', 0.4);
-        const cd = getEffectiveCutDepth();
+        const cs = readSlider('inp-cs', 0.5);
+        const cd = readSlider('inp-cd', 0.05);
         const rot = readSlider('inp-rot', 0);
         const zCenter = computeCutZCenter();
         const ry = cutterRotationY();
@@ -2485,9 +2165,8 @@ function showContourIn3D() {
                 roughness: 0.7, metalness: 0, side: THREE.DoubleSide, depthWrite: false
             });
             cutPreviewMesh = new THREE.Mesh(geo, mat);
-            const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
             cutPreviewMesh.position.set(mirrorX(cx), cy, zCenter);
-            cutPreviewMesh.scale.set(isFrameOperation ? 1 : cs, isFrameOperation ? 1 : cs, 1);
+            cutPreviewMesh.scale.set(cs, cs, 1);
             cutPreviewMesh.rotation.set(0, ry, mirrorRot(rot) * Math.PI / 180);
             scene.add(cutPreviewMesh);
         } else {
@@ -2500,9 +2179,8 @@ function showContourIn3D() {
             cutPreviewGroup = new THREE.Group();
             instances.forEach(inst => {
                 const m = new THREE.Mesh(baseGeo.clone(), mat);
-                const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
                 m.position.set(mirrorX(inst.x), inst.y, zCenter);
-                m.scale.set(isFrameOperation ? 1 : cs, isFrameOperation ? 1 : cs, 1);
+                m.scale.set(cs, cs, 1);
                 m.rotation.set(0, ry, mirrorRot(inst.rot) * Math.PI / 180);
                 cutPreviewGroup.add(m);
             });
@@ -2514,14 +2192,15 @@ function showContourIn3D() {
         updateCutZHint();
     } catch (e) {
         log(`Ошибка превью: ${e.message}`);
+        console.error(e);
     }
 }
 
 document.getElementById('btn-draw-finish').addEventListener('click', showContourIn3D);
 
-['inp-contour-smooth','inp-cut-width','inp-frame-gap','sel-cut-type','sel-frame-side','sel-cut-profile'].forEach(id => {
-    const el=document.getElementById(id);
-    if(!el) return;
+['inp-contour-smooth', 'inp-cut-width', 'inp-frame-gap', 'sel-cut-type', 'sel-frame-side', 'sel-cut-profile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
 
     const refreshCutUI = () => {
         const type = document.getElementById('sel-cut-type')?.value || 'normal';
@@ -2535,31 +2214,36 @@ document.getElementById('btn-draw-finish').addEventListener('click', showContour
         }
     };
 
-    el.addEventListener('input',()=>{
-        if(id==='inp-contour-smooth'){
-            document.getElementById('val-contour-smooth').textContent=el.value;
+    el.addEventListener('input', () => {
+        if (id === 'inp-contour-smooth') {
+            const v = document.getElementById('val-contour-smooth');
+            if (v) v.textContent = el.value;
         }
-        if(id==='inp-cut-width'){
-            document.getElementById('val-cut-width').textContent=Number(el.value).toFixed(3);
+        if (id === 'inp-cut-width') {
+            const v = document.getElementById('val-cut-width');
+            if (v) v.textContent = Number(el.value).toFixed(3);
         }
-        if(id==='inp-frame-gap'){
-            document.getElementById('val-frame-gap').textContent=Number(el.value).toFixed(3);
+        if (id === 'inp-frame-gap') {
+            const v = document.getElementById('val-frame-gap');
+            if (v) v.textContent = Number(el.value).toFixed(3);
         }
         refreshCutUI();
-        if(drawPoints.length>=3 && (cutPreviewMesh || cutPreviewGroup)){
+        redrawDrawCanvas();
+        if (drawPoints.length >= 3 && (cutPreviewMesh || cutPreviewGroup)) {
             showContourIn3D();
         }
     });
 
-    el.addEventListener('change',()=>{
+    el.addEventListener('change', () => {
         refreshCutUI();
-        if(drawPoints.length>=3 && (cutPreviewMesh || cutPreviewGroup)){
+        redrawDrawCanvas();
+        if (drawPoints.length >= 3 && (cutPreviewMesh || cutPreviewGroup)) {
             showContourIn3D();
         }
     });
 });
 
-document.getElementById('cut-shape-options').style.display='none';
+document.getElementById('cut-shape-options').style.display = 'none';
 
 ['inp-cx', 'inp-cy', 'inp-cs', 'inp-czo', 'inp-cd', 'inp-rot'].forEach(id => {
     const el = document.getElementById(id);
@@ -2670,102 +2354,31 @@ document.getElementById('btn-undo').addEventListener('click', () => {
    ============================================================ */
 
 function runCSG(cutters, label, onSuccess) {
-    if (!csgAvailable || !stellaMesh) {
-        debugLog('CSG ABORT', { csgAvailable, hasStella: !!stellaMesh });
-        return false;
-    }
-
-    stellaMesh.updateMatrixWorld(true);
-    const stellaWorldBox = new THREE.Box3().setFromObject(stellaMesh);
-    const beforeVertices = stellaMesh.geometry.getAttribute('position')?.count || 0;
-    const beforeTriangles = (stellaMesh.geometry.getIndex()?.count || beforeVertices) / 3;
-
-    debugLog('CSG START DEEP', {
-        label,
-        cutterCount: cutters.length,
-        beforeVertices,
-        beforeTriangles,
-        stellaWorldBox: {
-            min: stellaWorldBox.min.toArray(),
-            max: stellaWorldBox.max.toArray()
-        },
-        stellaTransform: {
-            position: stellaMesh.position.toArray(),
-            scale: stellaMesh.scale.toArray(),
-            rotation: stellaMesh.rotation.toArray()
-        }
-    });
+    if (!csgAvailable || !stellaMesh) return false;
 
     showLoading(true, label);
     pushUndo();
 
     let brush = null;
+
     try {
         brush = createStellaBrush();
-        debugLog('CSG STELLA BRUSH', getBrushWorldInfo(brush));
         let success = 0;
 
         cutters.forEach((c, idx) => {
             let nextBrush = null;
             try {
-                c.updateMatrixWorld(true);
-                brush.updateMatrixWorld(true);
-
-                const cutterWorldBox = new THREE.Box3().setFromObject(c);
-                const overlap = boxesOverlap(stellaWorldBox, cutterWorldBox);
-
-                debugLog('CSG CUTTER PRECHECK #' + (idx + 1), {
-                    overlap,
-                    cutter: getBrushWorldInfo(c),
-                    stellaBox: {
-                        min: stellaWorldBox.min.toArray(),
-                        max: stellaWorldBox.max.toArray()
-                    }
-                });
-
-                if (!overlap) {
-                    log('CSG #' + (idx + 1) + ': КАТТЕР НЕ ПЕРЕСЕКАЕТ СТЕЛУ');
-                    return;
-                }
-
-                const oldV = brush.geometry.getAttribute('position')?.count || 0;
-                const oldT = (brush.geometry.getIndex()?.count || oldV) / 3;
-
-                debugLog('CSG EVALUATE INPUT #' + (idx + 1), {
-                    oldV,
-                    oldT,
-                    brushMatrixWorld: brush.matrixWorld.toArray(),
-                    cutterMatrixWorld: c.matrixWorld.toArray()
-                });
-
                 nextBrush = evaluator.evaluate(brush, c, SUBTRACTION);
-                nextBrush.updateMatrixWorld(true);
-
-                const newV = nextBrush.geometry.getAttribute('position')?.count || 0;
-                const newT = (nextBrush.geometry.getIndex()?.count || newV) / 3;
-
-                debugLog('CSG RESULT DEEP #' + (idx + 1), {
-                    changed: oldV !== newV || oldT !== newT,
-                    materialGroupCounts: nextBrush.geometry.groups.map(g => ({ start: g.start, count: g.count, materialIndex: g.materialIndex })),
-                    oldV,
-                    newV,
-                    deltaV: newV - oldV,
-                    oldT,
-                    newT,
-                    deltaT: newT - oldT,
-                    groups: nextBrush.geometry.groups,
-                    result: getBrushWorldInfo(nextBrush)
-                });
 
                 disposeCSGBrush(brush);
                 disposeCSGBrush(c);
+
                 brush = nextBrush;
                 success++;
             } catch (e) {
                 if (c) disposeCSGBrush(c);
                 if (nextBrush) disposeCSGBrush(nextBrush);
-                log('CSG #' + (idx + 1) + ': ' + e.message);
-                console.error('[CNC][CSG]', e);
+                log(`CSG #${idx + 1}: ${e.message}`);
             }
         });
 
@@ -2777,18 +2390,10 @@ function runCSG(cutters, label, onSuccess) {
             return false;
         }
 
-        const finalV = brush.geometry.getAttribute('position')?.count || 0;
-        const finalT = (brush.geometry.getIndex()?.count || finalV) / 3;
-        debugLog('CSG FINAL', {
-            success,
-            finalV,
-            finalT,
-            deltaV: finalV - beforeVertices,
-            deltaT: finalT - beforeTriangles,
-            groups: brush.geometry.groups
-        });
+        const position = brush.geometry.getAttribute('position');
+        const vCount = position ? position.count : 0;
 
-        if (finalV < 12) {
+        if (vCount < 12) {
             disposeCSGBrush(brush);
             popUndoState();
             setStatus('⚠️ Модель уничтожена, откат');
@@ -2796,92 +2401,63 @@ function runCSG(cutters, label, onSuccess) {
             return false;
         }
 
-        markInternalCutFacesGray(brush.geometry, getEffectiveCutDepth());
         replaceStellaFromBrush(brush);
         brush.geometry = null;
 
-        debugLog('CSG REPLACED', {
-            vertices: stellaMesh.geometry.getAttribute('position')?.count || 0,
-            triangles: (stellaMesh.geometry.getIndex()?.count ||
-                stellaMesh.geometry.getAttribute('position')?.count || 0) / 3,
-            groups: stellaMesh.geometry.groups
-        });
-
         clearCutPreview();
+
         if (onSuccess) onSuccess(success);
+
         showLoading(false);
         return true;
     } catch (e) {
         if (brush) disposeCSGBrush(brush);
         popUndoState();
-        log('CSG ошибка: ' + e.message);
-        console.error('[CNC][CSG]', e);
+        log(`CSG ошибка: ${e.message}`);
+        console.error(e);
         setStatus('❌ Ошибка CSG');
         showLoading(false);
         return false;
     }
 }
+
 /* ---- SINGLE CUT ---- */
 
 document.getElementById('btn-cut').addEventListener('click', () => {
-    debugLog('CUT BUTTON CLICK DEEP', {
-        drawPoints: drawPoints.length,
-        activeCutSide,
-        csgAvailable,
-        hasStella: !!stellaMesh,
-        type: document.getElementById('sel-cut-type')?.value,
-        frameSide: document.getElementById('sel-frame-side')?.value,
-        profile: document.getElementById('sel-cut-profile')?.value,
-        widthMm: readSlider('inp-cut-width', 0.010) * 1000,
-        gapMm: readSlider('inp-frame-gap', 0) * 1000,
-        cx: readSlider('inp-cx', 0),
-        cy: readSlider('inp-cy', 0.7),
-        scale: readSlider('inp-cs', 0.4),
-        depth: readSlider('inp-cd', 0.05),
-        zOffset: readSlider('inp-czo', 0)
-    });
-
-    if (drawPoints.length < 3) {
-        log('CUT ABORT: меньше 3 точек');
-        return;
-    }
-    if (!stellaMesh) {
-        log('CUT ABORT: stellaMesh отсутствует');
-        return;
-    }
-    if (!csgAvailable) {
-        log('CUT ABORT: CSG недоступен');
-        return;
-    }
+    if (drawPoints.length < 3) return;
 
     const cx = readSlider('inp-cx', 0);
     const cy = readSlider('inp-cy', 0.7);
-    const cs = readSlider('inp-cs', 0.4);
-    const cd = getEffectiveCutDepth();
+    const cs = readSlider('inp-cs', 0.5);
+    const cd = readSlider('inp-cd', 0.05);
     const rot = readSlider('inp-rot', 0);
     const zCenter = computeCutZCenter();
     const ry = cutterRotationY();
     const side = activeCutSide;
 
-    const cutGeo = buildBaseCutGeometry(cd);
-    cutGeo.computeVertexNormals();
-    cutGeo.computeBoundingBox();
+    let cutGeo;
+    try {
+        cutGeo = buildBaseCutGeometry(cd);
+    } catch (e) {
+        setStatus(`❌ ${e.message}`);
+        return;
+    }
 
+    cutGeo.computeBoundingBox();
     const bb = cutGeo.boundingBox;
-    const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
-    const effectiveScale = isFrameOperation ? 1 : cs;
-    const cutW = (bb.max.x - bb.min.x) * effectiveScale;
-    const cutH = (bb.max.y - bb.min.y) * effectiveScale;
+    const cutW = (bb.max.x - bb.min.x) * cs;
+    const cutH = (bb.max.y - bb.min.y) * cs;
 
     if ((cutW > params.width * 0.95 || cutH > params.height * 0.95) &&
         !confirm(`⚠️ Фигура (${cutW.toFixed(2)}×${cutH.toFixed(2)} м) почти со стелу. Продолжить?`)) {
+        cutGeo.dispose();
         return;
     }
 
     const cutter = createCutterBrush(
         cutGeo,
         new THREE.Vector3(mirrorX(cx), cy, zCenter),
-        new THREE.Vector3(effectiveScale, effectiveScale, 1),
+        new THREE.Vector3(cs, cs, 1),
         mirrorRot(rot) * Math.PI / 180,
         ry
     );
@@ -2897,7 +2473,7 @@ document.getElementById('btn-cut').addEventListener('click', () => {
             side: side,
             volumeM3: cutW * cutH * overlapDepth,
             areaM2: cutW * cutH,
-            depthM: Math.min(overlapDepth, cd),
+            depthM: overlapDepth,
             timestamp: Date.now()
         });
 
@@ -2913,18 +2489,21 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
 
     const cx = readSlider('inp-cx', 0);
     const cy = readSlider('inp-cy', 0.7);
-    const cs = readSlider('inp-cs', 0.4);
+    const cs = readSlider('inp-cs', 0.5);
     const cd = readSlider('inp-cd', 0.05);
     const rot = readSlider('inp-rot', 0);
     const zCenter = computeCutZCenter();
     const ry = cutterRotationY();
     const side = activeCutSide;
 
-    const baseGeo = buildBaseCutGeometry(cd);
-    baseGeo.computeVertexNormals();
+    let baseGeo;
+    try {
+        baseGeo = buildBaseCutGeometry(cd);
+    } catch (e) {
+        setStatus(`❌ ${e.message}`);
+        return;
+    }
 
-    const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
-    const effectiveScale = isFrameOperation ? 1 : cs;
     const instances = generatePatternInstances(cx, cy, rot);
 
     const cutters = instances.map(inst => {
@@ -2932,13 +2511,12 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
         return createCutterBrush(
             cutGeo,
             new THREE.Vector3(mirrorX(inst.x), inst.y, zCenter),
-            new THREE.Vector3(effectiveScale, effectiveScale, 1),
+            new THREE.Vector3(cs, cs, 1),
             mirrorRot(inst.rot) * Math.PI / 180,
             ry
         );
     });
 
-    // Каждая копия уже владеет своей геометрией.
     baseGeo.dispose();
 
     runCSG(cutters, 'Вырезание массива...', success => {
@@ -2950,8 +2528,7 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
         const baseGeoCopy = buildBaseCutGeometry(cd);
         baseGeoCopy.computeBoundingBox();
         const bb = baseGeoCopy.boundingBox;
-        const effectiveScale = document.getElementById('sel-cut-type')?.value !== 'normal' ? 1 : cs;
-        const areaOne = (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) * effectiveScale * effectiveScale;
+        const areaOne = (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) * cs * cs;
         baseGeoCopy.dispose();
 
         for (let i = 0; i < success; i++) {
@@ -3179,7 +2756,7 @@ document.getElementById('btn-save-project').addEventListener('click', () => {
         cutHistory,
         activeCutSide,
         activeTextSide,
-        version: '7.1'
+        version: '8.0'
     };
 
     const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
