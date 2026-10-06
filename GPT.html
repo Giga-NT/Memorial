@@ -270,7 +270,7 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
     "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "three-bvh-csg": "https://unpkg.com/three-bvh-csg@0.0.16/build/index.module.js",
+        "three-bvh-csg": "https://unpkg.com/three-bvh-csg@0.0.17/build/index.module.js",
         "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js"
     }
 }
@@ -934,10 +934,9 @@ function normalizeForCSG(geometry, materialIndex, preserveGroups = false) {
         return g;
     }
 
-    // toNonIndexed умножает индексы на 3
     for (const grp of savedGroups) {
-        const start = grp.start;
-        const count = grp.count;
+        const start = grp.start * 3;
+        const count = grp.count * 3;
         if (start + count > total) continue;
         g.addGroup(start, count, grp.materialIndex === 1 ? 1 : 0);
     }
@@ -996,26 +995,8 @@ function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) 
     return brush;
 }
 
-function preserveCSGMaterialGroups(geometry) {
-    if (!geometry) return;
-    const index = geometry.getIndex();
-    const total = index ? index.count : (geometry.getAttribute('position')?.count || 0);
-    if (!total) return;
-
-    // Evaluator already assigns material 1 to surfaces originating from the cutter.
-    // Only repair malformed/empty groups; do not flatten valid CSG groups.
-    const valid = geometry.groups && geometry.groups.some(g =>
-        g.count > 0 && (g.materialIndex === 0 || g.materialIndex === 1)
-    );
-    if (!valid) {
-        geometry.clearGroups();
-        geometry.addGroup(0, total, 0);
-    }
-}
-
 function replaceStellaFromBrush(resultBrush) {
     const newGeometry = resultBrush.geometry;
-    preserveCSGMaterialGroups(newGeometry);
     newGeometry.computeVertexNormals();
     newGeometry.computeBoundingBox();
     newGeometry.computeBoundingSphere();
@@ -1407,7 +1388,6 @@ function redrawDrawCanvas() {
 
     if (drawPoints.length === 0 && brushPath.length === 0) return;
 
-    // Основной контур
     if (drawPoints.length >= 2) {
         drawCtx.beginPath();
         drawCtx.moveTo(drawPoints[0].x, drawPoints[0].y);
@@ -1428,7 +1408,7 @@ function redrawDrawCanvas() {
         }
     }
 
-    // Превью кольца шва (если выбран frame)
+    // Превью кольца шва
     const cutType = document.getElementById('sel-cut-type')?.value;
     if (cutType === 'frame' && drawPoints.length >= 3) {
         const ccx = drawPoints.reduce((s, p) => s + p.x, 0) / drawPoints.length;
@@ -1439,11 +1419,8 @@ function redrawDrawCanvas() {
         const gapM = readSlider('inp-frame-gap', 0.005);
         const side = document.getElementById('sel-frame-side')?.value || 'inside';
 
-        // Метры → пиксели. Мир = (canvas - 150) / 200 по X, (100 - canvas_y) / 200 по Y.
-        // Значит 1 м = 200 px.
         const wPx = widthM * 200;
         const gPx = gapM * 200;
-
         const wRatio = wPx / Math.max(avgR, 1);
         const gRatio = gPx / Math.max(avgR, 1);
 
@@ -1465,15 +1442,14 @@ function redrawDrawCanvas() {
         };
 
         if (side === 'outside') {
-            drawScaled(1 + gRatio, '#888888', true);            // внутренний край (зазор)
-            drawScaled(1 + gRatio + wRatio, '#00ff00', false);  // внешний край
+            drawScaled(1 + gRatio, '#888888', true);
+            drawScaled(1 + gRatio + wRatio, '#00ff00', false);
         } else {
-            drawScaled(1, '#888888', true);                     // исходный
-            drawScaled(Math.max(0.05, 1 - wRatio), '#00ff00', false); // внутренний край
+            drawScaled(1, '#888888', true);
+            drawScaled(Math.max(0.05, 1 - wRatio), '#00ff00', false);
         }
     }
 
-    // Точки управления
     for (let i = 0; i < drawPoints.length; i++) {
         const p = drawPoints[i];
         drawCtx.beginPath();
@@ -1489,7 +1465,6 @@ function redrawDrawCanvas() {
         drawCtx.fillText(String(i + 1), p.x + 8, p.y - 8);
     }
 
-    // Линия кисти
     if (isDrawing && brushPath.length >= 2) {
         drawCtx.beginPath();
         drawCtx.moveTo(brushPath[0].x, brushPath[0].y);
@@ -1855,57 +1830,87 @@ function cutterRotationY() {
     return activeCutSide === 'front' ? 0 : Math.PI;
 }
 
-function getSafeCutDepth() {
-    const requested = Math.max(0.001, readSlider('inp-cd', 0.05));
-    const stoneDepth = Math.max(0.002, params.depth);
-    // Всегда оставляем каменный слой между дном кармана и противоположной
-    // поверхностью. 85% — максимальная глубина именно для CSG-инструмента.
-    return Math.min(requested, stoneDepth * 0.85);
+/**
+ * Центр каттера для ОБЫЧНОГО выреза (может быть сквозным).
+ */
+function computeNormalCutZCenter() {
+    const cd = readSlider('inp-cd', 0.05);
+    const czo = readSlider('inp-czo', 0);
+    const half = params.depth / 2;
+
+    if (activeCutSide === 'front') {
+        return half - cd / 2 + czo / 100;
+    } else {
+        return -half + cd / 2 - czo / 100;
+    }
 }
 
-function computeCutZCenter() {
+/**
+ * Для frame: возвращает Z-координату ВЕРХА каттера.
+ * Верх каттера = params.depth/2 + eps (выше поверхности стелы).
+ * Низ каттера = верх - extrudeDepth = depth/2 - cutDepth.
+ */
+function computeFrameTopZ() {
     const czo = readSlider('inp-czo', 0);
-    const cd = getSafeCutDepth();
-    const half = params.depth / 2;
-    const surfaceEpsilon = Math.min(0.001, params.depth * 0.01);
-
-    // Верх резца немного выходит за лицевую/оборотную поверхность.
-    // Это убирает coplanar-ситуацию CSG, но резец не может дойти до другой стороны.
     if (activeCutSide === 'front') {
-        return half - cd / 2 + surfaceEpsilon + czo / 100;
+        return params.depth / 2 + czo / 100;   // ← убрали eps
     } else {
-        return -half + cd / 2 - surfaceEpsilon - czo / 100;
+        return -(params.depth / 2) - czo / 100;
     }
+}
+
+function computeFrameExtrudeDepth() {
+    const cutDepth = readSlider('inp-cd', 0.05);
+    return cutDepth;   // ← убрали eps
+}
+
+/**
+ * Обратная совместимость: старый вызов.
+ */
+function computeCutZCenter() {
+    const type = document.getElementById('sel-cut-type')?.value || 'normal';
+    if (type === 'normal') return computeNormalCutZCenter();
+    return computeFrameTopZ();
 }
 
 function updateCutZHint() {
     const hint = document.getElementById('cut-z-hint');
     if (!hint) return;
 
-    const cd = getSafeCutDepth();
-    const zCenter = computeCutZCenter();
+    const cutDepth = readSlider('inp-cd', 0.05);
+    const type = document.getElementById('sel-cut-type')?.value || 'normal';
+    const sideLabel = activeCutSide === 'front' ? 'лицо' : 'оборот';
+
+    let extrudeDepth, topZ;
+    if (type === 'normal') {
+        extrudeDepth = cutDepth;
+        const center = computeNormalCutZCenter();
+        topZ = center + cutDepth / 2;
+    } else {
+        extrudeDepth = computeFrameExtrudeDepth();
+        topZ = computeFrameTopZ();
+    }
+
+    const zMin = Math.min(topZ, topZ - extrudeDepth);
+    const zMax = Math.max(topZ, topZ - extrudeDepth);
+
     const front = params.depth / 2;
     const back = -params.depth / 2;
-
-    const zMin = zCenter - cd / 2;
-    const zMax = zCenter + cd / 2;
 
     const ovMin = Math.max(zMin, back);
     const ovMax = Math.min(zMax, front);
     const depth = Math.max(0, ovMax - ovMin);
 
-    const sideLabel = activeCutSide === 'front' ? 'лицо' : 'оборот';
-
     if (depth <= 0.0001) {
-        hint.textContent = `⚠️ Фигура не касается стелы (${sideLabel}) — выреза не будет`;
+        hint.textContent = `⚠️ Вырез не задевает стелу (${sideLabel})`;
         hint.style.background = 'rgba(244,67,54,0.25)';
         hint.style.color = '#f44336';
-    } else if (depth >= params.depth - 0.0001) {
+    } else if (type === 'normal' && depth >= params.depth - 0.0001) {
         hint.textContent = `🔴 СКВОЗНОЙ ВЫРЕЗ (${(depth * 1000).toFixed(0)} мм)`;
         hint.style.background = 'rgba(244,67,54,0.25)';
         hint.style.color = '#f44336';
     } else {
-        hint.textContent = `✅ Глубина (${sideLabel}): ${(depth * 1000).toFixed(1)} мм`;
+        hint.textContent = `✅ Глубина (${sideLabel}): ${(depth * 1000).toFixed(1)} мм из ${(params.depth * 1000).toFixed(0)} мм`;
         hint.style.background = 'rgba(76,175,80,0.25)';
         hint.style.color = '#4caf50';
     }
@@ -1937,14 +1942,9 @@ function getEffectiveContour() {
 }
 
 /**
- * Строит кольцо шва простым масштабированием контура от центра.
- *
- * inside:
- *   внешний край = исходный контур (scale 1.0)
- *   внутренний   = scale (1 - w/avgR)
- * outside:
- *   внутренний   = scale (1 + gap/avgR)
- *   внешний      = scale (1 + (gap+width)/avgR)
+ * cd — полная высота экструзии.
+ *   normal:  экструзия центрируется по Z (как раньше)
+ *   frame:   экструзия сдвинута так, что низ на -cd, верх на 0
  */
 function buildBaseCutGeometry(cd) {
     if (drawPoints.length < 3) {
@@ -1976,26 +1976,14 @@ function buildBaseCutGeometry(cd) {
     const widthM = readSlider('inp-cut-width', 0.030);
     const gapM = readSlider('inp-frame-gap', 0.005);
 
-    // Центр и средний радиус в пиксельных координатах
     const ccx = drawPoints.reduce((s, p) => s + p.x, 0) / drawPoints.length;
     const ccy = drawPoints.reduce((s, p) => s + p.y, 0) / drawPoints.length;
     const avgR = drawPoints.reduce((s, p) => s + Math.hypot(p.x - ccx, p.y - ccy), 0) / drawPoints.length;
 
-    // Метры → пиксели: 1 м = 200 px
     const wPx = widthM * 200;
     const gPx = gapM * 200;
-
     const wRatio = wPx / Math.max(avgR, 1);
     const gRatio = gPx / Math.max(avgR, 1);
-
-    console.log('[CUT/frame]', {
-        side: frameSide,
-        avgR,
-        wRatio: wRatio.toFixed(4),
-        gRatio: gRatio.toFixed(4),
-        widthMm: widthM * 1000,
-        gapMm: gapM * 1000
-    });
 
     const scalePts = (pts, s) => pts.map(p => ({
         x: ccx + (p.x - ccx) * s,
@@ -2003,7 +1991,6 @@ function buildBaseCutGeometry(cd) {
     }));
 
     let outerPx, innerPx;
-
     if (frameSide === 'outside') {
         innerPx = scalePts(drawPoints, 1 + gRatio);
         outerPx = scalePts(drawPoints, 1 + gRatio + wRatio);
@@ -2012,7 +1999,6 @@ function buildBaseCutGeometry(cd) {
         innerPx = scalePts(drawPoints, Math.max(0.05, 1 - wRatio));
     }
 
-    // Shape в метрах
     const outerShape = new THREE.Shape();
     const o0 = toMeters(outerPx[0]);
     outerShape.moveTo(o0.x, o0.y);
@@ -2038,16 +2024,15 @@ function buildBaseCutGeometry(cd) {
     let bevelSize = 0;
     let bevelSegments = 1;
 
-    const remainingDepth = Math.max(0.001, params.depth - cd);
     if (profile === 'v') {
         bevelEnabled = true;
-        bevelThickness = Math.min(cd * 0.18, remainingDepth * 0.40);
-        bevelSize = Math.min(widthM * 0.5, Math.max(0.0005, cd * 0.35));
+        bevelThickness = cd * 0.4;
+        bevelSize = widthM * 0.45;
         bevelSegments = 1;
     } else if (profile === 'u') {
         bevelEnabled = true;
-        bevelThickness = Math.min(cd * 0.12, remainingDepth * 0.30);
-        bevelSize = Math.min(widthM * 0.30, Math.max(0.0005, cd * 0.25));
+        bevelThickness = cd * 0.3;
+        bevelSize = widthM * 0.3;
         bevelSegments = 3;
     }
 
@@ -2061,19 +2046,12 @@ function buildBaseCutGeometry(cd) {
         curveSegments: 8
     });
 
-    geo.translate(0, 0, -cd / 2);
+    // Для frame сдвигаем: низ на -cd, верх на 0
+    geo.translate(0, 0, -cd);
     geo.computeBoundingBox();
     const bb = geo.boundingBox;
     geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
     geo.computeVertexNormals();
-
-    console.log('[CUT/frame] geo built', {
-        vertices: geo.getAttribute('position').count,
-        triangles: (geo.getIndex()?.count || 0) / 3,
-        bbox: [bb.min.x.toFixed(3), bb.min.y.toFixed(3), bb.min.z.toFixed(3),
-               bb.max.x.toFixed(3), bb.max.y.toFixed(3), bb.max.z.toFixed(3)]
-    });
-
     return geo;
 }
 
@@ -2179,28 +2157,46 @@ function showContourIn3D() {
         const cx = readSlider('inp-cx', 0);
         const cy = readSlider('inp-cy', 0.7);
         const cs = readSlider('inp-cs', 0.5);
-        const cd = readSlider('inp-cd', 0.05);
         const rot = readSlider('inp-rot', 0);
-        const zCenter = computeCutZCenter();
+        const side = activeCutSide;
         const ry = cutterRotationY();
+
+        const type = document.getElementById('sel-cut-type')?.value || 'normal';
+
+        let extrudeDepth, positionZ;
+        if (type === 'normal') {
+            extrudeDepth = readSlider('inp-cd', 0.05);
+            positionZ = computeNormalCutZCenter();
+        } else {
+            extrudeDepth = computeFrameExtrudeDepth();
+            positionZ = computeFrameTopZ();
+        }
+
+        // Для оборота верх каттера инвертируется.
+        // Но rotation.y = π уже разворачивает геометрию,
+        // и чтобы каттер входил с задней стороны, Z-координату тоже
+        // нужно инвертировать относительно центра.
+        if (side === 'back') {
+            positionZ = -positionZ;
+        }
 
         document.getElementById('pattern-tools').style.display = 'block';
 
         const pattern = document.getElementById('sel-pattern').value;
 
         if (pattern === 'single') {
-            const geo = buildBaseCutGeometry(cd);
+            const geo = buildBaseCutGeometry(extrudeDepth);
             const mat = new THREE.MeshStandardMaterial({
                 color: 0xff2222, transparent: true, opacity: 0.4,
                 roughness: 0.7, metalness: 0, side: THREE.DoubleSide, depthWrite: false
             });
             cutPreviewMesh = new THREE.Mesh(geo, mat);
-            cutPreviewMesh.position.set(mirrorX(cx), cy, zCenter);
+            cutPreviewMesh.position.set(mirrorX(cx), cy, positionZ);
             cutPreviewMesh.scale.set(cs, cs, 1);
             cutPreviewMesh.rotation.set(0, ry, mirrorRot(rot) * Math.PI / 180);
             scene.add(cutPreviewMesh);
         } else {
-            const baseGeo = buildBaseCutGeometry(cd);
+            const baseGeo = buildBaseCutGeometry(extrudeDepth);
             const instances = generatePatternInstances(cx, cy, rot);
             const mat = new THREE.MeshStandardMaterial({
                 color: 0xff2222, transparent: true, opacity: 0.35,
@@ -2209,13 +2205,13 @@ function showContourIn3D() {
             cutPreviewGroup = new THREE.Group();
             instances.forEach(inst => {
                 const m = new THREE.Mesh(baseGeo.clone(), mat);
-                m.position.set(mirrorX(inst.x), inst.y, zCenter);
+                m.position.set(mirrorX(inst.x), inst.y, positionZ);
                 m.scale.set(cs, cs, 1);
                 m.rotation.set(0, ry, mirrorRot(inst.rot) * Math.PI / 180);
                 cutPreviewGroup.add(m);
             });
             scene.add(cutPreviewGroup);
-            setStatus(`✅ Массив (${activeCutSide === 'front' ? 'лицо' : 'оборот'}): ${instances.length} копий`);
+            setStatus(`✅ Массив (${side === 'front' ? 'лицо' : 'оборот'}): ${instances.length} копий`);
         }
 
         document.getElementById('csg-tools').style.display = 'block';
@@ -2459,19 +2455,26 @@ document.getElementById('btn-cut').addEventListener('click', () => {
     const cx = readSlider('inp-cx', 0);
     const cy = readSlider('inp-cy', 0.7);
     const cs = readSlider('inp-cs', 0.5);
-    const cd = readSlider('inp-cd', 0.05);
+    const cutDepth = readSlider('inp-cd', 0.05);
     const rot = readSlider('inp-rot', 0);
-    const zCenter = computeCutZCenter();
-    const ry = cutterRotationY();
     const side = activeCutSide;
+    const ry = cutterRotationY();
 
-    let cutGeo;
-    try {
-        cutGeo = buildBaseCutGeometry(cd);
-    } catch (e) {
-        setStatus(`❌ ${e.message}`);
-        return;
+    const type = document.getElementById('sel-cut-type')?.value || 'normal';
+
+    let cutGeo, extrudeDepth, positionZ;
+
+    if (type === 'normal') {
+        extrudeDepth = cutDepth;
+        cutGeo = buildBaseCutGeometry(extrudeDepth);
+        positionZ = computeNormalCutZCenter();
+    } else {
+        extrudeDepth = computeFrameExtrudeDepth();
+        cutGeo = buildBaseCutGeometry(extrudeDepth);
+        positionZ = computeFrameTopZ();
     }
+
+    if (side === 'back') positionZ = -positionZ;
 
     cutGeo.computeBoundingBox();
     const bb = cutGeo.boundingBox;
@@ -2486,16 +2489,21 @@ document.getElementById('btn-cut').addEventListener('click', () => {
 
     const cutter = createCutterBrush(
         cutGeo,
-        new THREE.Vector3(mirrorX(cx), cy, zCenter),
+        new THREE.Vector3(mirrorX(cx), cy, positionZ),
         new THREE.Vector3(cs, cs, 1),
         mirrorRot(rot) * Math.PI / 180,
         ry
     );
 
     runCSG([cutter], 'CSG-вырезание...', () => {
+        const zTop = positionZ;
+        const zBottom = positionZ - extrudeDepth;
+        const zMin = Math.min(zTop, zBottom);
+        const zMax = Math.max(zTop, zBottom);
+
         const overlapDepth = Math.max(0,
-            Math.min(zCenter + cd / 2, params.depth / 2) -
-            Math.max(zCenter - cd / 2, -params.depth / 2)
+            Math.min(zMax, params.depth / 2) -
+            Math.max(zMin, -params.depth / 2)
         );
 
         cutHistory.push({
@@ -2520,15 +2528,26 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
     const cx = readSlider('inp-cx', 0);
     const cy = readSlider('inp-cy', 0.7);
     const cs = readSlider('inp-cs', 0.5);
-    const cd = readSlider('inp-cd', 0.05);
+    const cutDepth = readSlider('inp-cd', 0.05);
     const rot = readSlider('inp-rot', 0);
-    const zCenter = computeCutZCenter();
-    const ry = cutterRotationY();
     const side = activeCutSide;
+    const ry = cutterRotationY();
+
+    const type = document.getElementById('sel-cut-type')?.value || 'normal';
+
+    let extrudeDepth, positionZ;
+    if (type === 'normal') {
+        extrudeDepth = cutDepth;
+        positionZ = computeNormalCutZCenter();
+    } else {
+        extrudeDepth = computeFrameExtrudeDepth();
+        positionZ = computeFrameTopZ();
+    }
+    if (side === 'back') positionZ = -positionZ;
 
     let baseGeo;
     try {
-        baseGeo = buildBaseCutGeometry(cd);
+        baseGeo = buildBaseCutGeometry(extrudeDepth);
     } catch (e) {
         setStatus(`❌ ${e.message}`);
         return;
@@ -2540,7 +2559,7 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
         const cutGeo = baseGeo.clone();
         return createCutterBrush(
             cutGeo,
-            new THREE.Vector3(mirrorX(inst.x), inst.y, zCenter),
+            new THREE.Vector3(mirrorX(inst.x), inst.y, positionZ),
             new THREE.Vector3(cs, cs, 1),
             mirrorRot(inst.rot) * Math.PI / 180,
             ry
@@ -2550,12 +2569,17 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
     baseGeo.dispose();
 
     runCSG(cutters, 'Вырезание массива...', success => {
+        const zTop = positionZ;
+        const zBottom = positionZ - extrudeDepth;
+        const zMin = Math.min(zTop, zBottom);
+        const zMax = Math.max(zTop, zBottom);
+
         const overlapDepth = Math.max(0,
-            Math.min(zCenter + cd / 2, params.depth / 2) -
-            Math.max(zCenter - cd / 2, -params.depth / 2)
+            Math.min(zMax, params.depth / 2) -
+            Math.max(zMin, -params.depth / 2)
         );
 
-        const baseGeoCopy = buildBaseCutGeometry(cd);
+        const baseGeoCopy = buildBaseCutGeometry(extrudeDepth);
         baseGeoCopy.computeBoundingBox();
         const bb = baseGeoCopy.boundingBox;
         const areaOne = (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) * cs * cs;
@@ -2582,9 +2606,9 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
 document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const presets = {
-            'preset-clear': { czo: 5, cd: 0.01 },
-            'preset-shallow': { czo: 0, cd: 0.02 },
-            'preset-deep': { czo: -3, cd: 0.08 },
+            'preset-clear': { czo: 5, cd: 0.005 },
+            'preset-shallow': { czo: 0, cd: 0.01 },
+            'preset-deep': { czo: 0, cd: 0.04 },
             'preset-through': { czo: 0, cd: params.depth + 0.02 }
         };
         const p = presets[btn.id];
@@ -2593,7 +2617,7 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
         document.getElementById('inp-czo').value = p.czo;
         document.getElementById('inp-cd').value = p.cd;
         document.getElementById('val-czo').textContent = p.czo.toFixed(1);
-        document.getElementById('val-cd').textContent = p.cd.toFixed(2);
+        document.getElementById('val-cd').textContent = p.cd.toFixed(3);
 
         updateCutZHint();
         if (drawPoints.length >= 3) showContourIn3D();
@@ -2786,7 +2810,7 @@ document.getElementById('btn-save-project').addEventListener('click', () => {
         cutHistory,
         activeCutSide,
         activeTextSide,
-        version: '8.0'
+        version: '8.1'
     };
 
     const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
@@ -3279,6 +3303,41 @@ updateCutZHint();
 updatePriceDisplay();
 updatePatternUI();
 animate();
+
+
+/* === ОТЛАДКА === */
+window.CNC = {
+    get THREE() { return THREE; },
+    get stellaMesh() { return stellaMesh; },
+    get drawPoints() { return drawPoints; },
+    get params() { return params; },
+    get activeCutSide() { return activeCutSide; },
+    get cutPreviewMesh() { return cutPreviewMesh; },
+    get cutPreviewGroup() { return cutPreviewGroup; },
+    get evaluator() { return evaluator; },
+    get Brush() { return Brush; },
+    get SUBTRACTION() { return SUBTRACTION; },
+    get scene() { return scene; },
+
+    // функции — можно вызывать напрямую
+    buildBaseCutGeometry,
+    createStellaBrush,
+    createCutterBrush,
+    normalizeForCSG,
+    computeCutZCenter,
+    computeNormalCutZCenter,
+    computeFrameTopZ,
+    computeFrameExtrudeDepth,
+    mirrorX,
+    mirrorRot,
+    cutterRotationY,
+    toMeters,
+    contourToShape,
+    getEffectiveContour,
+    replaceStellaFromBrush,
+    clearCutPreview
+};
+console.log('%c[CNC] window.CNC доступен', 'color:#0f0;font-weight:bold');
 
 log('Приложение готово');
 setStatus('✅ Готово. Кисть замыкает мазок автоматически.');
