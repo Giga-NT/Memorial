@@ -1004,7 +1004,15 @@ function createStellaBrush() {
 }
 
 function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) {
+    debugLog('CUTTER BEFORE normalize', {
+        vertices: geometry.getAttribute('position')?.count || 0,
+        groups: geometry.groups
+    });
     normalizeForCSG(geometry, 0);
+    debugLog('CUTTER AFTER normalize', {
+        vertices: geometry.getAttribute('position')?.count || 0,
+        groups: geometry.groups
+    });
 
     const brush = new Brush(geometry);
     brush.material = getRoughMaterial(params.material);
@@ -2015,6 +2023,14 @@ function buildBaseCutGeometry(cd) {
     if(points.length<3) throw new Error('Недостаточно точек контура');
 
     const type=document.getElementById('sel-cut-type')?.value || 'normal';
+    debugLog('BUILD CUTTER INPUT', {
+        type,
+        cd,
+        smooth: readSlider('inp-contour-smooth',0),
+        drawPoints: drawPoints.length,
+        effectivePoints: points.length,
+        firstPoints: points.slice(0,8)
+    });
     const profile=document.getElementById('sel-cut-profile')?.value || 'rectangular';
     const width=readSlider('inp-cut-width',0.020);
 
@@ -2058,6 +2074,15 @@ function buildBaseCutGeometry(cd) {
     geo.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,0);
     geo.computeVertexNormals();
     geo.computeBoundingSphere();
+    debugLog('CUTTER GEOMETRY RESULT', {
+        vertices: geo.getAttribute('position')?.count || 0,
+        triangles: (geo.getIndex()?.count || geo.getAttribute('position')?.count || 0) / 3,
+        bbox: geo.boundingBox ? {
+            min: geo.boundingBox.min.toArray(),
+            max: geo.boundingBox.max.toArray()
+        } : null,
+        groups: geo.groups
+    });
     return geo;
 }
 
