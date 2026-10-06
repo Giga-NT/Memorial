@@ -1043,14 +1043,15 @@ function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) 
         vertices: geometry.getAttribute('position')?.count || 0,
         groups: geometry.groups
     });
-    normalizeForCSG(geometry, 0);
+    normalizeForCSG(geometry, 1);
     debugLog('CUTTER AFTER normalize', {
         vertices: geometry.getAttribute('position')?.count || 0,
-        groups: geometry.groups
+        groups: geometry.groups,
+        materialIndices: geometry.groups.map(g => g.materialIndex)
     });
 
     const brush = new Brush(geometry);
-    brush.material = getRoughMaterial(params.material);
+    brush.material = getCSGMaterials();
     brush.position.copy(position);
     brush.scale.copy(scale);
     brush.rotation.set(0, rotationY, rotationZ);
@@ -2706,6 +2707,7 @@ function runCSG(cutters, label, onSuccess) {
 
                 debugLog('CSG RESULT DEEP #' + (idx + 1), {
                     changed: oldV !== newV || oldT !== newT,
+                    materialGroupCounts: nextBrush.geometry.groups.map(g => ({ start: g.start, count: g.count, materialIndex: g.materialIndex })),
                     oldV,
                     newV,
                     deltaV: newV - oldV,
