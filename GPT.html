@@ -994,10 +994,16 @@ function createStellaBrush() {
 }
 
 function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) {
-    normalizeForCSG(geometry, 1);
+    // ВАЖНО: каттер сам по себе целиком является "необработанным камнем".
+    // Для three-bvh-csg его группа должна быть 0, а материал каттера —
+    // именно roughCutMaterial. CSG использует материал второго brush'а
+    // для новых стенок выреза. Если здесь поставить группу 1 + массив
+    // материалов, новые полигоны начинают ссылаться не на rough, а на
+    // материал исходного камня — поэтому стенка становилась чёрной.
+    normalizeForCSG(geometry, 0);
 
     const brush = new Brush(geometry);
-    brush.material = getCSGMaterials();
+    brush.material = getRoughMaterial(params.material);
     brush.position.copy(position);
     brush.scale.copy(scale);
     brush.rotation.set(0, rotationY, rotationZ);
