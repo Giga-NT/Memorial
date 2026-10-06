@@ -629,6 +629,8 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
    ============================================================ */
 
 const log = (m) => console.log(`[CNC] ${m}`);
+const CSG_DEBUG = true;
+const debugLog = (label, data) => { if (!CSG_DEBUG) return; console.groupCollapsed(`[CNC][DEBUG] ${label}`); if (data !== undefined) console.log(data); console.groupEnd(); };
 
 function readSlider(id, fallback) {
     const el = document.getElementById(id);
