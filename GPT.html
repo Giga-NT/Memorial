@@ -2385,6 +2385,16 @@ document.getElementById('btn-undo').addEventListener('click', () => {
 function runCSG(cutters, label, onSuccess) {
     if (!csgAvailable || !stellaMesh) return false;
 
+    debugLog('CSG START', {
+        label,
+        cutterCount: cutters.length,
+        stellaVertices: stellaMesh.geometry.getAttribute('position')?.count || 0,
+        stellaGroups: stellaMesh.geometry.groups,
+        stellaPosition: stellaMesh.position.toArray(),
+        stellaScale: stellaMesh.scale.toArray(),
+        stellaRotation: stellaMesh.rotation.toArray()
+    });
+
     showLoading(true, label);
     pushUndo();
 
@@ -2397,7 +2407,21 @@ function runCSG(cutters, label, onSuccess) {
         cutters.forEach((c, idx) => {
             let nextBrush = null;
             try {
+                debugLog(`CSG CUTTER #${idx + 1} TRANSFORM`, {
+                    position: c.position.toArray(),
+                    scale: c.scale.toArray(),
+                    rotation: c.rotation.toArray(),
+                    matrixWorld: c.matrixWorld.toArray()
+                });
                 nextBrush = evaluator.evaluate(brush, c, SUBTRACTION);
+                debugLog(`CSG RESULT #${idx + 1}`, {
+                    vertices: nextBrush.geometry.getAttribute('position')?.count || 0,
+                    groups: nextBrush.geometry.groups,
+                    bbox: nextBrush.geometry.boundingBox ? {
+                        min: nextBrush.geometry.boundingBox.min.toArray(),
+                        max: nextBrush.geometry.boundingBox.max.toArray()
+                    } : null
+                });
 
                 // Освобождаем только геометрию уже ненужных brush'ей.
                 // Материалы общие, поэтому их здесь не уничтожаем.
