@@ -940,11 +940,15 @@ function normalizeForCSG(geometry, materialIndex, preserveGroups = false) {
         return g;
     }
 
+    // После toNonIndexed() группы уже измеряются в вершинах.
+    // Нельзя умножать start/count на 3: это сдвигает границы
+    // материалов и часть исходной поверхности получает материал 0.
     for (const grp of savedGroups) {
-        const start = grp.start * 3;
-        const count = grp.count * 3;
-        if (start + count > total) continue;
-        g.addGroup(start, count, grp.materialIndex === 1 ? 1 : 0);
+        const start = Math.max(0, Math.min(total, grp.start));
+        const count = Math.max(0, Math.min(total - start, grp.count));
+        if (count > 0) {
+            g.addGroup(start, count, grp.materialIndex === 1 ? 1 : 0);
+        }
     }
 
     if (g.groups.length === 0) {
