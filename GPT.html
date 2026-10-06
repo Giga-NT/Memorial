@@ -1274,8 +1274,9 @@ function createStellaFromProfile(profilePoints) {
     geometry.computeBoundingBox();
     const box = geometry.boundingBox;
     geometry.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+    markBaseGeometryPolished(geometry);
 
-    stellaMesh = new THREE.Mesh(geometry, materials[params.material]);
+    stellaMesh = new THREE.Mesh(geometry, getCSGMaterials());
     stellaMesh.castShadow = true;
     stellaMesh.receiveShadow = true;
     scene.add(stellaMesh);
@@ -1956,46 +1957,48 @@ function signedArea2D(points) {
 }
 
 function offsetContour(points, distance) {
-    if(points.length<3 || Math.abs(distance)<1e-9) {
-        return points.map(p=>({...p}));
+    if (points.length < 3 || Math.abs(distance) < 1e-9) {
+        return points.map(p => ({ ...p }));
     }
 
-    const area=signedArea2D(points);
-    const outward=area>=0 ? -1 : 1;
-    const result=[];
+    // drawPoints живут в canvas-координатах (Y вниз). Для положительного
+    // distance считаем смещение наружу относительно фактического контура.
+    const area = signedArea2D(points);
+    const outward = area >= 0 ? -1 : 1;
+    const result = [];
 
-    for(let i=0;i<points.length;i++){
-        const prev=points[(i-1+points.length)%points.length];
-        const cur=points[i];
-        const next=points[(i+1)%points.length];
+    for (let i = 0; i < points.length; i++) {
+        const prev = points[(i - 1 + points.length) % points.length];
+        const cur = points[i];
+        const next = points[(i + 1) % points.length];
 
-        const e1={x:cur.x-prev.x,y:cur.y-prev.y};
-        const e2={x:next.x-cur.x,y:next.y-cur.y};
-        const l1=Math.hypot(e1.x,e1.y)||1;
-        const l2=Math.hypot(e2.x,e2.y)||1;
+        const e1 = { x: cur.x - prev.x, y: cur.y - prev.y };
+        const e2 = { x: next.x - cur.x, y: next.y - cur.y };
+        const l1 = Math.hypot(e1.x, e1.y) || 1;
+        const l2 = Math.hypot(e2.x, e2.y) || 1;
 
-        const n1={x:outward*e1.y/l1,y:outward*(-e1.x)/l1};
-        const n2={x:outward*e2.y/l2,y:outward*(-e2.x)/l2};
+        const n1 = { x: outward * e1.y / l1, y: outward * (-e1.x) / l1 };
+        const n2 = { x: outward * e2.y / l2, y: outward * (-e2.x) / l2 };
 
-        const a1={x:prev.x+n1.x*distance,y:prev.y+n1.y*distance};
-        const a2={x:cur.x+n1.x*distance,y:cur.y+n1.y*distance};
-        const b1={x:cur.x+n2.x*distance,y:cur.y+n2.y*distance};
-        const b2={x:next.x+n2.x*distance,y:next.y+n2.y*distance};
+        const a1 = { x: prev.x + n1.x * distance, y: prev.y + n1.y * distance };
+        const a2 = { x: cur.x + n1.x * distance, y: cur.y + n1.y * distance };
+        const b1 = { x: cur.x + n2.x * distance, y: cur.y + n2.y * distance };
+        const b2 = { x: next.x + n2.x * distance, y: next.y + n2.y * distance };
 
-        result.push(lineIntersection(a1,a2,b1,b2));
+        result.push(lineIntersection(a1, a2, b1, b2));
     }
 
     return result;
 }
 
 function contourToShape(points) {
-    const shape=new THREE.Shape();
-    const first=toMeters(points[0]);
-    shape.moveTo(first.x,first.y);
+    const shape = new THREE.Shape();
+    const first = toMeters(points[0]);
+    shape.moveTo(first.x, first.y);
 
-    for(let i=1;i<points.length;i++){
-        const p=toMeters(points[i]);
-        shape.lineTo(p.x,p.y);
+    for (let i = 1; i < points.length; i++) {
+        const p = toMeters(points[i]);
+        shape.lineTo(p.x, p.y);
     }
 
     shape.closePath();
@@ -2017,7 +2020,7 @@ function addContourHole(shape, points) {
     return shape;
 }
 
-function buildBandShape(points, width, gap=0) {
+function buildBandShape(points, width, gap = 0) {
     const w = Math.max(width, 0.001);
     const g = Math.max(gap, 0);
     const outer = offsetContour(points, g + w);
@@ -2031,75 +2034,255 @@ function buildInnerBandShape(points, width) {
     return addContourHole(contourToShape(points), inner);
 }
 
-function buildBaseCutGeometry(cd) {
-    const points=getEffectiveContour();
-    if(points.length<3) throw new Error('Недостаточно точек контура');
+/*
+ * Реальный объём шва.
+ *
+ * Важный момент:
+ * - outside: исходный контур НЕ вырезается. Объём лежит в кольце
+ *   между offset(gap) и offset(gap + width).
+ * - inside: исходный контур является внешней границей, а внутренняя
+ *   граница уходит внутрь на width.
+ *
+ * Профиль меняет именно поперечное сечение этого кольца:
+ * - rectangular: одинаковая ширина по всей глубине;
+ * - v: снизу кольцо почти сходится в линию;
+ * - u: кольцо плавно сужается несколькими ступенями, имитируя
+ *   округлённое дно U-паза.
+ *
+ * Это не bevel у всего ExtrudeGeometry: CSG получает закрытый,
+ * самостоятельный 3D-объём нужного профиля.
+ */
+function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
+    const w = Math.max(width, 0.001);
+    const depth = Math.max(cd, 0.001);
+    const g = Math.max(gap, 0);
 
-    const type=document.getElementById('sel-cut-type')?.value || 'normal';
-    const profile=document.getElementById('sel-cut-profile')?.value || 'rectangular';
-    const width=readSlider('inp-cut-width',0.010);
-    debugLog('BUILD CUTTER INPUT', {
-        type,
-        frameSide: document.getElementById('sel-frame-side')?.value || 'inside',
-        widthMm: width * 1000,
-        gapMm: readSlider('inp-frame-gap',0) * 1000,
-        profile,
-        cd,
-        smooth: readSlider('inp-contour-smooth',0),
-        drawPoints: drawPoints.length,
-        effectivePoints: points.length,
-        firstPoints: points.slice(0,8)
+    let levels;
+    switch (profile) {
+        case 'v':
+            levels = [
+                { z: -0.5, factor: 1.00 },
+                { z: -0.18, factor: 0.58 },
+                { z:  0.50, factor: 0.10 }
+            ];
+            break;
+        case 'u':
+            levels = [
+                { z: -0.50, factor: 1.00 },
+                { z: -0.28, factor: 0.78 },
+                { z: -0.08, factor: 0.56 },
+                { z:  0.12, factor: 0.40 },
+                { z:  0.32, factor: 0.34 },
+                { z:  0.50, factor: 0.40 }
+            ];
+            break;
+        default:
+            levels = [
+                { z: -0.50, factor: 1.00 },
+                { z:  0.50, factor: 1.00 }
+            ];
+            break;
+    }
+
+    const rings = [];
+    const center = points.reduce(
+        (acc, p) => ({ x: acc.x + p.x / points.length, y: acc.y + p.y / points.length }),
+        { x: 0, y: 0 }
+    );
+
+    // Строим контуры на каждом уровне. Для V/U ширина меняется симметрично
+    // относительно исходной линии шва, поэтому центр шва не "плывёт".
+    for (const level of levels) {
+        const halfWidth = w * level.factor * 0.5;
+
+        let outerPx, innerPx;
+        if (frameSide === 'outside') {
+            const centerOffset = g + halfWidth;
+            outerPx = offsetContour(points, centerOffset + halfWidth);
+            innerPx = offsetContour(points, Math.max(0, centerOffset - halfWidth));
+        } else {
+            outerPx = offsetContour(points, 0);
+            innerPx = offsetContour(points, -Math.max(0.0001, halfWidth * 2));
+        }
+
+        // При очень узком профиле offset может схлопнуться. Сохраняем
+        // минимум 0.1 мм, чтобы CSG всегда получил замкнутый объём.
+        const outer = outerPx.map(toMeters);
+        const inner = innerPx.map(toMeters);
+
+        if (outer.length !== inner.length || outer.length < 3) {
+            throw new Error('Не удалось построить контур профиля шва');
+        }
+
+        rings.push({
+            outer,
+            inner,
+            z: level.z * depth
+        });
+    }
+
+    // Центрируем XY так же, как старый ExtrudeGeometry. Это сохраняет
+    // существующие position/scale/rotation параметры превью.
+    const all = [];
+    rings.forEach(r => {
+        r.outer.forEach(p => all.push(p));
+        r.inner.forEach(p => all.push(p));
+    });
+    const minX = Math.min(...all.map(p => p.x));
+    const maxX = Math.max(...all.map(p => p.x));
+    const minY = Math.min(...all.map(p => p.y));
+    const maxY = Math.max(...all.map(p => p.y));
+    const cx = (minX + maxX) * 0.5;
+    const cy = (minY + maxY) * 0.5;
+
+    rings.forEach(r => {
+        r.outer.forEach(p => { p.x -= cx; p.y -= cy; });
+        r.inner.forEach(p => { p.x -= cx; p.y -= cy; });
     });
 
-    let shape;
-    let bevelEnabled=false;
-    let bevelSize=0;
-    let bevelThickness=0;
-    let bevelSegments=1;
+    const n = points.length;
+    const positions = [];
+    const indices = [];
 
-    const frameSide = document.getElementById('sel-frame-side')?.value || 'inside';
-    const gap = readSlider('inp-frame-gap', 0);
+    const addRingVertices = (ring) => {
+        const outerStart = positions.length / 3;
+        ring.outer.forEach(p => positions.push(p.x, p.y, ring.z));
+        const innerStart = positions.length / 3;
+        ring.inner.forEach(p => positions.push(p.x, p.y, ring.z));
+        return { outerStart, innerStart };
+    };
 
-    if(type==='normal'){
-        shape=contourToShape(points);
-    }else if(frameSide==='outside'){
-        shape=buildBandShape(points,width,gap);
-    }else{
-        shape=buildInnerBandShape(points,width);
+    const starts = rings.map(addRingVertices);
 
-        if(profile!=='rectangular'){
-            bevelEnabled=true;
-            bevelSegments=profile==='v' ? 1 : 8;
-            bevelSize=Math.min(width*0.45,cd*0.45);
-            bevelThickness=bevelSize;
+    const addTri = (a, b, c) => {
+        indices.push(a, b, c);
+    };
+
+    // World XY winding после toMeters может быть CW или CCW.
+    // Для каждой ориентации выбираем наружные стенки так, чтобы объём
+    // имел единое направление нормалей.
+    const worldArea = signedArea2D(rings[0].outer);
+    const ccw = worldArea > 0;
+
+    for (let r = 0; r < starts.length - 1; r++) {
+        const a = starts[r];
+        const b = starts[r + 1];
+
+        for (let i = 0; i < n; i++) {
+            const j = (i + 1) % n;
+
+            // Наружная стенка.
+            if (ccw) {
+                addTri(a.outerStart + i, b.outerStart + j, a.outerStart + j);
+                addTri(a.outerStart + i, b.outerStart + i, b.outerStart + j);
+
+                // Внутренняя стенка — обратная ориентация.
+                addTri(a.innerStart + i, a.innerStart + j, b.innerStart + j);
+                addTri(a.innerStart + i, b.innerStart + j, b.innerStart + i);
+            } else {
+                addTri(a.outerStart + i, a.outerStart + j, b.outerStart + j);
+                addTri(a.outerStart + i, b.outerStart + j, b.outerStart + i);
+
+                addTri(a.innerStart + i, b.innerStart + j, a.innerStart + j);
+                addTri(a.innerStart + i, b.innerStart + i, b.innerStart + j);
+            }
         }
     }
 
-    if(frameSide==='outside' && profile!=='rectangular'){
-        bevelEnabled=true;
-        bevelSegments=profile==='v' ? 1 : 8;
-        bevelSize=Math.min(width*0.45,cd*0.45);
-        bevelThickness=bevelSize;
+    // Верхняя и нижняя annulus-крышки.
+    const bottom = starts[0];
+    const top = starts[starts.length - 1];
+
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+
+        if (ccw) {
+            // Верх +Z.
+            addTri(top.outerStart + i, top.outerStart + j, top.innerStart + j);
+            addTri(top.outerStart + i, top.innerStart + j, top.innerStart + i);
+
+            // Низ -Z.
+            addTri(bottom.outerStart + i, bottom.innerStart + j, bottom.outerStart + j);
+            addTri(bottom.outerStart + i, bottom.innerStart + i, bottom.innerStart + j);
+        } else {
+            addTri(top.outerStart + i, top.innerStart + j, top.outerStart + j);
+            addTri(top.outerStart + i, top.innerStart + i, top.innerStart + j);
+
+            addTri(bottom.outerStart + i, bottom.outerStart + j, bottom.innerStart + j);
+            addTri(bottom.outerStart + i, bottom.innerStart + j, bottom.innerStart + i);
+        }
     }
 
-    const geo=new THREE.ExtrudeGeometry(shape,{
-        steps:type==='groove' ? 2 : 1,
-        depth:cd,
-        bevelEnabled,
-        bevelThickness,
-        bevelSize,
-        bevelSegments,
-        curveSegments:8
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.addGroup(0, indices.length, 0);
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+
+    debugLog('PROFILE BAND GEOMETRY', {
+        side: frameSide,
+        profile,
+        widthMm: w * 1000,
+        gapMm: g * 1000,
+        depthMm: depth * 1000,
+        levels: levels.length,
+        vertices: positions.length / 3,
+        triangles: indices.length / 3,
+        winding: ccw ? 'CCW' : 'CW',
+        bbox: geo.boundingBox ? {
+            min: geo.boundingBox.min.toArray(),
+            max: geo.boundingBox.max.toArray()
+        } : null
     });
 
-    geo.computeBoundingBox();
-    geo.translate(0,0,-cd/2);
-    geo.computeBoundingBox();
+    return geo;
+}
 
-    const bb=geo.boundingBox;
-    geo.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,0);
-    geo.computeVertexNormals();
-    geo.computeBoundingSphere();
+function buildBaseCutGeometry(cd) {
+    const points = getEffectiveContour();
+    if (points.length < 3) throw new Error('Недостаточно точек контура');
+
+    const type = document.getElementById('sel-cut-type')?.value || 'normal';
+    const profile = document.getElementById('sel-cut-profile')?.value || 'rectangular';
+    const width = readSlider('inp-cut-width', 0.010);
+    const frameSide = document.getElementById('sel-frame-side')?.value || 'inside';
+    const gap = readSlider('inp-frame-gap', 0);
+
+    debugLog('BUILD CUTTER INPUT', {
+        type,
+        frameSide,
+        widthMm: width * 1000,
+        gapMm: gap * 1000,
+        profile,
+        cd,
+        smooth: readSlider('inp-contour-smooth', 0),
+        drawPoints: drawPoints.length,
+        effectivePoints: points.length,
+        firstPoints: points.slice(0, 8)
+    });
+
+    let geo;
+
+    if (type === 'normal') {
+        const shape = contourToShape(points);
+        geo = new THREE.ExtrudeGeometry(shape, {
+            steps: 1,
+            depth: cd,
+            bevelEnabled: false,
+            curveSegments: 8
+        });
+        geo.translate(0, 0, -cd / 2);
+        geo.computeBoundingBox();
+        const bb = geo.boundingBox;
+        geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+        geo.computeVertexNormals();
+        geo.computeBoundingSphere();
+    } else {
+        geo = buildProfileBandGeometry(points, cd, width, frameSide, gap, profile);
+    }
+
     debugLog('CUTTER GEOMETRY RESULT', {
         vertices: geo.getAttribute('position')?.count || 0,
         triangles: (geo.getIndex()?.count || geo.getAttribute('position')?.count || 0) / 3,
@@ -2109,6 +2292,7 @@ function buildBaseCutGeometry(cd) {
         } : null,
         groups: geo.groups
     });
+
     return geo;
 }
 
