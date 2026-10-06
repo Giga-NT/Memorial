@@ -1859,10 +1859,15 @@ function computeCutZCenter() {
     const cd = readSlider('inp-cd', 0.05);
     const half = params.depth / 2;
 
+    // Cutter must pass slightly THROUGH the front/back surface.
+    // If its outer face ends exactly on the stone face, CSG sees
+    // coplanar contact and can create an internal cavity without
+    // visibly opening the groove on the surface.
+    const surfaceEpsilon = 0.0005; // 0.5 mm
     if (activeCutSide === 'front') {
-        return half - cd / 2 + czo / 100;
+        return half - cd / 2 + surfaceEpsilon / 2 + czo / 100;
     } else {
-        return -half + cd / 2 - czo / 100;
+        return -half + cd / 2 - surfaceEpsilon / 2 - czo / 100;
     }
 }
 
@@ -1877,10 +1882,26 @@ function updateCutZHint() {
 
     const zMin = zCenter - cd / 2;
     const zMax = zCenter + cd / 2;
+    const surfaceEpsilon = 0.0005;
 
     const ovMin = Math.max(zMin, back);
     const ovMax = Math.min(zMax, front);
     const depth = Math.max(0, ovMax - ovMin);
+
+    debugLog('CUT Z INTERSECTION', {
+        activeCutSide,
+        stoneDepth: params.depth,
+        cutterDepth: cd,
+        zCenter,
+        zMin,
+        zMax,
+        front,
+        back,
+        surfaceEpsilonMm: surfaceEpsilon * 1000,
+        penetrationIntoStoneMm: activeCutSide === 'front'
+            ? Math.max(0, front - zMin) * 1000
+            : Math.max(0, zMax - back) * 1000
+    });
 
     const sideLabel = activeCutSide === 'front' ? 'лицо' : 'оборот';
 
