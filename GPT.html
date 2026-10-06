@@ -2128,13 +2128,25 @@ function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
         const halfWidth = w * level.factor * 0.5;
 
         let outerPx, innerPx;
+        // Граница по исходному контуру не должна совпадать с гранью
+        // стелы: совпадение плоскостей даёт CSG-копланарность, из-за
+        // которой subtraction может вернуть геометрию без изменений.
+        // 0.04 px = 0.2 мм — незаметное технологическое перекрытие.
+        const CSG_EPSILON_PX = 0.04;
+
         if (frameSide === 'outside') {
             const centerOffset = g + halfWidth;
             outerPx = offsetContour(points, centerOffset + halfWidth);
-            innerPx = offsetContour(points, Math.max(0, centerOffset - halfWidth));
+            innerPx = offsetContour(
+                points,
+                Math.max(0, centerOffset - halfWidth) - (g <= 0.000001 ? CSG_EPSILON_PX : 0)
+            );
         } else {
-            outerPx = offsetContour(points, 0);
-            innerPx = offsetContour(points, -Math.max(0.0001, halfWidth * 2));
+            outerPx = offsetContour(points, CSG_EPSILON_PX);
+            innerPx = offsetContour(
+                points,
+                -Math.max(0.0001, halfWidth * 2)
+            );
         }
 
         // При очень узком профиле offset может схлопнуться. Сохраняем
@@ -2254,6 +2266,7 @@ function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
     geo.computeBoundingSphere();
 
     debugLog('PROFILE BAND GEOMETRY', {
+        csgEpsilonMm: 0.04 * 1000 / 200,
         side: frameSide,
         profile,
         widthMm: width * 1000,
