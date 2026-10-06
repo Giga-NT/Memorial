@@ -433,13 +433,22 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
         <label>Тип выреза:</label>
         <select id="sel-cut-type">
             <option value="normal">Обычный контур</option>
-            <option value="frame">Рамка / контурная полоса</option>
+            <option value="frame">Рамка по контуру</option>
+            <option value="outer-frame">Рамка СНАРУЖИ объекта</option>
             <option value="groove">Паз / канавка</option>
         </select>
 
         <div id="cut-shape-options" style="display:none;">
             <label>Ширина полосы (м): <span class="val" id="val-cut-width">0.020</span></label>
             <input type="range" id="inp-cut-width" min="0.003" max="0.150" step="0.001" value="0.020">
+
+            <div id="outer-frame-options" style="display:none;">
+                <label>Зазор от объекта (м): <span class="val" id="val-frame-gap">0.005</span></label>
+                <input type="range" id="inp-frame-gap" min="0" max="0.100" step="0.001" value="0.005">
+                <div class="draw-instructions">
+                    💡 Сохраняет объект внутри и вырезает только внешний обход.
+                </div>
+            </div>
 
             <label>Профиль:</label>
             <select id="sel-cut-profile">
@@ -1974,10 +1983,15 @@ function contourToShape(points) {
     return shape;
 }
 
-function buildBandShape(points, width) {
-    const half=Math.max(width/2,0.001);
-    const outer=offsetContour(points,half);
-    const inner=offsetContour(points,-half);
+function buildBandShape(points, width, gap=0, outsideOnly=false) {
+    const w=Math.max(width,0.001);
+    const g=Math.max(gap,0);
+
+    // Обычная рамка: полоса симметрична относительно исходного контура.
+    // Внешняя рамка: исходный объект остаётся нетронутым, а полоса
+    // начинается после небольшого зазора вокруг него.
+    const outer=offsetContour(points, outsideOnly ? g+w : w/2);
+    const inner=offsetContour(points, outsideOnly ? g : -w/2);
 
     const shape=contourToShape(outer);
     const hole=new THREE.Path();
@@ -2010,8 +2024,11 @@ function buildBaseCutGeometry(cd) {
 
     if(type==='normal'){
         shape=contourToShape(points);
+    }else if(type==='outer-frame'){
+        const gap=readSlider('inp-frame-gap',0.005);
+        shape=buildBandShape(points,width,gap,true);
     }else{
-        shape=buildBandShape(points,width);
+        shape=buildBandShape(points,width,0,false);
 
         if(type==='groove' && profile!=='rectangular'){
             bevelEnabled=true;
@@ -2192,7 +2209,7 @@ function showContourIn3D() {
 
 document.getElementById('btn-draw-finish').addEventListener('click', showContourIn3D);
 
-['inp-contour-smooth','inp-cut-width','sel-cut-type','sel-cut-profile'].forEach(id => {
+['inp-contour-smooth','inp-cut-width','inp-frame-gap','sel-cut-type','sel-cut-profile'].forEach(id => {
     const el=document.getElementById(id);
     if(!el) return;
 
@@ -2203,9 +2220,13 @@ document.getElementById('btn-draw-finish').addEventListener('click', showContour
         if(id==='inp-cut-width'){
             document.getElementById('val-cut-width').textContent=Number(el.value).toFixed(3);
         }
+        if(id==='inp-frame-gap'){
+            document.getElementById('val-frame-gap').textContent=Number(el.value).toFixed(3);
+        }
         if(id==='sel-cut-type'){
             const visible=el.value!=='normal';
             document.getElementById('cut-shape-options').style.display=visible?'block':'none';
+            document.getElementById('outer-frame-options').style.display=el.value==='outer-frame'?'block':'none';
         }
         if(drawPoints.length>=3 && (cutPreviewMesh || cutPreviewGroup)){
             showContourIn3D();
@@ -2216,6 +2237,7 @@ document.getElementById('btn-draw-finish').addEventListener('click', showContour
         if(id==='sel-cut-type'){
             const visible=el.value!=='normal';
             document.getElementById('cut-shape-options').style.display=visible?'block':'none';
+            document.getElementById('outer-frame-options').style.display=el.value==='outer-frame'?'block':'none';
         }
         if(drawPoints.length>=3 && (cutPreviewMesh || cutPreviewGroup)){
             showContourIn3D();
