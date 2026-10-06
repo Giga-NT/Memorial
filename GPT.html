@@ -1153,6 +1153,27 @@ function createStellaShape() {
     return shape;
 }
 
+function markBaseGeometryPolished(geometry) {
+    if (!geometry) return geometry;
+
+    const index = geometry.getIndex();
+    const totalCount = index
+        ? index.count
+        : geometry.getAttribute('position')?.count || 0;
+
+    // Исходная стела целиком является полированной:
+    // перед CSG у неё не должно быть ни одной "серой" группы.
+    geometry.clearGroups();
+    if (totalCount > 0) {
+        geometry.addGroup(0, totalCount, 0);
+    }
+
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return geometry;
+}
+
 function createStella() {
     log(`createStella: ${params.topShape}`);
     removeCurrentModel();
@@ -1171,8 +1192,9 @@ function createStella() {
     geometry.computeBoundingBox();
     const box = geometry.boundingBox;
     geometry.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+    markBaseGeometryPolished(geometry);
 
-    stellaMesh = new THREE.Mesh(geometry, materials[params.material]);
+    stellaMesh = new THREE.Mesh(geometry, getCSGMaterials());
     stellaMesh.castShadow = true;
     stellaMesh.receiveShadow = true;
     scene.add(stellaMesh);
@@ -1209,7 +1231,7 @@ function createStellaFromProfile(profilePoints) {
     scene.add(stellaMesh);
 
     isCustomProfile = true;
-    undoStack = [];
+    clearUndoStack();
     document.getElementById('btn-undo').disabled = true;
     updatePriceDisplay();
 }
