@@ -998,6 +998,32 @@ function popUndoState() {
     document.getElementById('btn-undo').disabled = undoStack.length === 0;
 }
 
+function getBrushWorldInfo(brush) {
+    if (!brush || !brush.geometry) return null;
+    brush.updateMatrixWorld(true);
+    const world = new THREE.Box3().setFromObject(brush);
+    const size = new THREE.Vector3();
+    world.getSize(size);
+    return {
+        worldMin: world.min.toArray(),
+        worldMax: world.max.toArray(),
+        worldSize: size.toArray(),
+        position: brush.position.toArray(),
+        scale: brush.scale.toArray(),
+        rotation: brush.rotation.toArray(),
+        vertices: brush.geometry.getAttribute('position')?.count || 0,
+        triangles: (brush.geometry.getIndex()?.count || brush.geometry.getAttribute('position')?.count || 0) / 3,
+        groups: brush.geometry.groups
+    };
+}
+
+function boxesOverlap(a, b) {
+    return !!a && !!b &&
+        a.min.x < b.max.x && a.max.x > b.min.x &&
+        a.min.y < b.max.y && a.max.y > b.min.y &&
+        a.min.z < b.max.z && a.max.z > b.min.z;
+}
+
 function createStellaBrush() {
     const geometry = stellaMesh.geometry.clone();
     normalizeForCSG(geometry, 0, true);
@@ -2604,57 +2630,101 @@ document.getElementById('btn-undo').addEventListener('click', () => {
    ============================================================ */
 
 function runCSG(cutters, label, onSuccess) {
-    if (!csgAvailable || !stellaMesh) return false;
+    if (!csgAvailable || !stellaMesh) {
+        debugLog('CSG ABORT', { csgAvailable, hasStella: !!stellaMesh });
+        return false;
+    }
 
-    debugLog('CSG START', {
+    stellaMesh.updateMatrixWorld(true);
+    const stellaWorldBox = new THREE.Box3().setFromObject(stellaMesh);
+    const beforeVertices = stellaMesh.geometry.getAttribute('position')?.count || 0;
+    const beforeTriangles = (stellaMesh.geometry.getIndex()?.count || beforeVertices) / 3;
+
+    debugLog('CSG START DEEP', {
         label,
         cutterCount: cutters.length,
-        stellaVertices: stellaMesh.geometry.getAttribute('position')?.count || 0,
-        stellaGroups: stellaMesh.geometry.groups,
-        stellaPosition: stellaMesh.position.toArray(),
-        stellaScale: stellaMesh.scale.toArray(),
-        stellaRotation: stellaMesh.rotation.toArray()
+        beforeVertices,
+        beforeTriangles,
+        stellaWorldBox: {
+            min: stellaWorldBox.min.toArray(),
+            max: stellaWorldBox.max.toArray()
+        },
+        stellaTransform: {
+            position: stellaMesh.position.toArray(),
+            scale: stellaMesh.scale.toArray(),
+            rotation: stellaMesh.rotation.toArray()
+        }
     });
 
     showLoading(true, label);
     pushUndo();
 
     let brush = null;
-
     try {
         brush = createStellaBrush();
+        debugLog('CSG STELLA BRUSH', getBrushWorldInfo(brush));
         let success = 0;
 
         cutters.forEach((c, idx) => {
             let nextBrush = null;
             try {
-                debugLog(`CSG CUTTER #${idx + 1} TRANSFORM`, {
-                    position: c.position.toArray(),
-                    scale: c.scale.toArray(),
-                    rotation: c.rotation.toArray(),
-                    matrixWorld: c.matrixWorld.toArray()
-                });
-                nextBrush = evaluator.evaluate(brush, c, SUBTRACTION);
-                debugLog(`CSG RESULT #${idx + 1}`, {
-                    vertices: nextBrush.geometry.getAttribute('position')?.count || 0,
-                    groups: nextBrush.geometry.groups,
-                    bbox: nextBrush.geometry.boundingBox ? {
-                        min: nextBrush.geometry.boundingBox.min.toArray(),
-                        max: nextBrush.geometry.boundingBox.max.toArray()
-                    } : null
+                c.updateMatrixWorld(true);
+                brush.updateMatrixWorld(true);
+
+                const cutterWorldBox = new THREE.Box3().setFromObject(c);
+                const overlap = boxesOverlap(stellaWorldBox, cutterWorldBox);
+
+                debugLog('CSG CUTTER PRECHECK #' + (idx + 1), {
+                    overlap,
+                    cutter: getBrushWorldInfo(c),
+                    stellaBox: {
+                        min: stellaWorldBox.min.toArray(),
+                        max: stellaWorldBox.max.toArray()
+                    }
                 });
 
-                // Освобождаем только геометрию уже ненужных brush'ей.
-                // Материалы общие, поэтому их здесь не уничтожаем.
+                if (!overlap) {
+                    log('CSG #' + (idx + 1) + ': КАТТЕР НЕ ПЕРЕСЕКАЕТ СТЕЛУ');
+                    return;
+                }
+
+                const oldV = brush.geometry.getAttribute('position')?.count || 0;
+                const oldT = (brush.geometry.getIndex()?.count || oldV) / 3;
+
+                debugLog('CSG EVALUATE INPUT #' + (idx + 1), {
+                    oldV,
+                    oldT,
+                    brushMatrixWorld: brush.matrixWorld.toArray(),
+                    cutterMatrixWorld: c.matrixWorld.toArray()
+                });
+
+                nextBrush = evaluator.evaluate(brush, c, SUBTRACTION);
+                nextBrush.updateMatrixWorld(true);
+
+                const newV = nextBrush.geometry.getAttribute('position')?.count || 0;
+                const newT = (nextBrush.geometry.getIndex()?.count || newV) / 3;
+
+                debugLog('CSG RESULT DEEP #' + (idx + 1), {
+                    changed: oldV !== newV || oldT !== newT,
+                    oldV,
+                    newV,
+                    deltaV: newV - oldV,
+                    oldT,
+                    newT,
+                    deltaT: newT - oldT,
+                    groups: nextBrush.geometry.groups,
+                    result: getBrushWorldInfo(nextBrush)
+                });
+
                 disposeCSGBrush(brush);
                 disposeCSGBrush(c);
-
                 brush = nextBrush;
                 success++;
             } catch (e) {
                 if (c) disposeCSGBrush(c);
                 if (nextBrush) disposeCSGBrush(nextBrush);
-                log(`CSG #${idx + 1}: ${e.message}`);
+                log('CSG #' + (idx + 1) + ': ' + e.message);
+                console.error('[CNC][CSG]', e);
             }
         });
 
@@ -2666,10 +2736,18 @@ function runCSG(cutters, label, onSuccess) {
             return false;
         }
 
-        const position = brush.geometry.getAttribute('position');
-        const vCount = position ? position.count : 0;
+        const finalV = brush.geometry.getAttribute('position')?.count || 0;
+        const finalT = (brush.geometry.getIndex()?.count || finalV) / 3;
+        debugLog('CSG FINAL', {
+            success,
+            finalV,
+            finalT,
+            deltaV: finalV - beforeVertices,
+            deltaT: finalT - beforeTriangles,
+            groups: brush.geometry.groups
+        });
 
-        if (vCount < 12) {
+        if (finalV < 12) {
             disposeCSGBrush(brush);
             popUndoState();
             setStatus('⚠️ Модель уничтожена, откат');
@@ -2678,19 +2756,24 @@ function runCSG(cutters, label, onSuccess) {
         }
 
         replaceStellaFromBrush(brush);
-        brush.geometry = null; // geometry теперь принадлежит stellaMesh
+        brush.geometry = null;
+
+        debugLog('CSG REPLACED', {
+            vertices: stellaMesh.geometry.getAttribute('position')?.count || 0,
+            triangles: (stellaMesh.geometry.getIndex()?.count ||
+                stellaMesh.geometry.getAttribute('position')?.count || 0) / 3,
+            groups: stellaMesh.geometry.groups
+        });
 
         clearCutPreview();
-
         if (onSuccess) onSuccess(success);
-
         showLoading(false);
         return true;
     } catch (e) {
         if (brush) disposeCSGBrush(brush);
         popUndoState();
-        log(`CSG ошибка: ${e.message}`);
-        console.error(e);
+        log('CSG ошибка: ' + e.message);
+        console.error('[CNC][CSG]', e);
         setStatus('❌ Ошибка CSG');
         showLoading(false);
         return false;
@@ -2699,7 +2782,35 @@ function runCSG(cutters, label, onSuccess) {
 /* ---- SINGLE CUT ---- */
 
 document.getElementById('btn-cut').addEventListener('click', () => {
-    if (drawPoints.length < 3) return;
+    debugLog('CUT BUTTON CLICK DEEP', {
+        drawPoints: drawPoints.length,
+        activeCutSide,
+        csgAvailable,
+        hasStella: !!stellaMesh,
+        type: document.getElementById('sel-cut-type')?.value,
+        frameSide: document.getElementById('sel-frame-side')?.value,
+        profile: document.getElementById('sel-cut-profile')?.value,
+        widthMm: readSlider('inp-cut-width', 0.010) * 1000,
+        gapMm: readSlider('inp-frame-gap', 0) * 1000,
+        cx: readSlider('inp-cx', 0),
+        cy: readSlider('inp-cy', 0.7),
+        scale: readSlider('inp-cs', 0.4),
+        depth: readSlider('inp-cd', 0.05),
+        zOffset: readSlider('inp-czo', 0)
+    });
+
+    if (drawPoints.length < 3) {
+        log('CUT ABORT: меньше 3 точек');
+        return;
+    }
+    if (!stellaMesh) {
+        log('CUT ABORT: stellaMesh отсутствует');
+        return;
+    }
+    if (!csgAvailable) {
+        log('CUT ABORT: CSG недоступен');
+        return;
+    }
 
     const cx = readSlider('inp-cx', 0);
     const cy = readSlider('inp-cy', 0.7);
