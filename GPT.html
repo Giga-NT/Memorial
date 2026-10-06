@@ -2053,9 +2053,14 @@ function buildInnerBandShape(points, width) {
  * самостоятельный 3D-объём нужного профиля.
  */
 function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
-    const w = Math.max(width, 0.001);
     const depth = Math.max(cd, 0.001);
-    const g = Math.max(gap, 0);
+
+    // points находятся в пикселях canvas, а width/gap приходят в метрах.
+    // 200 px = 1 м (см. toMeters()). Раньше сюда попадали 0.005..0.010
+    // как пиксели, поэтому пояс практически схлопывался и контур не был виден.
+    const PX_PER_METER = 200;
+    const w = Math.max(width * PX_PER_METER, 0.2);
+    const g = Math.max(gap * PX_PER_METER, 0);
 
     let levels;
     switch (profile) {
@@ -2224,8 +2229,10 @@ function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
     debugLog('PROFILE BAND GEOMETRY', {
         side: frameSide,
         profile,
-        widthMm: w * 1000,
-        gapMm: g * 1000,
+        widthMm: width * 1000,
+        gapMm: gap * 1000,
+        widthPx: w,
+        gapPx: g,
         depthMm: depth * 1000,
         levels: levels.length,
         vertices: positions.length / 3,
