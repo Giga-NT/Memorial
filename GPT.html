@@ -2102,97 +2102,37 @@ function buildInnerBandShape(points, width) {
  */
 function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
     const depth = Math.max(cd, 0.001);
-
-    // points находятся в пикселях canvas, а width/gap приходят в метрах.
-    // 200 px = 1 м (см. toMeters()). Раньше сюда попадали 0.005..0.010
-    // как пиксели, поэтому пояс практически схлопывался и контур не был виден.
     const PX_PER_METER = 200;
     const w = Math.max(width * PX_PER_METER, 0.2);
     const g = Math.max(gap * PX_PER_METER, 0);
 
-    let levels;
-    switch (profile) {
-        case 'v':
-            levels = [
-                { z: -0.5, factor: 1.00 },
-                { z: -0.18, factor: 0.58 },
-                { z:  0.50, factor: 0.10 }
-            ];
-            break;
-        case 'u':
-            levels = [
-                { z: -0.50, factor: 1.00 },
-                { z: -0.28, factor: 0.78 },
-                { z: -0.08, factor: 0.56 },
-                { z:  0.12, factor: 0.40 },
-                { z:  0.32, factor: 0.34 },
-                { z:  0.50, factor: 0.40 }
-            ];
-            break;
-        default:
-            levels = [
-                { z: -0.50, factor: 1.00 },
-                { z:  0.50, factor: 1.00 }
-            ];
-            break;
+    // ВАЖНО: предыдущая ручная сетка из outer/inner rings давала
+    // сложную геометрию с большим количеством треугольников. CSG
+    // формально менял mesh, но результат мог не иметь корректного
+    // открытого дна канавки. Здесь используем THREE.ExtrudeGeometry:
+    // Shape с hole + extrude гарантированно строит замкнутый объём.
+    const CSG_EPSILON_PX = 0.04;
+
+    let outerPx;
+    let innerPx;
+
+    if (frameSide === 'outside') {
+        outerPx = offsetContour(points, g + w);
+        innerPx = offsetContour(
+            points,
+            Math.max(0, g) - (g <= 0.000001 ? CSG_EPSILON_PX : 0)
+        );
+    } else {
+        outerPx = offsetContour(points, CSG_EPSILON_PX);
+        innerPx = offsetContour(points, -Math.max(0.1, w));
     }
 
-    const rings = [];
-    const center = points.reduce(
-        (acc, p) => ({ x: acc.x + p.x / points.length, y: acc.y + p.y / points.length }),
-        { x: 0, y: 0 }
-    );
-
-    // Строим контуры на каждом уровне. Для V/U ширина меняется симметрично
-    // относительно исходной линии шва, поэтому центр шва не "плывёт".
-    for (const level of levels) {
-        const halfWidth = w * level.factor * 0.5;
-
-        let outerPx, innerPx;
-        // Граница по исходному контуру не должна совпадать с гранью
-        // стелы: совпадение плоскостей даёт CSG-копланарность, из-за
-        // которой subtraction может вернуть геометрию без изменений.
-        // 0.04 px = 0.2 мм — незаметное технологическое перекрытие.
-        const CSG_EPSILON_PX = 0.04;
-
-        if (frameSide === 'outside') {
-            const centerOffset = g + halfWidth;
-            outerPx = offsetContour(points, centerOffset + halfWidth);
-            innerPx = offsetContour(
-                points,
-                Math.max(0, centerOffset - halfWidth) - (g <= 0.000001 ? CSG_EPSILON_PX : 0)
-            );
-        } else {
-            outerPx = offsetContour(points, CSG_EPSILON_PX);
-            innerPx = offsetContour(
-                points,
-                -Math.max(0.0001, halfWidth * 2)
-            );
-        }
-
-        // При очень узком профиле offset может схлопнуться. Сохраняем
-        // минимум 0.1 мм, чтобы CSG всегда получил замкнутый объём.
-        const outer = outerPx.map(toMeters);
-        const inner = innerPx.map(toMeters);
-
-        if (outer.length !== inner.length || outer.length < 3) {
-            throw new Error('Не удалось построить контур профиля шва');
-        }
-
-        rings.push({
-            outer,
-            inner,
-            z: level.z * depth
-        });
+    if (outerPx.length < 3 || innerPx.length < 3 || outerPx.length !== innerPx.length) {
+        throw new Error('Не удалось построить замкнутую полосу шва');
     }
 
-    // Центрируем XY так же, как старый ExtrudeGeometry. Это сохраняет
-    // существующие position/scale/rotation параметры превью.
-    const all = [];
-    rings.forEach(r => {
-        r.outer.forEach(p => all.push(p));
-        r.inner.forEach(p => all.push(p));
-    });
+    // Центрируем так же, как обычный cutter.
+    const all = [...outerPx, ...innerPx];
     const minX = Math.min(...all.map(p => p.x));
     const maxX = Math.max(...all.map(p => p.x));
     const minY = Math.min(...all.map(p => p.y));
@@ -2200,94 +2140,51 @@ function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
     const cx = (minX + maxX) * 0.5;
     const cy = (minY + maxY) * 0.5;
 
-    rings.forEach(r => {
-        r.outer.forEach(p => { p.x -= cx; p.y -= cy; });
-        r.inner.forEach(p => { p.x -= cx; p.y -= cy; });
+    const centered = arr => arr.map(p => ({
+        x: p.x - cx,
+        y: p.y - cy
+    }));
+
+    outerPx = centered(outerPx);
+    innerPx = centered(innerPx);
+
+    const shape = contourToShape(outerPx);
+    addContourHole(shape, innerPx);
+
+    let bevelEnabled = false;
+    let bevelSegments = 0;
+    let bevelSize = 0;
+    let bevelThickness = 0;
+
+    if (profile === 'v') {
+        bevelEnabled = true;
+        bevelSegments = 1;
+        bevelSize = Math.min(w * 0.45, depth * PX_PER_METER * 0.45) / PX_PER_METER;
+        bevelThickness = Math.min(depth * 0.22, bevelSize);
+    } else if (profile === 'u') {
+        bevelEnabled = true;
+        bevelSegments = 6;
+        bevelSize = Math.min(w * 0.46, depth * PX_PER_METER * 0.42) / PX_PER_METER;
+        bevelThickness = Math.min(depth * 0.30, bevelSize);
+    }
+
+    const geo = new THREE.ExtrudeGeometry(shape, {
+        steps: 1,
+        depth,
+        curveSegments: 2,
+        bevelEnabled,
+        bevelSegments,
+        bevelSize,
+        bevelThickness
     });
 
-    const n = points.length;
-    const positions = [];
-    const indices = [];
-
-    const addRingVertices = (ring) => {
-        const outerStart = positions.length / 3;
-        ring.outer.forEach(p => positions.push(p.x, p.y, ring.z));
-        const innerStart = positions.length / 3;
-        ring.inner.forEach(p => positions.push(p.x, p.y, ring.z));
-        return { outerStart, innerStart };
-    };
-
-    const starts = rings.map(addRingVertices);
-
-    const addTri = (a, b, c) => {
-        indices.push(a, b, c);
-    };
-
-    // World XY winding после toMeters может быть CW или CCW.
-    // Для каждой ориентации выбираем наружные стенки так, чтобы объём
-    // имел единое направление нормалей.
-    const worldArea = signedArea2D(rings[0].outer);
-    const ccw = worldArea > 0;
-
-    for (let r = 0; r < starts.length - 1; r++) {
-        const a = starts[r];
-        const b = starts[r + 1];
-
-        for (let i = 0; i < n; i++) {
-            const j = (i + 1) % n;
-
-            // Наружная стенка.
-            if (ccw) {
-                addTri(a.outerStart + i, b.outerStart + j, a.outerStart + j);
-                addTri(a.outerStart + i, b.outerStart + i, b.outerStart + j);
-
-                // Внутренняя стенка — обратная ориентация.
-                addTri(a.innerStart + i, a.innerStart + j, b.innerStart + j);
-                addTri(a.innerStart + i, b.innerStart + j, b.innerStart + i);
-            } else {
-                addTri(a.outerStart + i, a.outerStart + j, b.outerStart + j);
-                addTri(a.outerStart + i, b.outerStart + j, b.outerStart + i);
-
-                addTri(a.innerStart + i, b.innerStart + j, a.innerStart + j);
-                addTri(a.innerStart + i, b.innerStart + i, b.innerStart + j);
-            }
-        }
-    }
-
-    // Верхняя и нижняя annulus-крышки.
-    const bottom = starts[0];
-    const top = starts[starts.length - 1];
-
-    for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n;
-
-        if (ccw) {
-            // Верх +Z.
-            addTri(top.outerStart + i, top.outerStart + j, top.innerStart + j);
-            addTri(top.outerStart + i, top.innerStart + j, top.innerStart + i);
-
-            // Низ -Z.
-            addTri(bottom.outerStart + i, bottom.innerStart + j, bottom.outerStart + j);
-            addTri(bottom.outerStart + i, bottom.innerStart + i, bottom.innerStart + j);
-        } else {
-            addTri(top.outerStart + i, top.innerStart + j, top.outerStart + j);
-            addTri(top.outerStart + i, top.innerStart + i, top.innerStart + j);
-
-            addTri(bottom.outerStart + i, bottom.outerStart + j, bottom.innerStart + j);
-            addTri(bottom.outerStart + i, bottom.innerStart + j, bottom.innerStart + i);
-        }
-    }
-
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geo.setIndex(indices);
-    geo.addGroup(0, indices.length, 0);
+    geo.translate(0, 0, -depth / 2);
     geo.computeVertexNormals();
     geo.computeBoundingBox();
     geo.computeBoundingSphere();
 
     debugLog('PROFILE BAND GEOMETRY', {
-        csgEpsilonMm: 0.04 * 1000 / 200,
+        method: 'ExtrudeGeometry ring',
         side: frameSide,
         profile,
         widthMm: width * 1000,
@@ -2295,10 +2192,13 @@ function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
         widthPx: w,
         gapPx: g,
         depthMm: depth * 1000,
-        levels: levels.length,
-        vertices: positions.length / 3,
-        triangles: indices.length / 3,
-        winding: ccw ? 'CCW' : 'CW',
+        bevelEnabled,
+        bevelSegments,
+        bevelSizeMm: bevelSize * 1000,
+        bevelThicknessMm: bevelThickness * 1000,
+        vertices: geo.getAttribute('position')?.count || 0,
+        triangles: (geo.getIndex()?.count || geo.getAttribute('position')?.count || 0) / 3,
+        groups: geo.groups,
         bbox: geo.boundingBox ? {
             min: geo.boundingBox.min.toArray(),
             max: geo.boundingBox.max.toArray()
@@ -2307,7 +2207,6 @@ function buildProfileBandGeometry(points, cd, width, frameSide, gap, profile) {
 
     return geo;
 }
-
 function buildBaseCutGeometry(cd) {
     const points = getEffectiveContour();
     if (points.length < 3) throw new Error('Недостаточно точек контура');
