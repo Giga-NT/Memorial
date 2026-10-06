@@ -883,7 +883,7 @@ evaluator.removeUnusedMaterials = false;
  * of undefined (reading 'array')", если у brush'ей разные наборы
  * атрибутов (у стелы есть uv, у каттера — нет).
  */
-function normalizeForCSG(geometry, materialIndex) {
+function normalizeForCSG(geometry, materialIndex, preserveGroups = false) {
     const keep = ['position', 'normal'];
     const toRemove = [];
     for (const name in geometry.attributes) {
@@ -895,21 +895,70 @@ function normalizeForCSG(geometry, materialIndex) {
         geometry.computeVertexNormals();
     }
 
-    geometry.clearGroups();
     const index = geometry.getIndex();
-    if (index) {
-        geometry.addGroup(0, index.count, materialIndex);
-    } else {
-        const pos = geometry.getAttribute('position');
-        geometry.addGroup(0, pos.count, materialIndex);
+    const totalCount = index ? index.count : geometry.getAttribute('position').count;
+
+    if (!preserveGroups) {
+        geometry.clearGroups();
+        geometry.addGroup(0, totalCount, materialIndex);
+        return geometry;
+    }
+
+    // 0 = исходная полированная поверхность, 1 = новые поверхности CSG.
+    // Сохраняем разметку предыдущих операций, но любые неизвестные
+    // materialIndex считаем исходным материалом.
+    const groups = Array.isArray(geometry.groups) ? geometry.groups.slice() : [];
+    geometry.clearGroups();
+
+    if (!groups.length) {
+        geometry.addGroup(0, totalCount, 0);
+        return geometry;
+    }
+
+    for (const group of groups) {
+        const start = Math.max(0, Math.min(group.start, totalCount));
+        const end = Math.max(start, Math.min(group.start + group.count, totalCount));
+        const count = end - start;
+        if (count <= 0) continue;
+
+        geometry.addGroup(
+            start,
+            count,
+            group.materialIndex === 1 ? 1 : 0
+        );
+    }
+
+    if (geometry.groups.length === 0) {
+        geometry.addGroup(0, totalCount, 0);
     }
 
     return geometry;
 }
 
+function disposeCSGBrush(brush) {
+    if (!brush) return;
+    if (brush.geometry) {
+        brush.geometry.dispose();
+        brush.geometry = null;
+    }
+}
+
+function clearUndoStack() {
+    for (const state of undoStack) {
+        if (state && state.geometry) state.geometry.dispose();
+    }
+    undoStack = [];
+}
+
+function popUndoState() {
+    const state = undoStack.pop();
+    if (state && state.geometry) state.geometry.dispose();
+    document.getElementById('btn-undo').disabled = undoStack.length === 0;
+}
+
 function createStellaBrush() {
     const geometry = stellaMesh.geometry.clone();
-    normalizeForCSG(geometry, 0);
+    normalizeForCSG(geometry, 0, true);
     geometry.computeVertexNormals();
 
     const brush = new Brush(geometry);
@@ -1128,7 +1177,7 @@ function createStella() {
     stellaMesh.receiveShadow = true;
     scene.add(stellaMesh);
 
-    undoStack = [];
+    clearUndoStack();
     document.getElementById('btn-undo').disabled = true;
     updatePriceDisplay();
 }
@@ -2006,7 +2055,10 @@ document.getElementById('btn-preview-pattern').addEventListener('click', showCon
 function pushUndo() {
     if (!stellaMesh) return;
     undoStack.push({ geometry: stellaMesh.geometry.clone() });
-    if (undoStack.length > 10) undoStack.shift();
+    if (undoStack.length > 10) {
+        const oldest = undoStack.shift();
+        if (oldest && oldest.geometry) oldest.geometry.dispose();
+    }
     document.getElementById('btn-undo').disabled = false;
 }
 
@@ -2039,35 +2091,53 @@ function runCSG(cutters, label, onSuccess) {
     showLoading(true, label);
     pushUndo();
 
+    let brush = null;
+
     try {
-        let brush = createStellaBrush();
+        brush = createStellaBrush();
         let success = 0;
 
         cutters.forEach((c, idx) => {
+            let nextBrush = null;
             try {
-                brush = evaluator.evaluate(brush, c, SUBTRACTION);
+                nextBrush = evaluator.evaluate(brush, c, SUBTRACTION);
+
+                // Освобождаем только геометрию уже ненужных brush'ей.
+                // Материалы общие, поэтому их здесь не уничтожаем.
+                disposeCSGBrush(brush);
+                disposeCSGBrush(c);
+
+                brush = nextBrush;
                 success++;
             } catch (e) {
+                if (c) disposeCSGBrush(c);
+                if (nextBrush) disposeCSGBrush(nextBrush);
                 log(`CSG #${idx + 1}: ${e.message}`);
             }
         });
 
         if (success === 0) {
-            undoStack.pop();
+            disposeCSGBrush(brush);
+            popUndoState();
             setStatus('⚠️ Ни один вырез не выполнен');
             showLoading(false);
             return false;
         }
 
-        const vCount = brush.geometry.getAttribute('position').count;
+        const position = brush.geometry.getAttribute('position');
+        const vCount = position ? position.count : 0;
+
         if (vCount < 12) {
-            undoStack.pop();
+            disposeCSGBrush(brush);
+            popUndoState();
             setStatus('⚠️ Модель уничтожена, откат');
             showLoading(false);
             return false;
         }
 
         replaceStellaFromBrush(brush);
+        brush.geometry = null; // geometry теперь принадлежит stellaMesh
+
         clearCutPreview();
 
         if (onSuccess) onSuccess(success);
@@ -2075,15 +2145,15 @@ function runCSG(cutters, label, onSuccess) {
         showLoading(false);
         return true;
     } catch (e) {
+        if (brush) disposeCSGBrush(brush);
+        popUndoState();
         log(`CSG ошибка: ${e.message}`);
         console.error(e);
-        if (undoStack.length > 0) undoStack.pop();
         setStatus('❌ Ошибка CSG');
         showLoading(false);
         return false;
     }
 }
-
 /* ---- SINGLE CUT ---- */
 
 document.getElementById('btn-cut').addEventListener('click', () => {
@@ -2168,6 +2238,9 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
             ry
         );
     });
+
+    // Каждая копия уже владеет своей геометрией.
+    baseGeo.dispose();
 
     runCSG(cutters, 'Вырезание массива...', success => {
         const overlapDepth = Math.max(0,
@@ -2793,7 +2866,7 @@ document.getElementById('btn-reset-cuts').addEventListener('click', () => {
     if (!confirm('Сбросить всю историю вырезов?')) return;
 
     cutHistory = [];
-    undoStack = [];
+    clearUndoStack();
     document.getElementById('btn-undo').disabled = true;
 
     if (isCustomProfile && profilePoints.length >= 3) {
