@@ -936,8 +936,8 @@ function normalizeForCSG(geometry, materialIndex, preserveGroups = false) {
 
     // toNonIndexed умножает индексы на 3
     for (const grp of savedGroups) {
-        const start = grp.start * 3;
-        const count = grp.count * 3;
+        const start = grp.start;
+        const count = grp.count;
         if (start + count > total) continue;
         g.addGroup(start, count, grp.materialIndex === 1 ? 1 : 0);
     }
@@ -996,8 +996,26 @@ function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) 
     return brush;
 }
 
+function preserveCSGMaterialGroups(geometry) {
+    if (!geometry) return;
+    const index = geometry.getIndex();
+    const total = index ? index.count : (geometry.getAttribute('position')?.count || 0);
+    if (!total) return;
+
+    // Evaluator already assigns material 1 to surfaces originating from the cutter.
+    // Only repair malformed/empty groups; do not flatten valid CSG groups.
+    const valid = geometry.groups && geometry.groups.some(g =>
+        g.count > 0 && (g.materialIndex === 0 || g.materialIndex === 1)
+    );
+    if (!valid) {
+        geometry.clearGroups();
+        geometry.addGroup(0, total, 0);
+    }
+}
+
 function replaceStellaFromBrush(resultBrush) {
     const newGeometry = resultBrush.geometry;
+    preserveCSGMaterialGroups(newGeometry);
     newGeometry.computeVertexNormals();
     newGeometry.computeBoundingBox();
     newGeometry.computeBoundingSphere();
@@ -1837,15 +1855,26 @@ function cutterRotationY() {
     return activeCutSide === 'front' ? 0 : Math.PI;
 }
 
+function getSafeCutDepth() {
+    const requested = Math.max(0.001, readSlider('inp-cd', 0.05));
+    const stoneDepth = Math.max(0.002, params.depth);
+    // Всегда оставляем каменный слой между дном кармана и противоположной
+    // поверхностью. 85% — максимальная глубина именно для CSG-инструмента.
+    return Math.min(requested, stoneDepth * 0.85);
+}
+
 function computeCutZCenter() {
     const czo = readSlider('inp-czo', 0);
-    const cd = readSlider('inp-cd', 0.05);
+    const cd = getSafeCutDepth();
     const half = params.depth / 2;
+    const surfaceEpsilon = Math.min(0.001, params.depth * 0.01);
 
+    // Верх резца немного выходит за лицевую/оборотную поверхность.
+    // Это убирает coplanar-ситуацию CSG, но резец не может дойти до другой стороны.
     if (activeCutSide === 'front') {
-        return half - cd / 2 + czo / 100;
+        return half - cd / 2 + surfaceEpsilon + czo / 100;
     } else {
-        return -half + cd / 2 - czo / 100;
+        return -half + cd / 2 - surfaceEpsilon - czo / 100;
     }
 }
 
@@ -1853,7 +1882,7 @@ function updateCutZHint() {
     const hint = document.getElementById('cut-z-hint');
     if (!hint) return;
 
-    const cd = readSlider('inp-cd', 0.05);
+    const cd = getSafeCutDepth();
     const zCenter = computeCutZCenter();
     const front = params.depth / 2;
     const back = -params.depth / 2;
@@ -2009,15 +2038,16 @@ function buildBaseCutGeometry(cd) {
     let bevelSize = 0;
     let bevelSegments = 1;
 
+    const remainingDepth = Math.max(0.001, params.depth - cd);
     if (profile === 'v') {
         bevelEnabled = true;
-        bevelThickness = cd * 0.5;
-        bevelSize = (widthM * 200) / 200 * 0.5; // половина ширины в метрах
+        bevelThickness = Math.min(cd * 0.18, remainingDepth * 0.40);
+        bevelSize = Math.min(widthM * 0.5, Math.max(0.0005, cd * 0.35));
         bevelSegments = 1;
     } else if (profile === 'u') {
         bevelEnabled = true;
-        bevelThickness = cd * 0.3;
-        bevelSize = (widthM * 200) / 200 * 0.3;
+        bevelThickness = Math.min(cd * 0.12, remainingDepth * 0.30);
+        bevelSize = Math.min(widthM * 0.30, Math.max(0.0005, cd * 0.25));
         bevelSegments = 3;
     }
 
