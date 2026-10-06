@@ -445,7 +445,7 @@ button.preset-btn { font-size: 11px; padding: 5px 8px; }
             </select>
 
             <label>Ширина шва: <span class="val" id="val-cut-width">0.010</span> м</label>
-            <input type="range" id="inp-cut-width" min="0.001" max="0.010" step="0.001" value="0.010">
+            <input type="range" id="inp-cut-width" min="0.001" max="0.030" step="0.001" value="0.005">
 
             <div id="outer-frame-options" style="display:none;">
                 <label>Зазор от фигуры: <span class="val" id="val-frame-gap">0.000</span> м</label>
@@ -2390,13 +2390,9 @@ function showContourIn3D() {
                 roughness: 0.7, metalness: 0, side: THREE.DoubleSide, depthWrite: false
             });
             cutPreviewMesh = new THREE.Mesh(geo, mat);
-            if (document.getElementById('sel-cut-type')?.value === 'normal') {
-                cutPreviewMesh.position.set(mirrorX(cx), cy, zCenter);
-                cutPreviewMesh.scale.set(cs, cs, 1);
-            } else {
-                cutPreviewMesh.position.set(0, 0, zCenter);
-                cutPreviewMesh.scale.set(1, 1, 1);
-            }
+            const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
+            cutPreviewMesh.position.set(mirrorX(cx), cy, zCenter);
+            cutPreviewMesh.scale.set(isFrameOperation ? 1 : cs, isFrameOperation ? 1 : cs, 1);
             cutPreviewMesh.rotation.set(0, ry, mirrorRot(rot) * Math.PI / 180);
             scene.add(cutPreviewMesh);
         } else {
@@ -2409,13 +2405,9 @@ function showContourIn3D() {
             cutPreviewGroup = new THREE.Group();
             instances.forEach(inst => {
                 const m = new THREE.Mesh(baseGeo.clone(), mat);
-                if (document.getElementById('sel-cut-type')?.value === 'normal') {
-                    m.position.set(mirrorX(inst.x), inst.y, zCenter);
-                    m.scale.set(cs, cs, 1);
-                } else {
-                    m.position.set(mirrorX(inst.x), inst.y, zCenter);
-                    m.scale.set(1, 1, 1);
-                }
+                const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
+                m.position.set(mirrorX(inst.x), inst.y, zCenter);
+                m.scale.set(isFrameOperation ? 1 : cs, isFrameOperation ? 1 : cs, 1);
                 m.rotation.set(0, ry, mirrorRot(inst.rot) * Math.PI / 180);
                 cutPreviewGroup.add(m);
             });
@@ -2780,8 +2772,10 @@ document.getElementById('btn-cut').addEventListener('click', () => {
     cutGeo.computeBoundingBox();
 
     const bb = cutGeo.boundingBox;
-    const cutW = (bb.max.x - bb.min.x) * cs;
-    const cutH = (bb.max.y - bb.min.y) * cs;
+    const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
+    const effectiveScale = isFrameOperation ? 1 : cs;
+    const cutW = (bb.max.x - bb.min.x) * effectiveScale;
+    const cutH = (bb.max.y - bb.min.y) * effectiveScale;
 
     if ((cutW > params.width * 0.95 || cutH > params.height * 0.95) &&
         !confirm(`⚠️ Фигура (${cutW.toFixed(2)}×${cutH.toFixed(2)} м) почти со стелу. Продолжить?`)) {
@@ -2791,7 +2785,7 @@ document.getElementById('btn-cut').addEventListener('click', () => {
     const cutter = createCutterBrush(
         cutGeo,
         new THREE.Vector3(mirrorX(cx), cy, zCenter),
-        new THREE.Vector3(cs, cs, 1),
+        new THREE.Vector3(effectiveScale, effectiveScale, 1),
         mirrorRot(rot) * Math.PI / 180,
         ry
     );
@@ -2833,6 +2827,8 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
     const baseGeo = buildBaseCutGeometry(cd);
     baseGeo.computeVertexNormals();
 
+    const isFrameOperation = document.getElementById('sel-cut-type')?.value !== 'normal';
+    const effectiveScale = isFrameOperation ? 1 : cs;
     const instances = generatePatternInstances(cx, cy, rot);
 
     const cutters = instances.map(inst => {
@@ -2840,7 +2836,7 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
         return createCutterBrush(
             cutGeo,
             new THREE.Vector3(mirrorX(inst.x), inst.y, zCenter),
-            new THREE.Vector3(cs, cs, 1),
+            new THREE.Vector3(effectiveScale, effectiveScale, 1),
             mirrorRot(inst.rot) * Math.PI / 180,
             ry
         );
@@ -2858,7 +2854,8 @@ document.getElementById('btn-apply-pattern').addEventListener('click', () => {
         const baseGeoCopy = buildBaseCutGeometry(cd);
         baseGeoCopy.computeBoundingBox();
         const bb = baseGeoCopy.boundingBox;
-        const areaOne = (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) * cs * cs;
+        const effectiveScale = document.getElementById('sel-cut-type')?.value !== 'normal' ? 1 : cs;
+        const areaOne = (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) * effectiveScale * effectiveScale;
         baseGeoCopy.dispose();
 
         for (let i = 0; i < success; i++) {
