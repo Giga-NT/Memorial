@@ -1,0 +1,2907 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Каменная Слобода - CNC PRO</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+    --bg-dark: #1e1e1e;
+    --panel-bg: #252526;
+    --text-main: #d4d4d4;
+    --accent: #007acc;
+    --border: #3e3e42;
+    --danger: #f44336;
+    --success: #4caf50;
+    --brush-color: #ff9800;
+    --canvas-bg: #1e1e1e;
+    --canvas-border: #3e3e42;
+    --input-bg: #3c3c3c;
+    --input-text: #ffffff;
+    --info-bg: rgba(0, 0, 0, 0.7);
+    --info-text: #d4d4d4;
+    --price-bg: #1a2a1a;
+    --price-accent: #4caf50;
+}
+body.light-theme {
+    --bg-dark: #f5f5f5;
+    --panel-bg: #ffffff;
+    --text-main: #333333;
+    --accent: #1976d2;
+    --border: #cccccc;
+    --danger: #d32f2f;
+    --success: #388e3c;
+    --brush-color: #f57c00;
+    --canvas-bg: #fafafa;
+    --canvas-border: #999999;
+    --input-bg: #ffffff;
+    --input-text: #333333;
+    --info-bg: rgba(255, 255, 255, 0.9);
+    --info-text: #333333;
+    --price-bg: #e8f5e9;
+    --price-accent: #2e7d32;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    display: flex;
+    height: 100vh;
+    transition: background-color 0.3s, color 0.3s;
+}
+#sidebar {
+    width: 100%;
+    max-width: 420px;
+    background-color: var(--panel-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 10px;
+    flex-shrink: 0;
+    height: 100vh;
+}
+@media (max-width: 768px) {
+    #sidebar {
+        position: absolute;
+        z-index: 100;
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    #sidebar.open { transform: translateX(0); }
+    #mobile-menu-btn { display: block !important; }
+}
+#mobile-menu-btn {
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 101;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+h2, h3 { margin: 10px 0 5px 0; font-weight: 500; font-size: 15px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.control-group { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; color: var(--text-main); }
+label span.val { color: var(--accent); font-weight: bold; }
+input[type="range"] { width: 100%; cursor: pointer; background: var(--input-bg); height: 4px; border-radius: 2px; margin-bottom: 8px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+select, input[type="number"], input[type="text"] {
+    width: 100%; padding: 5px; background: var(--input-bg); border: 1px solid var(--border); color: var(--input-text); border-radius: 3px; margin-bottom: 6px;
+}
+input[type="number"] { width: 60px; text-align: center; display: inline-block; }
+input[type="color"] { width: 100%; height: 32px; border: 1px solid var(--border); border-radius: 3px; background: var(--input-bg); cursor: pointer; padding: 2px; }
+button {
+    background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--border);
+    padding: 6px 10px; cursor: pointer; border-radius: 3px; font-size: 12px;
+    transition: background 0.2s; margin: 2px; flex: 1;
+}
+button:hover { background-color: var(--accent); color: #fff; }
+button.primary { background-color: var(--accent); border-color: var(--accent); color: #fff; }
+button.active-tool { background-color: var(--brush-color); border-color: var(--brush-color); color: #000; font-weight: bold; }
+button.danger { background-color: var(--danger); border-color: var(--danger); color: #fff; }
+button.success { background-color: var(--success); border-color: var(--success); color: #fff; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.preset-btn { font-size: 11px; padding: 5px 8px; }
+.btn-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+#canvas-container { flex-grow: 1; position: relative; background: var(--canvas-bg); }
+#info-overlay {
+    position: absolute; top: 10px; left: 10px; background: var(--info-bg);
+    padding: 10px; border-radius: 5px; pointer-events: none; font-size: 11px; z-index: 5; line-height: 1.4;
+    color: var(--info-text);
+}
+#draw-canvas, #profile-canvas {
+    background-color: var(--canvas-bg); border: 2px dashed var(--canvas-border); border-radius: 4px;
+    cursor: crosshair; display: block; margin-bottom: 8px; touch-action: none;
+    width: 100%; height: 200px;
+}
+.draw-instructions { font-size: 11px; color: var(--text-main); background: var(--input-bg); padding: 6px; border-radius: 4px; margin-bottom: 8px; line-height: 1.3; opacity: 0.85; }
+#status-bar { font-size: 12px; color: var(--text-main); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); opacity: 0.8; }
+.color-toggle-btn {
+    background-color: var(--input-bg); border: 1px solid var(--border); color: var(--input-text);
+    padding: 6px 10px; cursor: pointer; border-radius: 3px; font-size: 12px;
+    transition: background 0.2s; margin: 2px; flex: 1;
+}
+.color-toggle-btn:hover { background-color: var(--accent); color: #fff; }
+.color-toggle-btn.active { background-color: var(--success); border-color: var(--success); color: #fff; }
+.color-toggle-btn.inactive { background-color: var(--danger); border-color: var(--danger); color: #fff; }
+.text-line-item {
+    background: var(--input-bg); padding: 8px; border-radius: 4px; margin-bottom: 6px; border-left: 3px solid var(--accent);
+}
+.text-line-item.back-side { border-left-color: #ff9800; }
+.text-line-item .line-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.text-line-item .line-header span { font-size: 11px; color: var(--text-main); opacity: 0.7; }
+.text-line-item .line-controls { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.text-line-item .line-controls input[type="text"] { flex: 2; min-width: 80px; margin-bottom: 0; }
+.text-line-item .line-controls input[type="number"] { width: 50px; margin-bottom: 0; padding: 3px; }
+.text-line-item .line-controls label { font-size: 10px; margin: 0; align-items: center; gap: 2px; display: flex; justify-content: flex-start; }
+.text-line-item .line-controls label input { width: 45px; }
+.text-line-item .line-controls .del-line-btn { background-color: var(--danger); border-color: var(--danger); flex: 0 0 auto; padding: 4px 8px; font-size: 11px; color: #fff; }
+#text-lines-container { max-height: 250px; overflow-y: auto; margin-bottom: 8px; }
+.file-input-wrapper { position: relative; overflow: hidden; display: inline-block; flex: 1; }
+.file-input-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.file-input-wrapper button { width: 100%; cursor: pointer; }
+.import-status { font-size: 11px; color: var(--success); padding: 4px; margin-top: 4px; background: var(--input-bg); border-radius: 3px; text-align: center; }
+.shape-btn { flex: 0 0 auto; padding: 4px 8px; font-size: 16px; background: var(--input-bg); border: 1px solid var(--border); }
+.shape-btn:hover { background: var(--accent); color: #fff; }
+#loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8); z-index: 9999;
+    display: none; justify-content: center; align-items: center; flex-direction: column;
+}
+#loading-overlay.active { display: flex; }
+.spinner {
+    width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid var(--accent);
+    border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.loading-text { color: white; font-size: 14px; }
+.profile-section {
+    background: var(--input-bg);
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+.profile-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: var(--accent);
+}
+.theme-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: var(--input-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+.theme-switch label {
+    margin: 0;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-start;
+}
+.theme-switch input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+    transform: scale(1.3);
+}
+.theme-switch .theme-icon { font-size: 16px; }
+#cut-z-hint {
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    text-align: center;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+#price-display {
+    background: var(--price-bg);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+.price-row .price-label { opacity: 0.75; }
+.price-row .price-value { font-weight: 500; }
+.price-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--price-accent);
+    border-top: 2px solid var(--price-accent);
+    padding-top: 8px;
+    margin-top: 8px;
+}
+.price-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    opacity: 0.8;
+    margin-bottom: 6px;
+}
+.side-switch {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 4px;
+    background: var(--input-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+.side-switch .side-label {
+    font-size: 11px;
+    opacity: 0.7;
+    align-self: center;
+    padding: 0 6px;
+}
+.side-switch button {
+    margin: 0;
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 11px;
+}
+</style>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "three-bvh-csg": "https://unpkg.com/three-bvh-csg@0.0.16/build/index.module.js",
+        "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js"
+    }
+}
+</script>
+</head>
+<body>
+
+<button id="mobile-menu-btn">☰ Меню</button>
+
+<div id="sidebar">
+    <h2>🛠️ Каменная Слобода CNC PRO</h2>
+
+    <div class="theme-switch">
+        <span class="theme-icon">🌙</span>
+        <label>
+            <input type="checkbox" id="theme-toggle">
+            <span>Светлая тема</span>
+        </label>
+        <span class="theme-icon">☀️</span>
+    </div>
+
+    <div class="control-group">
+        <h3>💾 Проект</h3>
+        <div class="btn-row">
+            <button id="btn-save-project" class="primary">💾 Сохранить JSON</button>
+            <div class="file-input-wrapper">
+                <button>📂 Загрузить JSON</button>
+                <input type="file" id="file-load-project" accept=".json">
+            </div>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <h3>🎨 Редактор профиля (Вид сбоку)</h3>
+        <div class="draw-instructions">
+            <b>Полигон:</b> клик по канвасу — точка.<br>
+            <b>Правка:</b> ПКМ по точке — удалить.<br>
+            <b>Создание:</b> минимум 3 точки.
+        </div>
+        <canvas id="profile-canvas" width="300" height="200"></canvas>
+        <div class="btn-row">
+            <button id="btn-profile-clear" class="danger">🗑️ Очистить</button>
+        </div>
+        <div class="profile-section">
+            <h4>📐 Параметры профиля</h4>
+            <label>Толщина стелы: <span class="val" id="val-profile-d">0.12</span> м</label>
+            <input type="range" id="inp-profile-depth" min="0.05" max="0.3" step="0.01" value="0.12">
+        </div>
+        <div class="btn-row">
+            <button id="btn-create-from-profile" class="success" disabled>✅ Создать стелу из профиля</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <h3>📐 Стандартные формы</h3>
+        <label>Форма верха:
+            <select id="sel-top-shape">
+                <option value="flat">Прямая</option>
+                <option value="arch">Арка (полукруг)</option>
+                <option value="gable">Домик (треугольная)</option>
+                <option value="cross">Крест</option>
+                <option value="heart">Сердце</option>
+                <option value="oval">Овал</option>
+            </select>
+        </label>
+        <label>Высота: <span class="val" id="val-h">1.40</span> м</label>
+        <input type="range" id="inp-height" min="0.5" max="2.5" step="0.05" value="1.4">
+        <label>Ширина: <span class="val" id="val-w">0.80</span> м</label>
+        <input type="range" id="inp-width" min="0.4" max="1.5" step="0.05" value="0.8">
+        <label>Толщина: <span class="val" id="val-d">0.12</span> м</label>
+        <input type="range" id="inp-depth" min="0.05" max="0.3" step="0.01" value="0.12">
+        <label>Радиус кромки: <span class="val" id="val-bevel">0.01</span> м</label>
+        <input type="range" id="inp-bevel" min="0.0" max="0.05" step="0.005" value="0.01">
+    </div>
+
+    <div class="control-group">
+        <h3>🎨 Материал стелы</h3>
+        <select id="sel-material">
+            <option value="granite_black">Гранит чёрный (полированный)</option>
+            <option value="granite_gray">Гранит серый</option>
+            <option value="granite_red">Гранит красный</option>
+            <option value="marble_white">Мрамор белый</option>
+            <option value="bronze">Бронза (накладка)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <h3>📂 Импорт модели</h3>
+        <div class="btn-row">
+            <div class="file-input-wrapper">
+                <button class="primary">📂 Импорт STL/GLB</button>
+                <input type="file" id="file-input" accept=".stl,.glb,.gltf">
+            </div>
+            <button id="btn-export-stl" class="success">📦 Экспорт STL</button>
+        </div>
+        <div id="import-status" class="import-status">Готов к импорту</div>
+    </div>
+
+    <div class="control-group">
+        <h3>✏️ Контур выреза (2D)</h3>
+
+        <div class="side-switch">
+            <span class="side-label">Сторона:</span>
+            <button id="btn-side-front" class="active-tool">⬜ Лицо</button>
+            <button id="btn-side-back">⬛ Оборот</button>
+        </div>
+
+        <div class="draw-instructions">
+            <b>Полигон:</b> клик — точка, тяните точку — двигается.<br>
+            <b>Кисть:</b> зажмите ЛКМ и ведите — мазок замкнётся.<br>
+            <b>Ластик:</b> клик по точке — удалить.<br>
+            <b>Фигуры:</b> клик — вставить готовую форму.
+        </div>
+
+        <label>Толщина кисти: <span class="val" id="val-brush">6</span> px</label>
+        <input type="range" id="inp-brush" min="2" max="30" step="1" value="6">
+
+        <canvas id="draw-canvas" width="300" height="200"></canvas>
+        <div class="btn-row">
+            <button id="btn-mode-poly" class="active-tool">⬡ Полигон</button>
+            <button id="btn-mode-brush">🖌️ Кисть</button>
+            <button id="btn-mode-eraser">🧹 Ластик</button>
+        </div>
+        <div class="btn-row" style="margin-top: 4px;">
+            <span style="font-size: 10px; color: var(--text-main); opacity: 0.7;">Фигуры:</span>
+            <button class="shape-btn" data-shape="circle">⭕</button>
+            <button class="shape-btn" data-shape="square">⬜</button>
+            <button class="shape-btn" data-shape="triangle">🔺</button>
+            <button class="shape-btn" data-shape="star">⭐</button>
+            <button class="shape-btn" data-shape="heart">❤️</button>
+            <button class="shape-btn" data-shape="cross">✝️</button>
+        </div>
+        <div class="btn-row" style="margin-top: 5px;">
+            <button id="btn-draw-clear" class="danger">🗑️ Сброс</button>
+            <button id="btn-draw-finish" class="success" disabled>✅ Показать 3D контур</button>
+        </div>
+    </div>
+
+    <div class="control-group" id="csg-tools" style="display: none;">
+        <h3>⚙️ Параметры выреза</h3>
+        <div class="draw-instructions" style="color: #ff9800;">
+            💡 Настройте положение и нажмите "ВЫРЕЗАТЬ"
+        </div>
+        <label>Позиция X: <span class="val" id="val-cx">0.00</span> м</label>
+        <input type="range" id="inp-cx" min="-0.5" max="0.5" step="0.01" value="0">
+        <label>Позиция Y (от низа): <span class="val" id="val-cy">0.70</span> м</label>
+        <input type="range" id="inp-cy" min="0" max="2.0" step="0.01" value="0.7">
+        <label>Масштаб: <span class="val" id="val-cs">0.40</span></label>
+        <input type="range" id="inp-cs" min="0.1" max="1.5" step="0.01" value="0.4">
+
+        <label>Поворот выреза: <span class="val" id="val-rot">0</span>°</label>
+        <input type="range" id="inp-rot" min="0" max="360" step="5" value="0">
+
+        <label>Смещение Z (усл.): <span class="val" id="val-czo">0.0</span> (-5…+5)</label>
+        <input type="range" id="inp-czo" min="-5" max="5" step="0.1" value="0">
+
+        <label>Глубина выреза (м): <span class="val" id="val-cd">0.05</span> м</label>
+        <input type="range" id="inp-cd" min="0.005" max="0.30" step="0.005" value="0.05">
+
+        <div id="cut-z-hint">—</div>
+
+        <div class="btn-row" style="margin-top:8px;">
+            <button id="btn-cut" class="danger">✂️ ВЫРЕЗАТЬ (CSG)</button>
+            <button id="btn-reset-mesh">↺ Сброс модели</button>
+            <button id="btn-undo" disabled>↶ Отменить</button>
+        </div>
+
+        <div class="btn-row" style="margin-top:5px;">
+            <span style="font-size: 10px; color: var(--text-main); opacity: 0.7;">Пресеты:</span>
+            <button id="preset-clear" class="preset-btn">Без вырезов</button>
+            <button id="preset-shallow" class="preset-btn">Неглубокий</button>
+            <button id="preset-deep" class="preset-btn">Глубокий</button>
+            <button id="preset-through" class="preset-btn">Сквозной</button>
+        </div>
+    </div>
+
+    <div class="control-group" id="pattern-tools" style="display: none;">
+        <h3>🔁 Массив и поворот</h3>
+        <div class="draw-instructions">
+            💡 Размножьте вырез: зеркально, по кругу, сеткой или линией.
+        </div>
+
+        <label>Тип массива:</label>
+        <select id="sel-pattern">
+            <option value="single">Одиночный</option>
+            <option value="mirror-x">Зеркало по X (←→)</option>
+            <option value="mirror-y">Зеркало по Y (↑↓)</option>
+            <option value="mirror-xy">Зеркало по XY (4 шт)</option>
+            <option value="circle">По кругу</option>
+            <option value="grid">Сетка</option>
+            <option value="line-x">Линия по X</option>
+            <option value="line-y">Линия по Y</option>
+        </select>
+
+        <div id="pattern-options" style="display: none;">
+            <label id="lbl-pattern-count" style="display: none;">Количество копий: <span class="val" id="val-pcount">3</span></label>
+            <input type="range" id="inp-pcount" min="2" max="12" step="1" value="3" style="display: none;">
+
+            <label id="lbl-pattern-cols" style="display: none;">Столбцов: <span class="val" id="val-pcols">2</span></label>
+            <input type="range" id="inp-pcols" min="2" max="6" step="1" value="2" style="display: none;">
+
+            <label id="lbl-pattern-rows" style="display: none;">Строк: <span class="val" id="val-prows">2</span></label>
+            <input type="range" id="inp-prows" min="2" max="6" step="1" value="2" style="display: none;">
+
+            <label id="lbl-pattern-step" style="display: none;">Шаг (м): <span class="val" id="val-pstep">0.20</span></label>
+            <input type="range" id="inp-pstep" min="0.05" max="0.50" step="0.01" value="0.20" style="display: none;">
+
+            <label id="lbl-pattern-radius" style="display: none;">Радиус круга (м): <span class="val" id="val-pradius">0.20</span></label>
+            <input type="range" id="inp-pradius" min="0.05" max="0.50" step="0.01" value="0.20" style="display: none;">
+        </div>
+
+        <div class="btn-row" style="margin-top:8px;">
+            <button id="btn-preview-pattern" class="primary">👁️ Показать массив</button>
+            <button id="btn-apply-pattern" class="danger">✂️ ВЫРЕЗАТЬ МАССИВ</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <h3>🔤 Многострочная гравировка</h3>
+
+        <div class="side-switch">
+            <span class="side-label">Сторона:</span>
+            <button id="btn-text-side-front" class="active-tool">⬜ Лицо</button>
+            <button id="btn-text-side-back">⬛ Оборот</button>
+        </div>
+
+        <div id="text-lines-container"></div>
+        <div class="btn-row" style="margin-bottom: 8px;">
+            <button id="btn-add-line" class="primary" style="flex: 0 0 auto; padding: 4px 12px;">➕ Добавить строку</button>
+            <button id="btn-clear-lines" class="danger" style="flex: 0 0 auto; padding: 4px 12px;">🗑️ Очистить все</button>
+        </div>
+        <div class="btn-row">
+            <label style="flex:1">Глубина (м): <input type="number" id="inp-text-depth" value="0.008" step="0.001" min="0.001" max="0.100"></label>
+            <label style="flex:1">Смещение Z (м): <input type="number" id="inp-text-z" value="0.000" step="0.001"></label>
+        </div>
+        <div class="btn-row" style="margin-top: 8px; background: var(--input-bg); padding: 6px; border-radius: 4px; flex-wrap: wrap;">
+            <label style="flex:1; align-items: center; gap: 8px; min-width: 120px;">
+                <span>Цвет заполнения:</span>
+                <input type="color" id="inp-text-color" value="#FFD700">
+            </label>
+            <button id="btn-toggle-color" class="color-toggle-btn active" style="flex: 0 0 auto; min-width: 100px;">🎨 Цвет: Вкл</button>
+        </div>
+        <div class="btn-row" style="margin-top:5px;">
+            <button id="btn-text-preview" class="primary">👁️ Предпросмотр в 3D</button>
+        </div>
+        <div class="btn-row">
+            <button id="btn-engrave-text" class="success" disabled>✂️ ВЫГРАВИРОВАТЬ</button>
+            <button id="btn-text-cancel" class="danger" disabled>Отмена</button>
+        </div>
+    </div>
+
+    <div class="control-group" style="border-top: 2px solid var(--accent); padding-top: 10px; border-bottom: none;">
+        <h3>💰 Стоимость изделия</h3>
+
+        <div id="price-display">
+            <div class="price-header">
+                <span>Вес: <span id="price-weight">— кг</span></span>
+                <span>Объём: <span id="price-volume">— л</span></span>
+            </div>
+
+            <div class="price-row">
+                <span class="price-label">Материал:</span>
+                <span class="price-value" id="price-material">— ₽</span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Полировка:</span>
+                <span class="price-value" id="price-polish">— ₽</span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Формообразование:</span>
+                <span class="price-value" id="price-shaping">— ₽</span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Вырезы (<span id="price-cuts-count">0</span> шт, лицо: <span id="price-cuts-front">0</span>, оборот: <span id="price-cuts-back">0</span>):</span>
+                <span class="price-value" id="price-cuts">— ₽</span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Гравировка (<span id="price-chars">0</span> симв., лицо: <span id="price-chars-front">0</span>, оборот: <span id="price-chars-back">0</span>):</span>
+                <span class="price-value" id="price-engrave">— ₽</span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Подготовка:</span>
+                <span class="price-value" id="price-setup">— ₽</span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Доставка + установка:</span>
+                <span class="price-value" id="price-delivery">— ₽</span>
+            </div>
+
+            <div class="price-total">
+                <span>ИТОГО:</span>
+                <span id="price-total">— ₽</span>
+            </div>
+        </div>
+
+        <div class="btn-row" style="margin-top: 8px;">
+            <button id="btn-reset-cuts" class="danger" style="flex: 0 0 auto;">🗑️ Сброс вырезов</button>
+            <button id="btn-export-quote" class="primary" style="flex: 1;">📄 Скачать смету</button>
+        </div>
+
+        <div class="draw-instructions" style="margin-top: 6px; font-size: 10px;">
+            💡 Цены ориентировочные. Точная стоимость — после согласования макета.
+        </div>
+    </div>
+
+    <div id="status-bar">✅ Готово к работе</div>
+</div>
+
+<div id="canvas-container">
+    <div id="info-overlay">
+        <b>Управление:</b><br>
+        ЛКМ: Вращение | ПКМ: Панорама | Колесо: Зум<br>
+        <span style="color:#4caf50">Зеленая сетка = уровень пола (Y=0)</span>
+    </div>
+</div>
+
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">Обработка...</div>
+</div>
+
+<script type="module">
+/* ============================================================
+   0. HELPERS
+   ============================================================ */
+
+const log = (m) => console.log(`[CNC] ${m}`);
+
+function readSlider(id, fallback) {
+    const el = document.getElementById(id);
+    if (!el) return fallback;
+    const v = parseFloat(el.value);
+    return isNaN(v) ? fallback : v;
+}
+
+function setStatus(msg) {
+    document.getElementById('status-bar').textContent = msg;
+}
+
+function showLoading(show, text = 'Обработка...') {
+    document.getElementById('loading-overlay').classList.toggle('active', show);
+    document.getElementById('loading-text').textContent = text;
+}
+
+/* ============================================================
+   1. IMPORTS
+   ============================================================ */
+
+log('Загрузка модулей...');
+
+let THREE, OrbitControls, TransformControls, STLExporter, STLLoader, GLTFLoader, FontLoader, TextGeometry;
+let Brush, Evaluator, SUBTRACTION;
+
+try {
+    THREE = await import('three');
+    log(`three rev ${THREE.REVISION}`);
+} catch (e) { log(`three: ${e.message}`); throw e; }
+
+try { ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js')); }
+catch (e) { log(`OrbitControls: ${e.message}`); }
+
+try { ({ TransformControls } = await import('three/addons/controls/TransformControls.js')); }
+catch (e) { log(`TransformControls: ${e.message}`); }
+
+try { ({ STLExporter } = await import('three/addons/exporters/STLExporter.js')); }
+catch (e) { log(`STLExporter: ${e.message}`); }
+
+try { ({ STLLoader } = await import('three/addons/loaders/STLLoader.js')); }
+catch (e) { log(`STLLoader: ${e.message}`); }
+
+try { ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js')); }
+catch (e) { log(`GLTFLoader: ${e.message}`); }
+
+try { ({ FontLoader } = await import('three/addons/loaders/FontLoader.js')); }
+catch (e) { log(`FontLoader: ${e.message}`); }
+
+try { ({ TextGeometry } = await import('three/addons/geometries/TextGeometry.js')); }
+catch (e) { log(`TextGeometry: ${e.message}`); }
+
+let csgAvailable = false;
+try {
+    const csgModule = await import('three-bvh-csg');
+    Brush = csgModule.Brush;
+    Evaluator = csgModule.Evaluator;
+    SUBTRACTION = csgModule.SUBTRACTION;
+    csgAvailable = true;
+    log('three-bvh-csg загружен');
+} catch (e) { log(`three-bvh-csg: ${e.message}`); }
+
+/* ============================================================
+   2. DATABASE / PRICING
+   ============================================================ */
+
+const MATERIALS_DB = {
+    granite_black: { name: 'Гранит чёрный (полир.)', density: 2700, pricePerKg: 30, polishFront: 3500, polishSide: 2000, cutCoeff: 1.0 },
+    granite_gray:  { name: 'Гранит серый',            density: 2700, pricePerKg: 20, polishFront: 2500, polishSide: 1500, cutCoeff: 1.0 },
+    granite_red:   { name: 'Гранит красный',          density: 2700, pricePerKg: 28, polishFront: 3200, polishSide: 1800, cutCoeff: 1.0 },
+    marble_white:  { name: 'Мрамор белый',            density: 2600, pricePerKg: 45, polishFront: 5000, polishSide: 3000, cutCoeff: 1.3 },
+    bronze:        { name: 'Бронза (накладка)',       density: 8500, pricePerKg: 800, polishFront: 0,   polishSide: 0,    cutCoeff: 3.0 }
+};
+
+const SHAPE_COEFF = { flat: 1.0, arch: 1.3, gable: 1.4, cross: 1.8, heart: 2.5, oval: 1.2 };
+
+const PRICING = {
+    cutPerM3: 5000,
+    textPerChar: 200,
+    setupFee: 3000,
+    deliveryFee: 12000
+};
+
+/* ============================================================
+   3. STATE
+   ============================================================ */
+
+const params = {
+    height: 1.4,
+    width: 0.8,
+    depth: 0.12,
+    bevel: 0.01,
+    topShape: 'flat',
+    material: 'granite_black',
+    profileDepth: 0.12
+};
+
+let stellaMesh = null;
+let cutPreviewMesh = null;
+let cutPreviewGroup = null;
+let loadedFont = null;
+let isImportedModel = false;
+let importedGroup = null;
+let isCustomProfile = false;
+
+let textLines = [];
+let textLineMeshes = [];
+let colorEnabled = true;
+let lineIdCounter = 0;
+
+let cutHistory = [];
+let undoStack = [];
+
+let activeCutSide = 'front';   // 'front' | 'back'
+let activeTextSide = 'front';  // 'front' | 'back'
+
+/* ============================================================
+   4. THEME
+   ============================================================ */
+
+const themeToggle = document.getElementById('theme-toggle');
+
+if (localStorage.getItem('cnc-theme') === 'light') {
+    document.body.classList.add('light-theme');
+    themeToggle.checked = true;
+}
+
+themeToggle.addEventListener('change', () => {
+    if (themeToggle.checked) {
+        document.body.classList.add('light-theme');
+        localStorage.setItem('cnc-theme', 'light');
+    } else {
+        document.body.classList.remove('light-theme');
+        localStorage.setItem('cnc-theme', 'dark');
+    }
+    updateSceneBackground();
+    redrawProfile();
+    redrawDrawCanvas();
+});
+
+const isLightTheme = () => document.body.classList.contains('light-theme');
+
+/* ============================================================
+   5. THREE SCENE
+   ============================================================ */
+
+const container = document.getElementById('canvas-container');
+
+const scene = new THREE.Scene();
+
+let gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
+scene.add(gridHelper);
+
+const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x0a0a0a, side: THREE.DoubleSide })
+);
+plane.rotation.x = -Math.PI / 2;
+plane.position.y = -0.001;
+scene.add(plane);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5, 10, 7);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 100);
+camera.position.set(2.5, 2, 3);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.target.set(0, 1, 0);
+
+function updateSceneBackground() {
+    const bgColor = isLightTheme() ? 0xf0f0f0 : 0x111111;
+    const gridColor1 = isLightTheme() ? 0xaaaaaa : 0x444444;
+    const gridColor2 = isLightTheme() ? 0xcccccc : 0x222222;
+    const planeColor = isLightTheme() ? 0xe8e8e8 : 0x0a0a0a;
+
+    scene.background = new THREE.Color(bgColor);
+    plane.material.color.setHex(planeColor);
+
+    scene.remove(gridHelper);
+    gridHelper.geometry.dispose();
+    gridHelper.material.dispose();
+    gridHelper = new THREE.GridHelper(10, 10, gridColor1, gridColor2);
+    scene.add(gridHelper);
+}
+
+/* ============================================================
+   6. MATERIALS
+   ============================================================ */
+
+const materials = {
+    granite_black: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.2 }),
+    granite_gray:  new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.3, metalness: 0.1 }),
+    granite_red:   new THREE.MeshStandardMaterial({ color: 0x8a3324, roughness: 0.2, metalness: 0.1 }),
+    marble_white:  new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.1, metalness: 0.05 }),
+    bronze:        new THREE.MeshStandardMaterial({ color: 0xcd7f32, roughness: 0.4, metalness: 0.8 })
+};
+
+const roughCutMaterial = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 1.0, metalness: 0.0, flatShading: true });
+const roughCutMarbleMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.95, metalness: 0.0, flatShading: true });
+const roughCutBronzeMaterial = new THREE.MeshStandardMaterial({ color: 0x8c5a20, roughness: 0.85, metalness: 0.4, flatShading: true });
+
+function getRoughMaterial(key) {
+    if (key === 'marble_white') return roughCutMarbleMaterial;
+    if (key === 'bronze') return roughCutBronzeMaterial;
+    return roughCutMaterial;
+}
+
+function getCSGMaterials() {
+    return [materials[params.material], getRoughMaterial(params.material)];
+}
+
+/* ============================================================
+   7. SAFE DISPOSE
+   ============================================================ */
+
+function disposeNode(node, disposeMaterials = true) {
+    if (!node) return;
+    if (node.geometry) node.geometry.dispose();
+    if (disposeMaterials && node.material) {
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach(mat => {
+            if (mat && mat.map) mat.map.dispose();
+            if (mat) mat.dispose();
+        });
+    }
+}
+
+function disposeStellaMesh(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry) mesh.geometry.dispose();
+    scene.remove(mesh);
+}
+
+function clearCutPreview() {
+    if (cutPreviewMesh) {
+        scene.remove(cutPreviewMesh);
+        disposeNode(cutPreviewMesh, true);
+        cutPreviewMesh = null;
+    }
+    if (cutPreviewGroup) {
+        let sharedMaterial = null;
+        cutPreviewGroup.traverse(node => {
+            if (node.isMesh) {
+                if (node.material) sharedMaterial = node.material;
+                if (node.geometry) node.geometry.dispose();
+            }
+        });
+        scene.remove(cutPreviewGroup);
+        if (sharedMaterial) sharedMaterial.dispose();
+        cutPreviewGroup = null;
+    }
+}
+
+/* ============================================================
+   8. CSG EVALUATOR
+   ============================================================ */
+
+const evaluator = new Evaluator();
+evaluator.attributes = ['position', 'normal'];
+evaluator.useGroups = true;
+evaluator.consolidateGroups = true;
+evaluator.removeUnusedMaterials = false;
+
+/**
+ * Приводим геометрию к "безопасному" виду для CSG:
+ *   - удаляем UV и все атрибуты кроме position/normal
+ *   - гарантируем наличие normal
+ *   - оставляем одну группу materialIndex 0
+ *
+ * Это критично: three-bvh-csg падает с "Cannot read properties
+ * of undefined (reading 'array')", если у brush'ей разные наборы
+ * атрибутов (у стелы есть uv, у каттера — нет).
+ */
+function normalizeForCSG(geometry, materialIndex) {
+    const keep = ['position', 'normal'];
+    const toRemove = [];
+    for (const name in geometry.attributes) {
+        if (!keep.includes(name)) toRemove.push(name);
+    }
+    toRemove.forEach(name => geometry.deleteAttribute(name));
+
+    if (!geometry.getAttribute('normal')) {
+        geometry.computeVertexNormals();
+    }
+
+    geometry.clearGroups();
+    const index = geometry.getIndex();
+    if (index) {
+        geometry.addGroup(0, index.count, materialIndex);
+    } else {
+        const pos = geometry.getAttribute('position');
+        geometry.addGroup(0, pos.count, materialIndex);
+    }
+
+    return geometry;
+}
+
+function createStellaBrush() {
+    const geometry = stellaMesh.geometry.clone();
+    normalizeForCSG(geometry, 0);
+    geometry.computeVertexNormals();
+
+    const brush = new Brush(geometry);
+    brush.material = getCSGMaterials();
+    brush.position.copy(stellaMesh.position);
+    brush.quaternion.copy(stellaMesh.quaternion);
+    brush.scale.copy(stellaMesh.scale);
+    brush.updateMatrixWorld(true);
+    return brush;
+}
+
+function createCutterBrush(geometry, position, scale, rotationZ, rotationY = 0) {
+    normalizeForCSG(geometry, 0);
+
+    const brush = new Brush(geometry);
+    brush.material = getRoughMaterial(params.material);
+    brush.position.copy(position);
+    brush.scale.copy(scale);
+    brush.rotation.set(0, rotationY, rotationZ);
+    brush.updateMatrixWorld(true);
+    return brush;
+}
+
+function replaceStellaFromBrush(resultBrush) {
+    const newGeometry = resultBrush.geometry;
+    newGeometry.computeVertexNormals();
+    newGeometry.computeBoundingBox();
+    newGeometry.computeBoundingSphere();
+
+    if (!newGeometry.groups || newGeometry.groups.length === 0) {
+        newGeometry.clearGroups();
+        const index = newGeometry.getIndex();
+        if (index) newGeometry.addGroup(0, index.count, 0);
+        else {
+            const pos = newGeometry.getAttribute('position');
+            newGeometry.addGroup(0, pos.count, 0);
+        }
+    }
+
+    if (stellaMesh) {
+        scene.remove(stellaMesh);
+        if (stellaMesh.geometry) stellaMesh.geometry.dispose();
+    }
+
+    stellaMesh = new THREE.Mesh(newGeometry, getCSGMaterials());
+    stellaMesh.castShadow = true;
+    stellaMesh.receiveShadow = true;
+    scene.add(stellaMesh);
+    return stellaMesh;
+}
+
+/* ============================================================
+   9. TRANSFORM CONTROLS / FONT
+   ============================================================ */
+
+const transformControl = new TransformControls(camera, renderer.domElement);
+transformControl.addEventListener('dragging-changed', e => {
+    controls.enabled = !e.value;
+});
+transformControl.showX = true;
+transformControl.showY = true;
+transformControl.showZ = false;
+scene.add(transformControl);
+
+const fontLoader = new FontLoader();
+fontLoader.load(
+    'https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json',
+    font => {
+        loadedFont = font;
+        document.getElementById('btn-text-preview').disabled = false;
+        log('Шрифт загружен');
+    },
+    undefined,
+    err => log(`Шрифт: ${err.message || err}`)
+);
+
+/* ============================================================
+   10. MODEL MANAGEMENT
+   ============================================================ */
+
+function removeCurrentModel() {
+    if (importedGroup) {
+        importedGroup.traverse(node => { if (node.isMesh) disposeNode(node, true); });
+        scene.remove(importedGroup);
+        importedGroup = null;
+    }
+    if (stellaMesh) {
+        disposeStellaMesh(stellaMesh);
+        stellaMesh = null;
+    }
+    clearCutPreview();
+
+    textLineMeshes.forEach(m => {
+        if (m.mesh) {
+            scene.remove(m.mesh);
+            disposeNode(m.mesh, true);
+        }
+    });
+    textLineMeshes = [];
+
+    if (transformControl.object) transformControl.detach();
+
+    isImportedModel = false;
+    isCustomProfile = false;
+}
+
+/* ============================================================
+   11. STELLA GEOMETRY
+   ============================================================ */
+
+function createStellaShape() {
+    const shape = new THREE.Shape();
+    const w = params.width;
+    const h = params.height;
+    const hw = w / 2;
+    const hh = h / 2;
+
+    switch (params.topShape) {
+        case 'flat':
+            shape.moveTo(-hw, 0);
+            shape.lineTo(-hw, h);
+            shape.lineTo(hw, h);
+            shape.lineTo(hw, 0);
+            break;
+
+        case 'arch':
+            shape.moveTo(-hw, 0);
+            shape.lineTo(-hw, h);
+            shape.absarc(0, h, hw, Math.PI, 0, false);
+            shape.lineTo(hw, 0);
+            break;
+
+        case 'gable':
+            shape.moveTo(-hw, 0);
+            shape.lineTo(-hw, h);
+            shape.lineTo(0, h + w * 0.3);
+            shape.lineTo(hw, h);
+            shape.lineTo(hw, 0);
+            break;
+
+        case 'cross': {
+            const cw = w * 0.15;
+            const ch = h * 0.25;
+            shape.moveTo(-cw, 0);
+            shape.lineTo(-cw, h - ch);
+            shape.lineTo(-hw, h - ch);
+            shape.lineTo(-hw, h);
+            shape.lineTo(-cw, h);
+            shape.lineTo(-cw, h + ch);
+            shape.lineTo(cw, h + ch);
+            shape.lineTo(cw, h);
+            shape.lineTo(hw, h);
+            shape.lineTo(hw, h - ch);
+            shape.lineTo(cw, h - ch);
+            shape.lineTo(cw, 0);
+            break;
+        }
+
+        case 'heart': {
+            const scale = Math.min(w, h) / 2;
+            for (let i = 0; i <= 20; i++) {
+                const t = (i / 20) * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3) * scale / 20;
+                const y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * scale / 20;
+                if (i === 0) shape.moveTo(x, y + hh);
+                else shape.lineTo(x, y + hh);
+            }
+            break;
+        }
+
+        case 'oval': {
+            const rx = hw;
+            const ry = hh * 0.9;
+            for (let i = 0; i <= 40; i++) {
+                const t = (i / 40) * Math.PI * 2;
+                const x = rx * Math.cos(t);
+                const y = ry * Math.sin(t) + hh;
+                if (i === 0) shape.moveTo(x, y);
+                else shape.lineTo(x, y);
+            }
+            break;
+        }
+
+        default:
+            shape.moveTo(-hw, 0);
+            shape.lineTo(-hw, h);
+            shape.lineTo(hw, h);
+            shape.lineTo(hw, 0);
+    }
+
+    shape.closePath();
+    return shape;
+}
+
+function createStella() {
+    log(`createStella: ${params.topShape}`);
+    removeCurrentModel();
+
+    const shape = createStellaShape();
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+        steps: 1,
+        depth: params.depth,
+        bevelEnabled: params.bevel > 0,
+        bevelThickness: params.bevel,
+        bevelSize: params.bevel,
+        bevelSegments: 3,
+        curveSegments: 12
+    });
+
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    geometry.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+
+    stellaMesh = new THREE.Mesh(geometry, materials[params.material]);
+    stellaMesh.castShadow = true;
+    stellaMesh.receiveShadow = true;
+    scene.add(stellaMesh);
+
+    undoStack = [];
+    document.getElementById('btn-undo').disabled = true;
+    updatePriceDisplay();
+}
+
+function createStellaFromProfile(profilePoints) {
+    if (!profilePoints || profilePoints.length < 3) return;
+    removeCurrentModel();
+
+    const shape = new THREE.Shape();
+    shape.moveTo(profilePoints[0].x, profilePoints[0].y);
+    for (let i = 1; i < profilePoints.length; i++) {
+        shape.lineTo(profilePoints[i].x, profilePoints[i].y);
+    }
+    shape.closePath();
+
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+        steps: 1,
+        depth: params.profileDepth,
+        bevelEnabled: false
+    });
+
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    geometry.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+
+    stellaMesh = new THREE.Mesh(geometry, materials[params.material]);
+    stellaMesh.castShadow = true;
+    stellaMesh.receiveShadow = true;
+    scene.add(stellaMesh);
+
+    isCustomProfile = true;
+    undoStack = [];
+    document.getElementById('btn-undo').disabled = true;
+    updatePriceDisplay();
+}
+
+/* ============================================================
+   12. PROFILE CANVAS
+   ============================================================ */
+
+const profileCanvas = document.getElementById('profile-canvas');
+const profileCtx = profileCanvas.getContext('2d');
+let profilePoints = [];
+
+function getProfileCanvasPos(e) {
+    const rect = profileCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (profileCanvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (profileCanvas.height / rect.height);
+    return { x: (x / 100) - 1.5, y: (profileCanvas.height - y) / 100, canvasX: x, canvasY: y };
+}
+
+function redrawProfile() {
+    profileCtx.clearRect(0, 0, profileCanvas.width, profileCanvas.height);
+
+    const gridColor = isLightTheme() ? '#dddddd' : '#333333';
+    const axisColor = isLightTheme() ? '#888888' : '#555555';
+
+    profileCtx.strokeStyle = gridColor;
+    profileCtx.lineWidth = 1;
+    for (let i = 0; i < profileCanvas.width; i += 50) {
+        profileCtx.beginPath();
+        profileCtx.moveTo(i, 0);
+        profileCtx.lineTo(i, profileCanvas.height);
+        profileCtx.stroke();
+    }
+    for (let i = 0; i < profileCanvas.height; i += 50) {
+        profileCtx.beginPath();
+        profileCtx.moveTo(0, i);
+        profileCtx.lineTo(profileCanvas.width, i);
+        profileCtx.stroke();
+    }
+
+    profileCtx.strokeStyle = axisColor;
+    profileCtx.lineWidth = 2;
+    profileCtx.beginPath();
+    profileCtx.moveTo(0, profileCanvas.height);
+    profileCtx.lineTo(profileCanvas.width, profileCanvas.height);
+    profileCtx.stroke();
+
+    if (profilePoints.length > 0) {
+        profileCtx.strokeStyle = '#007acc';
+        profileCtx.lineWidth = 3;
+        profileCtx.fillStyle = 'rgba(0,122,204,0.2)';
+
+        profileCtx.beginPath();
+        profileCtx.moveTo(profilePoints[0].canvasX, profilePoints[0].canvasY);
+        for (let i = 1; i < profilePoints.length; i++) {
+            profileCtx.lineTo(profilePoints[i].canvasX, profilePoints[i].canvasY);
+        }
+        profileCtx.closePath();
+        profileCtx.stroke();
+        profileCtx.fill();
+
+        profilePoints.forEach((p, i) => {
+            profileCtx.fillStyle = i === 0 ? '#4caf50' : '#ff9800';
+            profileCtx.beginPath();
+            profileCtx.arc(p.canvasX, p.canvasY, 5, 0, Math.PI * 2);
+            profileCtx.fill();
+        });
+    }
+}
+
+profileCanvas.addEventListener('mousedown', e => {
+    if (e.button === 2) return;
+    profilePoints.push(getProfileCanvasPos(e));
+    redrawProfile();
+    if (profilePoints.length >= 3) {
+        document.getElementById('btn-create-from-profile').disabled = false;
+    }
+});
+
+profileCanvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (profilePoints.length > 0) {
+        profilePoints.pop();
+        redrawProfile();
+        if (profilePoints.length < 3) {
+            document.getElementById('btn-create-from-profile').disabled = true;
+        }
+    }
+});
+
+document.getElementById('btn-profile-clear').addEventListener('click', () => {
+    profilePoints = [];
+    redrawProfile();
+    document.getElementById('btn-create-from-profile').disabled = true;
+});
+
+document.getElementById('btn-create-from-profile').addEventListener('click', () => {
+    if (profilePoints.length >= 3) createStellaFromProfile(profilePoints);
+});
+
+/* ============================================================
+   13. DRAW CANVAS (2D CONTOUR)
+   ============================================================ */
+
+const drawCanvas = document.getElementById('draw-canvas');
+const drawCtx = drawCanvas.getContext('2d');
+
+let drawPoints = [];
+let drawMode = 'poly';
+let isDrawing = false;
+let brushPath = [];
+let dragPointIndex = -1;
+let hoverPointIndex = -1;
+
+const POINT_RADIUS = 5;
+const HIT_RADIUS = 12;
+
+function getDrawCanvasPos(e) {
+    const rect = drawCanvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) * (drawCanvas.width / rect.width),
+        y: (e.clientY - rect.top) * (drawCanvas.height / rect.height)
+    };
+}
+
+function findPointNear(pos) {
+    for (let i = drawPoints.length - 1; i >= 0; i--) {
+        const p = drawPoints[i];
+        if (Math.hypot(p.x - pos.x, p.y - pos.y) < HIT_RADIUS) return i;
+    }
+    return -1;
+}
+
+function redrawDrawCanvas() {
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+    drawCtx.save();
+    drawCtx.strokeStyle = activeCutSide === 'front' ? '#00d9ff' : '#ff9800';
+    drawCtx.lineWidth = 4;
+    drawCtx.strokeRect(2, 2, drawCanvas.width - 4, drawCanvas.height - 4);
+    drawCtx.restore();
+
+    if (drawPoints.length === 0 && brushPath.length === 0) return;
+
+    if (drawPoints.length >= 2) {
+        drawCtx.beginPath();
+        drawCtx.moveTo(drawPoints[0].x, drawPoints[0].y);
+        for (let i = 1; i < drawPoints.length; i++) {
+            drawCtx.lineTo(drawPoints[i].x, drawPoints[i].y);
+        }
+        drawCtx.closePath();
+
+        drawCtx.strokeStyle = '#00d9ff';
+        drawCtx.lineWidth = 2;
+        drawCtx.stroke();
+
+        if (drawPoints.length >= 3) {
+            drawCtx.globalAlpha = 0.15;
+            drawCtx.fillStyle = '#00d9ff';
+            drawCtx.fill();
+            drawCtx.globalAlpha = 1;
+        }
+    }
+
+    for (let i = 0; i < drawPoints.length; i++) {
+        const p = drawPoints[i];
+        drawCtx.beginPath();
+        drawCtx.arc(p.x, p.y, POINT_RADIUS, 0, Math.PI * 2);
+        drawCtx.fillStyle = i === hoverPointIndex ? '#ffffff' : '#00d9ff';
+        drawCtx.fill();
+        drawCtx.strokeStyle = '#111';
+        drawCtx.lineWidth = 1;
+        drawCtx.stroke();
+
+        drawCtx.font = '11px Arial';
+        drawCtx.fillStyle = '#ffffff';
+        drawCtx.fillText(String(i + 1), p.x + 8, p.y - 8);
+    }
+
+    if (isDrawing && brushPath.length >= 2) {
+        drawCtx.beginPath();
+        drawCtx.moveTo(brushPath[0].x, brushPath[0].y);
+        for (let i = 1; i < brushPath.length; i++) {
+            drawCtx.lineTo(brushPath[i].x, brushPath[i].y);
+        }
+        drawCtx.strokeStyle = '#ffcc00';
+        drawCtx.lineWidth = readSlider('inp-brush', 6);
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+        drawCtx.stroke();
+    }
+}
+
+drawCanvas.addEventListener('mousedown', e => {
+    const pos = getDrawCanvasPos(e);
+    const hitIdx = findPointNear(pos);
+
+    if (drawMode === 'eraser') {
+        if (hitIdx >= 0) {
+            drawPoints.splice(hitIdx, 1);
+            dragPointIndex = -1;
+            hoverPointIndex = -1;
+            if (drawPoints.length < 3) {
+                document.getElementById('btn-draw-finish').disabled = true;
+            }
+            redrawDrawCanvas();
+            if (cutPreviewMesh || cutPreviewGroup) {
+                if (drawPoints.length >= 3) showContourIn3D();
+                else clearCutPreview();
+            }
+            setStatus(`🗑️ Точка #${hitIdx + 1} удалена`);
+        } else {
+            setStatus('🧹 Наведите на точку для удаления');
+        }
+        return;
+    }
+
+    if (drawMode === 'poly') {
+        if (hitIdx >= 0) {
+            dragPointIndex = hitIdx;
+            drawCanvas.style.cursor = 'grabbing';
+            setStatus(`✏️ Тяните точку #${hitIdx + 1}`);
+            return;
+        }
+        drawPoints.push({ x: pos.x, y: pos.y });
+        if (drawPoints.length >= 3) {
+            document.getElementById('btn-draw-finish').disabled = false;
+        }
+        redrawDrawCanvas();
+        setStatus(`➕ Точка ${drawPoints.length}`);
+        return;
+    }
+
+    if (drawMode === 'brush') {
+        isDrawing = true;
+        brushPath = [{ x: pos.x, y: pos.y }];
+        redrawDrawCanvas();
+        setStatus('🖌️ Рисование кистью');
+    }
+});
+
+drawCanvas.addEventListener('mousemove', e => {
+    const pos = getDrawCanvasPos(e);
+
+    if (dragPointIndex >= 0) {
+        drawPoints[dragPointIndex] = { x: pos.x, y: pos.y };
+        redrawDrawCanvas();
+        if (cutPreviewMesh || cutPreviewGroup) showContourIn3D();
+        return;
+    }
+
+    if (isDrawing && drawMode === 'brush') {
+        brushPath.push({ x: pos.x, y: pos.y });
+        redrawDrawCanvas();
+        return;
+    }
+
+    const newHover = findPointNear(pos);
+    if (newHover !== hoverPointIndex) {
+        hoverPointIndex = newHover;
+        drawCanvas.style.cursor = newHover >= 0 ? 'grab' : 'crosshair';
+        redrawDrawCanvas();
+    }
+});
+
+drawCanvas.addEventListener('mouseup', () => {
+    if (dragPointIndex >= 0) {
+        dragPointIndex = -1;
+        drawCanvas.style.cursor = 'crosshair';
+        redrawDrawCanvas();
+        setStatus('✅ Точка перемещена');
+        return;
+    }
+
+    if (!isDrawing || drawMode !== 'brush') return;
+
+    isDrawing = false;
+
+    if (brushPath.length < 3) {
+        brushPath = [];
+        redrawDrawCanvas();
+        return;
+    }
+
+    const simplified = simplifyPath(brushPath, 2.5);
+    const brushWidth = readSlider('inp-brush', 6);
+
+    const leftSide = [];
+    const rightSide = [];
+
+    for (let i = 0; i < simplified.length; i++) {
+        const p = simplified[i];
+        let dx, dy;
+
+        if (i === 0) {
+            dx = simplified[1].x - p.x;
+            dy = simplified[1].y - p.y;
+        } else if (i === simplified.length - 1) {
+            dx = p.x - simplified[i - 1].x;
+            dy = p.y - simplified[i - 1].y;
+        } else {
+            dx = simplified[i + 1].x - simplified[i - 1].x;
+            dy = simplified[i + 1].y - simplified[i - 1].y;
+        }
+
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        leftSide.push({ x: p.x + nx * brushWidth / 2, y: p.y + ny * brushWidth / 2 });
+        rightSide.push({ x: p.x - nx * brushWidth / 2, y: p.y - ny * brushWidth / 2 });
+    }
+
+    drawPoints = [...leftSide, ...rightSide.reverse()];
+    brushPath = [];
+
+    redrawDrawCanvas();
+
+    if (drawPoints.length >= 3) {
+        document.getElementById('btn-draw-finish').disabled = false;
+    }
+
+    setStatus(`🖌️ Кисть: ${drawPoints.length} точек`);
+});
+
+drawCanvas.addEventListener('mouseleave', () => {
+    if (isDrawing && drawMode === 'brush') {
+        isDrawing = false;
+        brushPath = [];
+        redrawDrawCanvas();
+    }
+    if (dragPointIndex >= 0) {
+        dragPointIndex = -1;
+        drawCanvas.style.cursor = 'crosshair';
+        redrawDrawCanvas();
+    }
+    hoverPointIndex = -1;
+});
+
+/* ---- PATH HELPERS ---- */
+
+function simplifyPath(points, tolerance) {
+    if (points.length < 3) return points;
+
+    let maxDist = 0;
+    let index = 0;
+    const end = points.length - 1;
+    const start = points[0];
+    const last = points[end];
+
+    for (let i = 1; i < end; i++) {
+        const d = perpendicularDistance(points[i], start, last);
+        if (d > maxDist) {
+            maxDist = d;
+            index = i;
+        }
+    }
+
+    if (maxDist > tolerance) {
+        const left = simplifyPath(points.slice(0, index + 1), tolerance);
+        const right = simplifyPath(points.slice(index), tolerance);
+        return left.slice(0, -1).concat(right);
+    }
+
+    return [start, last];
+}
+
+function perpendicularDistance(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    return Math.abs((p.x - a.x) * dy - (p.y - a.y) * dx) / len;
+}
+
+/* ---- DRAW UI ---- */
+
+document.getElementById('btn-draw-clear').addEventListener('click', () => {
+    drawPoints = [];
+    brushPath = [];
+    isDrawing = false;
+    redrawDrawCanvas();
+    document.getElementById('btn-draw-finish').disabled = true;
+    clearCutPreview();
+});
+
+['poly', 'brush', 'eraser'].forEach(mode => {
+    const btn = document.getElementById('btn-mode-' + mode);
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+        drawMode = mode;
+        dragPointIndex = -1;
+        hoverPointIndex = -1;
+        isDrawing = false;
+        brushPath = [];
+
+        ['poly', 'brush', 'eraser'].forEach(m => {
+            const b = document.getElementById('btn-mode-' + m);
+            if (b) b.classList.remove('active-tool');
+        });
+        btn.classList.add('active-tool');
+        drawCanvas.style.cursor = 'crosshair';
+        redrawDrawCanvas();
+        setStatus(`Режим: ${mode === 'poly' ? 'Полигон' : mode === 'brush' ? 'Кисть' : 'Ластик'}`);
+    });
+});
+
+document.querySelectorAll('.shape-btn').forEach(btn => {
+    btn.addEventListener('click', () => insertShape(btn.dataset.shape));
+});
+
+function insertShape(shape) {
+    const cx = drawCanvas.width / 2;
+    const cy = drawCanvas.height / 2;
+    const r = 60;
+
+    drawPoints = [];
+
+    switch (shape) {
+        case 'circle':
+            for (let i = 0; i < 32; i++) {
+                const t = (i / 32) * Math.PI * 2;
+                drawPoints.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) });
+            }
+            break;
+
+        case 'square':
+            drawPoints = [
+                { x: cx - r, y: cy - r },
+                { x: cx + r, y: cy - r },
+                { x: cx + r, y: cy + r },
+                { x: cx - r, y: cy + r }
+            ];
+            break;
+
+        case 'triangle':
+            for (let i = 0; i < 3; i++) {
+                const t = (i / 3) * Math.PI * 2 - Math.PI / 2;
+                drawPoints.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) });
+            }
+            break;
+
+        case 'star':
+            for (let i = 0; i < 10; i++) {
+                const t = (i / 10) * Math.PI * 2 - Math.PI / 2;
+                const rad = i % 2 === 0 ? r : r * 0.4;
+                drawPoints.push({ x: cx + rad * Math.cos(t), y: cy + rad * Math.sin(t) });
+            }
+            break;
+
+        case 'heart':
+            for (let i = 0; i <= 30; i++) {
+                const t = (i / 30) * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+                drawPoints.push({ x: cx + x * 2.5, y: cy + y * 2.5 });
+            }
+            break;
+
+        case 'cross': {
+            const cw = r * 0.3;
+            const ch = r * 0.8;
+            drawPoints = [
+                { x: cx - cw, y: cy - ch },
+                { x: cx + cw, y: cy - ch },
+                { x: cx + cw, y: cy - cw },
+                { x: cx + ch, y: cy - cw },
+                { x: cx + ch, y: cy + cw },
+                { x: cx + cw, y: cy + cw },
+                { x: cx + cw, y: cy + ch },
+                { x: cx - cw, y: cy + ch },
+                { x: cx - cw, y: cy + cw },
+                { x: cx - ch, y: cy + cw },
+                { x: cx - ch, y: cy - cw },
+                { x: cx - cw, y: cy - cw }
+            ];
+            break;
+        }
+    }
+
+    redrawDrawCanvas();
+
+    if (drawPoints.length >= 3) {
+        document.getElementById('btn-draw-finish').disabled = false;
+    }
+
+    setStatus(`✅ Фигура: ${shape}`);
+}
+
+/* ============================================================
+   13.5. SIDE SWITCHERS
+   ============================================================ */
+
+document.getElementById('btn-side-front').addEventListener('click', () => {
+    activeCutSide = 'front';
+    document.getElementById('btn-side-front').classList.add('active-tool');
+    document.getElementById('btn-side-back').classList.remove('active-tool');
+    redrawDrawCanvas();
+    updateCutZHint();
+    if (drawPoints.length >= 3) showContourIn3D();
+    setStatus('⬜ Активна лицевая сторона');
+});
+
+document.getElementById('btn-side-back').addEventListener('click', () => {
+    activeCutSide = 'back';
+    document.getElementById('btn-side-back').classList.add('active-tool');
+    document.getElementById('btn-side-front').classList.remove('active-tool');
+    redrawDrawCanvas();
+    updateCutZHint();
+    if (drawPoints.length >= 3) showContourIn3D();
+    setStatus('⬛ Активна оборотная сторона');
+});
+
+document.getElementById('btn-text-side-front').addEventListener('click', () => {
+    activeTextSide = 'front';
+    document.getElementById('btn-text-side-front').classList.add('active-tool');
+    document.getElementById('btn-text-side-back').classList.remove('active-tool');
+    setStatus('⬜ Текст: лицевая сторона');
+});
+
+document.getElementById('btn-text-side-back').addEventListener('click', () => {
+    activeTextSide = 'back';
+    document.getElementById('btn-text-side-back').classList.add('active-tool');
+    document.getElementById('btn-text-side-front').classList.remove('active-tool');
+    setStatus('⬛ Текст: оборотная сторона');
+});
+
+/* ============================================================
+   14. CUT Z + GEOMETRY
+   ============================================================ */
+
+function mirrorX(v) {
+    return activeCutSide === 'front' ? v : -v;
+}
+
+function mirrorRot(deg) {
+    return activeCutSide === 'front' ? deg : -deg;
+}
+
+function cutterRotationY() {
+    return activeCutSide === 'front' ? 0 : Math.PI;
+}
+
+function computeCutZCenter() {
+    const czo = readSlider('inp-czo', 0);
+    const cd = readSlider('inp-cd', 0.05);
+    const half = params.depth / 2;
+
+    if (activeCutSide === 'front') {
+        return half - cd / 2 + czo / 100;
+    } else {
+        return -half + cd / 2 - czo / 100;
+    }
+}
+
+function updateCutZHint() {
+    const hint = document.getElementById('cut-z-hint');
+    if (!hint) return;
+
+    const cd = readSlider('inp-cd', 0.05);
+    const zCenter = computeCutZCenter();
+    const front = params.depth / 2;
+    const back = -params.depth / 2;
+
+    const zMin = zCenter - cd / 2;
+    const zMax = zCenter + cd / 2;
+
+    const ovMin = Math.max(zMin, back);
+    const ovMax = Math.min(zMax, front);
+    const depth = Math.max(0, ovMax - ovMin);
+
+    const sideLabel = activeCutSide === 'front' ? 'лицо' : 'оборот';
+
+    if (depth <= 0.0001) {
+        hint.textContent = `⚠️ Фигура не касается стелы (${sideLabel}) — выреза не будет`;
+        hint.style.background = 'rgba(244,67,54,0.25)';
+        hint.style.color = '#f44336';
+    } else if (depth >= params.depth - 0.0001) {
+        hint.textContent = `🔴 СКВОЗНОЙ ВЫРЕЗ (${(depth * 1000).toFixed(0)} мм)`;
+        hint.style.background = 'rgba(244,67,54,0.25)';
+        hint.style.color = '#f44336';
+    } else {
+        hint.textContent = `✅ Глубина (${sideLabel}): ${(depth * 1000).toFixed(1)} мм`;
+        hint.style.background = 'rgba(76,175,80,0.25)';
+        hint.style.color = '#4caf50';
+    }
+}
+
+function toMeters(p) {
+    return {
+        x: (p.x - drawCanvas.width / 2) / 200,
+        y: (drawCanvas.height / 2 - p.y) / 200
+    };
+}
+
+function buildBaseCutGeometry(cd) {
+    const shape = new THREE.Shape();
+    const first = toMeters(drawPoints[0]);
+    shape.moveTo(first.x, first.y);
+
+    for (let i = 1; i < drawPoints.length; i++) {
+        const m = toMeters(drawPoints[i]);
+        shape.lineTo(m.x, m.y);
+    }
+    shape.closePath();
+
+    const geo = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: cd, bevelEnabled: false });
+    geo.computeBoundingBox();
+    geo.translate(0, 0, -cd / 2);
+    geo.computeBoundingBox();
+
+    const bb = geo.boundingBox;
+    geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    return geo;
+}
+
+/* ============================================================
+   15. PATTERN
+   ============================================================ */
+
+function generatePatternInstances(baseX, baseY, baseRot) {
+    const pattern = document.getElementById('sel-pattern').value;
+    const instances = [];
+
+    const pcount = readSlider('inp-pcount', 3);
+    const pcols = readSlider('inp-pcols', 2);
+    const prows = readSlider('inp-prows', 2);
+    const pstep = readSlider('inp-pstep', 0.2);
+    const pradius = readSlider('inp-pradius', 0.2);
+
+    switch (pattern) {
+        case 'single':
+            instances.push({ x: baseX, y: baseY, rot: baseRot });
+            break;
+
+        case 'mirror-x':
+            instances.push({ x: baseX, y: baseY, rot: baseRot });
+            instances.push({ x: -baseX, y: baseY, rot: -baseRot });
+            break;
+
+        case 'mirror-y': {
+            const midY = params.height / 2;
+            instances.push({ x: baseX, y: baseY, rot: baseRot });
+            instances.push({ x: baseX, y: 2 * midY - baseY, rot: -baseRot });
+            break;
+        }
+
+        case 'mirror-xy': {
+            const midY2 = params.height / 2;
+            instances.push({ x: baseX, y: baseY, rot: baseRot });
+            instances.push({ x: -baseX, y: baseY, rot: -baseRot });
+            instances.push({ x: baseX, y: 2 * midY2 - baseY, rot: -baseRot });
+            instances.push({ x: -baseX, y: 2 * midY2 - baseY, rot: baseRot });
+            break;
+        }
+
+        case 'circle':
+            for (let i = 0; i < pcount; i++) {
+                const angle = (i / pcount) * Math.PI * 2 - Math.PI / 2;
+                instances.push({
+                    x: baseX + pradius * Math.cos(angle),
+                    y: baseY + pradius * Math.sin(angle),
+                    rot: baseRot + angle * 180 / Math.PI
+                });
+            }
+            break;
+
+        case 'grid': {
+            const totalW = (pcols - 1) * pstep;
+            const totalH = (prows - 1) * pstep;
+            for (let r = 0; r < prows; r++) {
+                for (let c = 0; c < pcols; c++) {
+                    instances.push({
+                        x: baseX - totalW / 2 + c * pstep,
+                        y: baseY - totalH / 2 + r * pstep,
+                        rot: baseRot
+                    });
+                }
+            }
+            break;
+        }
+
+        case 'line-x':
+            for (let i = 0; i < pcount; i++) {
+                instances.push({
+                    x: baseX - (pcount - 1) * pstep / 2 + i * pstep,
+                    y: baseY,
+                    rot: baseRot
+                });
+            }
+            break;
+
+        case 'line-y':
+            for (let i = 0; i < pcount; i++) {
+                instances.push({
+                    x: baseX,
+                    y: baseY - (pcount - 1) * pstep / 2 + i * pstep,
+                    rot: baseRot
+                });
+            }
+            break;
+    }
+
+    return instances;
+}
+
+/* ============================================================
+   16. 3D CUT PREVIEW
+   ============================================================ */
+
+function showContourIn3D() {
+    if (drawPoints.length < 3) return;
+    clearCutPreview();
+
+    try {
+        const cx = readSlider('inp-cx', 0);
+        const cy = readSlider('inp-cy', 0.7);
+        const cs = readSlider('inp-cs', 0.4);
+        const cd = readSlider('inp-cd', 0.05);
+        const rot = readSlider('inp-rot', 0);
+        const zCenter = computeCutZCenter();
+        const ry = cutterRotationY();
+
+        document.getElementById('pattern-tools').style.display = 'block';
+
+        const pattern = document.getElementById('sel-pattern').value;
+
+        if (pattern === 'single') {
+            const geo = buildBaseCutGeometry(cd);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xff2222, transparent: true, opacity: 0.4,
+                roughness: 0.7, metalness: 0, side: THREE.DoubleSide, depthWrite: false
+            });
+            cutPreviewMesh = new THREE.Mesh(geo, mat);
+            cutPreviewMesh.position.set(mirrorX(cx), cy, zCenter);
+            cutPreviewMesh.scale.set(cs, cs, 1);
+            cutPreviewMesh.rotation.set(0, ry, mirrorRot(rot) * Math.PI / 180);
+            scene.add(cutPreviewMesh);
+        } else {
+            const baseGeo = buildBaseCutGeometry(cd);
+            const instances = generatePatternInstances(cx, cy, rot);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xff2222, transparent: true, opacity: 0.35,
+                roughness: 0.7, metalness: 0, side: THREE.DoubleSide, depthWrite: false
+            });
+            cutPreviewGroup = new THREE.Group();
+            instances.forEach(inst => {
+                const m = new THREE.Mesh(baseGeo.clone(), mat);
+                m.position.set(mirrorX(inst.x), inst.y, zCenter);
+                m.scale.set(cs, cs, 1);
+                m.rotation.set(0, ry, mirrorRot(inst.rot) * Math.PI / 180);
+                cutPreviewGroup.add(m);
+            });
+            scene.add(cutPreviewGroup);
+            setStatus(`✅ Массив (${activeCutSide === 'front' ? 'лицо' : 'оборот'}): ${instances.length} копий`);
+        }
+
+        document.getElementById('csg-tools').style.display = 'block';
+        updateCutZHint();
+    } catch (e) {
+        log(`Ошибка превью: ${e.message}`);
+    }
+}
+
+document.getElementById('btn-draw-finish').addEventListener('click', showContourIn3D);
+
+['inp-cx', 'inp-cy', 'inp-cs', 'inp-czo', 'inp-cd', 'inp-rot'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('input', e => {
+        const val = parseFloat(e.target.value);
+        const span = document.getElementById(id.replace('inp-', 'val-'));
+        if (span) {
+            if (id === 'inp-czo') span.textContent = val.toFixed(1);
+            else if (id === 'inp-rot') span.textContent = val.toFixed(0);
+            else span.textContent = val.toFixed(2);
+        }
+        updateCutZHint();
+        if (drawPoints.length >= 3) showContourIn3D();
+    });
+});
+
+/* ============================================================
+   17. PATTERN UI
+   ============================================================ */
+
+function updatePatternUI() {
+    const pattern = document.getElementById('sel-pattern').value;
+
+    ['lbl-pattern-count', 'inp-pcount', 'lbl-pattern-cols', 'inp-pcols',
+     'lbl-pattern-rows', 'inp-prows', 'lbl-pattern-step', 'inp-pstep',
+     'lbl-pattern-radius', 'inp-pradius'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    const opts = document.getElementById('pattern-options');
+    opts.style.display = pattern === 'single' ? 'none' : 'block';
+
+    const show = (...ids) => ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+
+    switch (pattern) {
+        case 'circle':
+            show('lbl-pattern-count', 'inp-pcount', 'lbl-pattern-radius', 'inp-pradius');
+            break;
+        case 'grid':
+            show('lbl-pattern-cols', 'inp-pcols', 'lbl-pattern-rows', 'inp-prows', 'lbl-pattern-step', 'inp-pstep');
+            break;
+        case 'line-x':
+        case 'line-y':
+            show('lbl-pattern-count', 'inp-pcount', 'lbl-pattern-step', 'inp-pstep');
+            break;
+    }
+}
+
+document.getElementById('sel-pattern').addEventListener('change', () => {
+    updatePatternUI();
+    if (drawPoints.length >= 3) showContourIn3D();
+});
+
+['inp-pcount', 'inp-pcols', 'inp-prows', 'inp-pstep', 'inp-pradius'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('input', e => {
+        const span = document.getElementById(id.replace('inp-', 'val-'));
+        if (span) span.textContent = e.target.value;
+        if (drawPoints.length >= 3) showContourIn3D();
+    });
+});
+
+document.getElementById('btn-preview-pattern').addEventListener('click', showContourIn3D);
+
+/* ============================================================
+   18. UNDO
+   ============================================================ */
+
+function pushUndo() {
+    if (!stellaMesh) return;
+    undoStack.push({ geometry: stellaMesh.geometry.clone() });
+    if (undoStack.length > 10) undoStack.shift();
+    document.getElementById('btn-undo').disabled = false;
+}
+
+document.getElementById('btn-undo').addEventListener('click', () => {
+    if (undoStack.length === 0) return;
+
+    const state = undoStack.pop();
+    disposeStellaMesh(stellaMesh);
+
+    const hasGroups = state.geometry.groups && state.geometry.groups.length > 0;
+    stellaMesh = new THREE.Mesh(
+        state.geometry,
+        hasGroups ? getCSGMaterials() : materials[params.material]
+    );
+    stellaMesh.castShadow = true;
+    stellaMesh.receiveShadow = true;
+    scene.add(stellaMesh);
+
+    document.getElementById('btn-undo').disabled = undoStack.length === 0;
+    setStatus('↶ Отменено');
+});
+
+/* ============================================================
+   19. CSG OPERATIONS
+   ============================================================ */
+
+function runCSG(cutters, label, onSuccess) {
+    if (!csgAvailable || !stellaMesh) return false;
+
+    showLoading(true, label);
+    pushUndo();
+
+    try {
+        let brush = createStellaBrush();
+        let success = 0;
+
+        cutters.forEach((c, idx) => {
+            try {
+                brush = evaluator.evaluate(brush, c, SUBTRACTION);
+                success++;
+            } catch (e) {
+                log(`CSG #${idx + 1}: ${e.message}`);
+            }
+        });
+
+        if (success === 0) {
+            undoStack.pop();
+            setStatus('⚠️ Ни один вырез не выполнен');
+            showLoading(false);
+            return false;
+        }
+
+        const vCount = brush.geometry.getAttribute('position').count;
+        if (vCount < 12) {
+            undoStack.pop();
+            setStatus('⚠️ Модель уничтожена, откат');
+            showLoading(false);
+            return false;
+        }
+
+        replaceStellaFromBrush(brush);
+        clearCutPreview();
+
+        if (onSuccess) onSuccess(success);
+
+        showLoading(false);
+        return true;
+    } catch (e) {
+        log(`CSG ошибка: ${e.message}`);
+        console.error(e);
+        if (undoStack.length > 0) undoStack.pop();
+        setStatus('❌ Ошибка CSG');
+        showLoading(false);
+        return false;
+    }
+}
+
+/* ---- SINGLE CUT ---- */
+
+document.getElementById('btn-cut').addEventListener('click', () => {
+    if (drawPoints.length < 3) return;
+
+    const cx = readSlider('inp-cx', 0);
+    const cy = readSlider('inp-cy', 0.7);
+    const cs = readSlider('inp-cs', 0.4);
+    const cd = readSlider('inp-cd', 0.05);
+    const rot = readSlider('inp-rot', 0);
+    const zCenter = computeCutZCenter();
+    const ry = cutterRotationY();
+    const side = activeCutSide;
+
+    const cutGeo = buildBaseCutGeometry(cd);
+    cutGeo.computeVertexNormals();
+    cutGeo.computeBoundingBox();
+
+    const bb = cutGeo.boundingBox;
+    const cutW = (bb.max.x - bb.min.x) * cs;
+    const cutH = (bb.max.y - bb.min.y) * cs;
+
+    if ((cutW > params.width * 0.95 || cutH > params.height * 0.95) &&
+        !confirm(`⚠️ Фигура (${cutW.toFixed(2)}×${cutH.toFixed(2)} м) почти со стелу. Продолжить?`)) {
+        return;
+    }
+
+    const cutter = createCutterBrush(
+        cutGeo,
+        new THREE.Vector3(mirrorX(cx), cy, zCenter),
+        new THREE.Vector3(cs, cs, 1),
+        mirrorRot(rot) * Math.PI / 180,
+        ry
+    );
+
+    runCSG([cutter], 'CSG-вырезание...', () => {
+        const overlapDepth = Math.max(0,
+            Math.min(zCenter + cd / 2, params.depth / 2) -
+            Math.max(zCenter - cd / 2, -params.depth / 2)
+        );
+
+        cutHistory.push({
+            type: 'contour',
+            side: side,
+            volumeM3: cutW * cutH * overlapDepth,
+            areaM2: cutW * cutH,
+            depthM: overlapDepth,
+            timestamp: Date.now()
+        });
+
+        updatePriceDisplay();
+        setStatus(`✅ Вырез выполнен (${side === 'front' ? 'лицо' : 'оборот'})!`);
+    });
+});
+
+/* ---- PATTERN CUT ---- */
+
+document.getElementById('btn-apply-pattern').addEventListener('click', () => {
+    if (drawPoints.length < 3) return;
+
+    const cx = readSlider('inp-cx', 0);
+    const cy = readSlider('inp-cy', 0.7);
+    const cs = readSlider('inp-cs', 0.4);
+    const cd = readSlider('inp-cd', 0.05);
+    const rot = readSlider('inp-rot', 0);
+    const zCenter = computeCutZCenter();
+    const ry = cutterRotationY();
+    const side = activeCutSide;
+
+    const baseGeo = buildBaseCutGeometry(cd);
+    baseGeo.computeVertexNormals();
+
+    const instances = generatePatternInstances(cx, cy, rot);
+
+    const cutters = instances.map(inst => {
+        const cutGeo = baseGeo.clone();
+        return createCutterBrush(
+            cutGeo,
+            new THREE.Vector3(mirrorX(inst.x), inst.y, zCenter),
+            new THREE.Vector3(cs, cs, 1),
+            mirrorRot(inst.rot) * Math.PI / 180,
+            ry
+        );
+    });
+
+    runCSG(cutters, 'Вырезание массива...', success => {
+        const overlapDepth = Math.max(0,
+            Math.min(zCenter + cd / 2, params.depth / 2) -
+            Math.max(zCenter - cd / 2, -params.depth / 2)
+        );
+
+        const baseGeoCopy = buildBaseCutGeometry(cd);
+        baseGeoCopy.computeBoundingBox();
+        const bb = baseGeoCopy.boundingBox;
+        const areaOne = (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) * cs * cs;
+        baseGeoCopy.dispose();
+
+        for (let i = 0; i < success; i++) {
+            cutHistory.push({
+                type: 'contour',
+                side: side,
+                volumeM3: areaOne * overlapDepth,
+                areaM2: areaOne,
+                depthM: overlapDepth,
+                timestamp: Date.now()
+            });
+        }
+
+        updatePriceDisplay();
+        setStatus(`✅ Массив вырезан (${side === 'front' ? 'лицо' : 'оборот'}): ${success}/${instances.length} копий`);
+    });
+});
+
+/* ---- PRESETS ---- */
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const presets = {
+            'preset-clear': { czo: 5, cd: 0.01 },
+            'preset-shallow': { czo: 0, cd: 0.02 },
+            'preset-deep': { czo: -3, cd: 0.08 },
+            'preset-through': { czo: 0, cd: params.depth + 0.02 }
+        };
+        const p = presets[btn.id];
+        if (!p) return;
+
+        document.getElementById('inp-czo').value = p.czo;
+        document.getElementById('inp-cd').value = p.cd;
+        document.getElementById('val-czo').textContent = p.czo.toFixed(1);
+        document.getElementById('val-cd').textContent = p.cd.toFixed(2);
+
+        updateCutZHint();
+        if (drawPoints.length >= 3) showContourIn3D();
+    });
+});
+
+/* ---- RESET ---- */
+
+document.getElementById('btn-reset-mesh').addEventListener('click', () => {
+    if (isCustomProfile && profilePoints.length >= 3) {
+        createStellaFromProfile(profilePoints);
+    } else {
+        createStella();
+    }
+    setStatus('↺ Модель сброшена');
+});
+
+/* ============================================================
+   20. DIMENSION / SHAPE / MATERIAL UI
+   ============================================================ */
+
+['inp-height', 'inp-width', 'inp-depth', 'inp-bevel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('input', e => {
+        const key = id.replace('inp-', '');
+        params[key] = parseFloat(e.target.value);
+
+        const spanKey = key === 'height' ? 'h' : key === 'width' ? 'w' : key === 'depth' ? 'd' : 'bevel';
+        const span = document.getElementById('val-' + spanKey);
+        if (span) {
+            span.textContent = key === 'bevel' ? params[key].toFixed(3) : params[key].toFixed(2);
+        }
+
+        if (!isCustomProfile && !isImportedModel) createStella();
+
+        updateCutZHint();
+        updatePriceDisplay();
+    });
+});
+
+document.getElementById('sel-top-shape').addEventListener('change', e => {
+    params.topShape = e.target.value;
+    isCustomProfile = false;
+    if (!isImportedModel) createStella();
+    updatePriceDisplay();
+});
+
+document.getElementById('sel-material').addEventListener('change', e => {
+    params.material = e.target.value;
+
+    if (stellaMesh && !isImportedModel) {
+        if (stellaMesh.material && Array.isArray(stellaMesh.material)) {
+            stellaMesh.material = getCSGMaterials();
+        } else {
+            stellaMesh.material = materials[params.material];
+        }
+    }
+
+    updatePriceDisplay();
+});
+
+/* ============================================================
+   21. IMPORT / EXPORT
+   ============================================================ */
+
+document.getElementById('file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'stl') importSTL(file);
+    else if (ext === 'glb' || ext === 'gltf') importGLB(file);
+});
+
+function importSTL(file) {
+    showLoading(true);
+    const loader = new STLLoader();
+    const reader = new FileReader();
+
+    reader.onload = event => {
+        try {
+            const geometry = loader.parse(event.target.result);
+            removeCurrentModel();
+            geometry.computeVertexNormals();
+
+            const box = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            geometry.translate(-center.x, -box.min.y, -center.z);
+
+            stellaMesh = new THREE.Mesh(geometry, materials[params.material].clone());
+            stellaMesh.castShadow = true;
+            stellaMesh.receiveShadow = true;
+            scene.add(stellaMesh);
+            isImportedModel = true;
+            updatePriceDisplay();
+        } catch (error) {
+            log(`STL: ${error.message}`);
+        } finally {
+            showLoading(false);
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function importGLB(file) {
+    showLoading(true);
+    const loader = new GLTFLoader();
+    const reader = new FileReader();
+
+    reader.onload = event => {
+        try {
+            loader.parse(
+                event.target.result,
+                '',
+                gltf => {
+                    removeCurrentModel();
+                    const group = gltf.scene;
+
+                    const box = new THREE.Box3().setFromObject(group);
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    group.scale.setScalar(1.0 / maxDim);
+
+                    const newBox = new THREE.Box3().setFromObject(group);
+                    const center = new THREE.Vector3();
+                    newBox.getCenter(center);
+                    group.position.sub(center);
+
+                    const finalBox = new THREE.Box3().setFromObject(group);
+                    group.position.y += -finalBox.min.y;
+
+                    importedGroup = group;
+                    scene.add(group);
+
+                    let mainMesh = null;
+                    group.traverse(child => {
+                        if (child.isMesh && !mainMesh) mainMesh = child;
+                    });
+
+                    if (mainMesh) {
+                        stellaMesh = mainMesh;
+                        isImportedModel = true;
+                    }
+
+                    updatePriceDisplay();
+                },
+                error => log(`GLB: ${error.message}`)
+            );
+        } catch (error) {
+            log(`GLB: ${error.message}`);
+        } finally {
+            showLoading(false);
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('btn-export-stl').addEventListener('click', () => {
+    if (!stellaMesh) return setStatus('❌ Нет модели');
+    try {
+        const exporter = new STLExporter();
+        const stlString = exporter.parse(stellaMesh, { binary: false });
+        const blob = new Blob([stlString], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `stella_${Date.now()}.stl`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus('📦 STL экспортирован');
+    } catch (e) {
+        log(`Экспорт: ${e.message}`);
+    }
+});
+
+/* ============================================================
+   22. SAVE / LOAD PROJECT
+   ============================================================ */
+
+document.getElementById('btn-save-project').addEventListener('click', () => {
+    const project = {
+        params,
+        profilePoints,
+        drawPoints,
+        textLines,
+        cutHistory,
+        activeCutSide,
+        activeTextSide,
+        version: '7.1'
+    };
+
+    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `project_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('💾 Проект сохранён');
+});
+
+document.getElementById('file-load-project').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = event => {
+        try {
+            const project = JSON.parse(event.target.result);
+
+            if (project.params) Object.assign(params, project.params);
+
+            if (project.activeCutSide) {
+                activeCutSide = project.activeCutSide;
+                document.getElementById('btn-side-front').classList.toggle('active-tool', activeCutSide === 'front');
+                document.getElementById('btn-side-back').classList.toggle('active-tool', activeCutSide === 'back');
+            }
+            if (project.activeTextSide) {
+                activeTextSide = project.activeTextSide;
+                document.getElementById('btn-text-side-front').classList.toggle('active-tool', activeTextSide === 'front');
+                document.getElementById('btn-text-side-back').classList.toggle('active-tool', activeTextSide === 'back');
+            }
+
+            if (project.profilePoints) {
+                profilePoints = project.profilePoints;
+                redrawProfile();
+                if (profilePoints.length >= 3) {
+                    document.getElementById('btn-create-from-profile').disabled = false;
+                    createStellaFromProfile(profilePoints);
+                }
+            }
+
+            if (project.drawPoints) {
+                drawPoints = project.drawPoints;
+                redrawDrawCanvas();
+            }
+
+            if (project.cutHistory) cutHistory = project.cutHistory;
+
+            updatePriceDisplay();
+            setStatus('✅ Проект загружен');
+        } catch (err) {
+            setStatus('❌ Ошибка загрузки');
+        }
+    };
+    reader.readAsText(file);
+});
+
+/* ============================================================
+   23. TEXT LINES
+   ============================================================ */
+
+function renderTextLines() {
+    const cont = document.getElementById('text-lines-container');
+    cont.innerHTML = '';
+
+    textLines.forEach(line => {
+        const div = document.createElement('div');
+        div.className = 'text-line-item' + (line.side === 'back' ? ' back-side' : '');
+        const sideIcon = line.side === 'back' ? '⬛' : '⬜';
+        div.innerHTML = `
+            <div class="line-header">
+                <span>${sideIcon} Строка #${line.id}</span>
+                <button class="del-line-btn" data-del="${line.id}">🗑️</button>
+            </div>
+            <div class="line-controls">
+                <input type="text" data-id="${line.id}" data-field="text" value="${line.text || ''}" placeholder="Текст...">
+                <label>X: <input type="number" data-id="${line.id}" data-field="x" value="${(line.x || 0).toFixed(3)}" step="0.01"></label>
+                <label>Y: <input type="number" data-id="${line.id}" data-field="y" value="${(line.y || 0).toFixed(3)}" step="0.01"></label>
+            </div>
+        `;
+        cont.appendChild(div);
+    });
+
+    cont.querySelectorAll('input[data-field="text"]').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const line = textLines.find(l => l.id === parseInt(e.target.dataset.id));
+            if (line) {
+                line.text = e.target.value;
+                updatePriceDisplay();
+            }
+        });
+    });
+
+    cont.querySelectorAll('input[data-field="x"], input[data-field="y"]').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const line = textLines.find(l => l.id === parseInt(e.target.dataset.id));
+            if (line) {
+                line[e.target.dataset.field] = parseFloat(e.target.value) || 0;
+                const tm = textLineMeshes.find(m => m.id === line.id);
+                if (tm && tm.mesh) {
+                    if (e.target.dataset.field === 'x') tm.mesh.position.x = line.x;
+                    else tm.mesh.position.y = line.y;
+                }
+            }
+        });
+    });
+
+    cont.querySelectorAll('.del-line-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const id = parseInt(e.target.dataset.del);
+            textLines = textLines.filter(l => l.id !== id);
+
+            const tm = textLineMeshes.find(m => m.id === id);
+            if (tm && tm.mesh) {
+                scene.remove(tm.mesh);
+                disposeNode(tm.mesh, true);
+            }
+
+            textLineMeshes = textLineMeshes.filter(m => m.id !== id);
+            renderTextLines();
+            updatePriceDisplay();
+        });
+    });
+}
+
+document.getElementById('btn-add-line').addEventListener('click', () => {
+    lineIdCounter++;
+    textLines.push({
+        id: lineIdCounter,
+        text: 'Новая строка',
+        x: 0,
+        y: 0.8 + textLines.length * 0.1,
+        side: activeTextSide
+    });
+    renderTextLines();
+    updatePriceDisplay();
+});
+
+document.getElementById('btn-clear-lines').addEventListener('click', () => {
+    textLines = [];
+    textLineMeshes.forEach(m => {
+        if (m.mesh) {
+            scene.remove(m.mesh);
+            disposeNode(m.mesh, true);
+        }
+    });
+    textLineMeshes = [];
+    renderTextLines();
+    updatePriceDisplay();
+});
+
+document.getElementById('btn-toggle-color').addEventListener('click', e => {
+    colorEnabled = !colorEnabled;
+    e.target.classList.toggle('active', colorEnabled);
+    e.target.classList.toggle('inactive', !colorEnabled);
+    e.target.textContent = colorEnabled ? '🎨 Цвет: Вкл' : '⚫ Цвет: Выкл';
+});
+
+function updateTextPreview() {
+    if (!loadedFont) return setStatus('❌ Шрифт не загружен');
+
+    textLineMeshes.forEach(m => {
+        if (m.mesh) {
+            scene.remove(m.mesh);
+            disposeNode(m.mesh, true);
+        }
+    });
+    textLineMeshes = [];
+
+    if (transformControl.object) transformControl.detach();
+
+    const color = document.getElementById('inp-text-color').value;
+    const textZ = parseFloat(document.getElementById('inp-text-z').value) || 0;
+
+    textLines.forEach(line => {
+        if (!line.text || !line.text.trim()) return;
+
+        try {
+            const geo = new TextGeometry(line.text, {
+                font: loadedFont,
+                size: 0.08,
+                height: 0.01,
+                curveSegments: 4,
+                bevelEnabled: false
+            });
+
+            geo.computeBoundingBox();
+            const bb = geo.boundingBox;
+            geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: colorEnabled ? new THREE.Color(color) : 0x888888,
+                roughness: 0.5,
+                metalness: 0.3
+            });
+
+            const mesh = new THREE.Mesh(geo, mat);
+
+            const lineSide = line.side || 'front';
+
+            if (lineSide === 'front') {
+                mesh.position.set(line.x || 0, line.y || 0, params.depth / 2 + textZ);
+            } else {
+                mesh.position.set(-(line.x || 0), line.y || 0, -params.depth / 2 - textZ);
+                mesh.rotation.y = Math.PI;
+            }
+
+            mesh.castShadow = true;
+            scene.add(mesh);
+
+            textLineMeshes.push({ id: line.id, mesh, side: lineSide });
+        } catch (err) {
+            log(`Текст: ${err.message}`);
+        }
+    });
+
+    document.getElementById('btn-engrave-text').disabled = textLineMeshes.length === 0;
+    document.getElementById('btn-text-cancel').disabled = textLineMeshes.length === 0;
+
+    setStatus(`✅ Предпросмотр: ${textLineMeshes.length} строк`);
+}
+
+document.getElementById('btn-text-preview').addEventListener('click', updateTextPreview);
+
+document.getElementById('btn-text-cancel').addEventListener('click', () => {
+    textLineMeshes.forEach(m => {
+        if (m.mesh) {
+            scene.remove(m.mesh);
+            disposeNode(m.mesh, true);
+        }
+    });
+    textLineMeshes = [];
+    if (transformControl.object) transformControl.detach();
+    document.getElementById('btn-engrave-text').disabled = true;
+    document.getElementById('btn-text-cancel').disabled = true;
+    setStatus('Отменено');
+});
+
+/* ---- ENGRAVING ---- */
+
+document.getElementById('btn-engrave-text').addEventListener('click', () => {
+    if (!csgAvailable || !stellaMesh || textLineMeshes.length === 0) return;
+
+    const depth = parseFloat(document.getElementById('inp-text-depth').value) || 0.008;
+
+    const cutters = textLineMeshes.map(tm => {
+        const textGeo = tm.mesh.geometry.clone();
+        const scaleZ = Math.max(1, depth / 0.01);
+
+        const lineSide = tm.side || 'front';
+        const ry = lineSide === 'front' ? 0 : Math.PI;
+
+        const zPos = lineSide === 'front'
+            ? params.depth / 2 - depth
+            : -params.depth / 2 + depth;
+
+        return createCutterBrush(
+            textGeo,
+            new THREE.Vector3(tm.mesh.position.x, tm.mesh.position.y, zPos),
+            new THREE.Vector3(1, 1, scaleZ),
+            0,
+            ry
+        );
+    });
+
+    const ok = runCSG(cutters, 'Гравировка...', () => {
+        let totalCharsFront = 0;
+        let totalCharsBack = 0;
+
+        textLineMeshes.forEach(tm => {
+            const line = textLines.find(l => l.id === tm.id);
+            if (line && line.text) {
+                if (line.side === 'back') totalCharsBack += line.text.length;
+                else totalCharsFront += line.text.length;
+            }
+        });
+
+        textLineMeshes.forEach(m => {
+            if (m.mesh) {
+                scene.remove(m.mesh);
+                disposeNode(m.mesh, true);
+            }
+        });
+        textLineMeshes = [];
+
+        document.getElementById('btn-engrave-text').disabled = true;
+        document.getElementById('btn-text-cancel').disabled = true;
+
+        cutHistory.push({
+            type: 'text',
+            charsFront: totalCharsFront,
+            charsBack: totalCharsBack,
+            chars: totalCharsFront + totalCharsBack,
+            volumeM3: (totalCharsFront + totalCharsBack) * 0.00002,
+            timestamp: Date.now()
+        });
+
+        updatePriceDisplay();
+        setStatus('✅ Гравировка выполнена!');
+    });
+
+    if (!ok) setStatus('⚠️ Гравировка не изменила модель');
+});
+
+/* ============================================================
+   24. PRICING
+   ============================================================ */
+
+function calculatePrice() {
+    const mat = MATERIALS_DB[params.material] || MATERIALS_DB.granite_black;
+    const shapeCoeff = SHAPE_COEFF[params.topShape] || 1.0;
+
+    const volume = params.width * params.height * params.depth * shapeCoeff;
+    const weight = volume * mat.density;
+    const materialCost = weight * mat.pricePerKg;
+
+    const frontArea = params.width * params.height;
+    const sideArea = 2 * (params.width + params.height) * params.depth;
+
+    const polishCost = frontArea * mat.polishFront + sideArea * mat.polishSide;
+    const shapingCost = (frontArea * 500) * (shapeCoeff - 1);
+
+    const cutsCost = cutHistory.reduce((sum, c) => {
+        if (c.type === 'contour') return sum + (c.volumeM3 * PRICING.cutPerM3 * mat.cutCoeff);
+        return sum;
+    }, 0);
+
+    const totalChars = textLines.reduce((s, l) => s + (l.text ? l.text.length : 0), 0);
+    const totalCharsFront = textLines.reduce((s, l) => s + (l.text && l.side !== 'back' ? l.text.length : 0), 0);
+    const totalCharsBack = textLines.reduce((s, l) => s + (l.text && l.side === 'back' ? l.text.length : 0), 0);
+    const engraveCost = totalChars * PRICING.textPerChar;
+
+    const subtotal = materialCost + polishCost + shapingCost + cutsCost + engraveCost + PRICING.setupFee;
+    const total = subtotal + PRICING.deliveryFee;
+
+    const cutsFront = cutHistory.filter(c => c.type === 'contour' && c.side === 'front').length;
+    const cutsBack = cutHistory.filter(c => c.type === 'contour' && c.side === 'back').length;
+
+    return {
+        weight: weight.toFixed(1),
+        volume: (volume * 1000).toFixed(1),
+        materialCost: Math.round(materialCost),
+        polishCost: Math.round(polishCost),
+        shapingCost: Math.round(shapingCost),
+        cutsCost: Math.round(cutsCost),
+        engraveCost: Math.round(engraveCost),
+        setupFee: PRICING.setupFee,
+        deliveryFee: PRICING.deliveryFee,
+        total: Math.round(total),
+        chars: totalChars,
+        charsFront: totalCharsFront,
+        charsBack: totalCharsBack,
+        cutsCount: cutHistory.filter(c => c.type === 'contour').length,
+        cutsFront,
+        cutsBack
+    };
+}
+
+function updatePriceDisplay() {
+    const p = calculatePrice();
+    const fmt = n => n.toLocaleString('ru-RU');
+
+    document.getElementById('price-weight').textContent = p.weight + ' кг';
+    document.getElementById('price-volume').textContent = p.volume + ' л';
+    document.getElementById('price-material').textContent = fmt(p.materialCost) + ' ₽';
+    document.getElementById('price-polish').textContent = fmt(p.polishCost) + ' ₽';
+    document.getElementById('price-shaping').textContent = fmt(p.shapingCost) + ' ₽';
+    document.getElementById('price-cuts-count').textContent = p.cutsCount;
+    document.getElementById('price-cuts-front').textContent = p.cutsFront;
+    document.getElementById('price-cuts-back').textContent = p.cutsBack;
+    document.getElementById('price-cuts').textContent = fmt(p.cutsCost) + ' ₽';
+    document.getElementById('price-chars').textContent = p.chars;
+    document.getElementById('price-chars-front').textContent = p.charsFront;
+    document.getElementById('price-chars-back').textContent = p.charsBack;
+    document.getElementById('price-engrave').textContent = fmt(p.engraveCost) + ' ₽';
+    document.getElementById('price-setup').textContent = fmt(p.setupFee) + ' ₽';
+    document.getElementById('price-delivery').textContent = fmt(p.deliveryFee) + ' ₽';
+    document.getElementById('price-total').textContent = fmt(p.total) + ' ₽';
+}
+
+document.getElementById('btn-reset-cuts').addEventListener('click', () => {
+    if (!confirm('Сбросить всю историю вырезов?')) return;
+
+    cutHistory = [];
+    undoStack = [];
+    document.getElementById('btn-undo').disabled = true;
+
+    if (isCustomProfile && profilePoints.length >= 3) {
+        createStellaFromProfile(profilePoints);
+    } else {
+        createStella();
+    }
+
+    updatePriceDisplay();
+    setStatus('🗑️ История вырезов сброшена');
+});
+
+/* ---- EXPORT QUOTE ---- */
+
+document.getElementById('btn-export-quote').addEventListener('click', () => {
+    const p = calculatePrice();
+    const mat = MATERIALS_DB[params.material];
+
+    const quote = `
+═══════════════════════════════════════
+СМЕТА НА ИЗГОТОВЛЕНИЕ СТЕЛЫ
+Каменная Слобода CNC PRO
+
+Дата: ${new Date().toLocaleDateString('ru-RU')}
+
+═══════════════════════════════════════
+ПАРАМЕТРЫ ИЗДЕЛИЯ:
+──────────────────
+Форма: ${params.topShape}
+Материал: ${mat.name}
+Размеры: ${(params.width * 100).toFixed(0)}×${(params.height * 100).toFixed(0)}×${(params.depth * 100).toFixed(0)} см
+Вес: ${p.weight} кг
+Объём: ${p.volume} л
+
+ВЫРЕЗЫ:
+Всего: ${p.cutsCount} шт (лицо: ${p.cutsFront}, оборот: ${p.cutsBack})
+
+ГРАВИРОВКА:
+Всего символов: ${p.chars} (лицо: ${p.charsFront}, оборот: ${p.charsBack})
+
+СТОИМОСТЬ:
+──────────
+Материал: ${p.materialCost.toLocaleString('ru-RU')} ₽
+Полировка: ${p.polishCost.toLocaleString('ru-RU')} ₽
+Формообразование: ${p.shapingCost.toLocaleString('ru-RU')} ₽
+Вырезы (${p.cutsCount} шт): ${p.cutsCost.toLocaleString('ru-RU')} ₽
+Гравировка (${p.chars} симв.): ${p.engraveCost.toLocaleString('ru-RU')} ₽
+Подготовка: ${p.setupFee.toLocaleString('ru-RU')} ₽
+Доставка + установка: ${p.deliveryFee.toLocaleString('ru-RU')} ₽
+
+─────────────────────────
+ИТОГО: ${p.total.toLocaleString('ru-RU')} ₽
+
+Смета носит информационный характер.
+Точная стоимость — после согласования макета.
+═══════════════════════════════════════
+`;
+
+    const blob = new Blob([quote], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smeta_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('📄 Смета скачана');
+});
+
+/* ============================================================
+   25. MOBILE MENU
+   ============================================================ */
+
+document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+
+/* ============================================================
+   26. RESIZE / RENDER LOOP
+   ============================================================ */
+
+window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+/* ============================================================
+   27. INIT
+   ============================================================ */
+
+redrawProfile();
+redrawDrawCanvas();
+createStella();
+updateSceneBackground();
+renderTextLines();
+updateCutZHint();
+updatePriceDisplay();
+updatePatternUI();
+animate();
+
+log('Приложение готово');
+setStatus('✅ Готово. Кисть замыкает мазок автоматически.');
+</script>
+</body>
+</html>
