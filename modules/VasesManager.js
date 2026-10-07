@@ -43,55 +43,105 @@ export class VasesManager {
     // ============================================================
     // ⭐ ЗАГРУЗКА КОНФИГА ВАЗ
     // ============================================================
-    async loadVasesConfig() {
-        try {
-            const response = await fetch('./vases-list.json');
-            if (!response.ok) throw new Error('Файл vases-list.json не найден');
-            const data = await response.json();
-            data.vases.forEach(vase => {
-                this.vasesConfig[vase.id] = {
-                    file: vase.file,
-                    name: vase.name,
-                    defaultScale: vase.defaultScale || 1.0,
-                    defaultHeight: vase.defaultHeight || 0.5,
-                    defaultMaterial: vase.defaultMaterial || 'marble'
-                };
-            });
-            console.log(`✅ Загружено ${Object.keys(this.vasesConfig).length} типов ваз`);
-        } catch (error) {
-            console.warn('⚠️ Ошибка загрузки конфига ваз:', error);
-            this.vasesConfig = {
-                'vase1': { file: 'vase1.glb', name: 'Классическая', defaultScale: 1.0, defaultHeight: 0.5, defaultMaterial: 'marble' },
-                'vase2': { file: 'vase2.glb', name: 'С узором', defaultScale: 1.0, defaultHeight: 0.55, defaultMaterial: 'granite' },
-                'vase3': { file: 'vase3.glb', name: 'Высокая', defaultScale: 0.9, defaultHeight: 0.6, defaultMaterial: 'marble' }
-            };
-        }
-        await this.loadMaterial(this.vaseMaterial);
-        this.updateVasesList();
-    }
+	async loadVasesConfig() {
+		try {
+			const response = await fetch('./vases-list.json');
+
+			if (!response.ok) {
+				throw new Error('Файл vases-list.json не найден');
+			}
+
+			const data = await response.json();
+
+			data.vases.forEach(vase => {
+				this.vasesConfig[vase.id] = {
+					file: vase.file,
+					name: vase.name,
+					defaultScale: vase.defaultScale || 1.0,
+					defaultHeight: vase.defaultHeight || 0.5,
+					defaultMaterial: vase.defaultMaterial || 'marble'
+				};
+			});
+
+			console.log(
+				`✅ Загружено ${Object.keys(this.vasesConfig).length} типов ваз`
+			);
+
+		} catch (error) {
+			console.warn('⚠️ Ошибка загрузки конфига ваз:', error);
+
+			this.vasesConfig = {
+				vase1: {
+					file: 'vase1.glb',
+					name: 'Классическая',
+					defaultScale: 1.0,
+					defaultHeight: 0.5,
+					defaultMaterial: 'marble'
+				},
+
+				vase2: {
+					file: 'vase2.glb',
+					name: 'С узором',
+					defaultScale: 1.0,
+					defaultHeight: 0.55,
+					defaultMaterial: 'granite'
+				},
+
+				vase3: {
+					file: 'vase3.glb',
+					name: 'Высокая',
+					defaultScale: 0.9,
+					defaultHeight: 0.6,
+					defaultMaterial: 'marble'
+				}
+			};
+		}
+
+		// Загружаем только базовый материал в кэш.
+		// Это НЕ означает применение его ко всем вазам.
+		await this.loadMaterial('marble');
+
+		this.updateVasesList();
+	}
     
     // ============================================================
     // ⭐ ЗАГРУЗКА МАТЕРИАЛА
     // ============================================================
-    async loadMaterial(materialType) {
-        try {
-            console.log(`📥 Загрузка материала для ваз: ${materialType}`);
-            const textureType = getTextureTypeFromMaterial(materialType);
-            const material = await loadPBRMaterial(textureType);
-            
-            if (material) {
-                this.materials[materialType] = material;
-                this.vaseMaterial = materialType;
-                this.materialsLoaded = true;
-                console.log(`✅ Материал ${materialType} загружен для ваз`);
-                this.applyMaterialToAllVases();
-                return material;
-            }
-        } catch (error) {
-            console.warn(`⚠️ Ошибка загрузки материала ${materialType}:`, error);
-        }
-        return null;
-    }
+	async loadMaterial(materialType) {
+		if (!materialType) {
+			console.warn('⚠️ Не указан тип материала для вазы');
+			return null;
+		}
+
+		// Уже загружен
+		if (this.materials[materialType]) {
+			console.log(`📦 Материал ${materialType} из кэша`);
+			return this.materials[materialType];
+		}
+
+		try {
+			console.log(`📥 Загрузка материала для ваз: ${materialType}`);
+
+			const textureType = getTextureTypeFromMaterial(materialType);
+			const material = await loadPBRMaterial(textureType);
+
+			if (material) {
+				this.materials[materialType] = material;
+
+				console.log(`✅ Материал ${materialType} загружен для ваз`);
+
+				return material;
+			}
+
+		} catch (error) {
+			console.warn(
+				`⚠️ Ошибка загрузки материала ${materialType}:`,
+				error
+			);
+		}
+
+		return null;
+	}
     
     // ============================================================
     // ⭐ ПРИМЕНЕНИЕ МАТЕРИАЛА
@@ -103,35 +153,42 @@ export class VasesManager {
         });
     }
     
-    applyMaterialToVase(vaseData) {
-        if (!this.materialsLoaded) return;
-        
-        const material = this.materials[this.vaseMaterial];
-        if (!material) return;
-        
-        vaseData.group.traverse((child) => {
-            if (child.isMesh) {
-                const colorKey = child.uuid + '_color';
-                if (!this.originalColors.has(colorKey) && child.material && child.material.color) {
-                    this.originalColors.set(colorKey, child.material.color.getHex());
-                }
-                
-                const newMaterial = material.clone();
-                
-                if (this.originalColors.has(colorKey)) {
-                    newMaterial.color.setHex(this.originalColors.get(colorKey));
-                }
-                
-                if (child.material && child.material.emissive) {
-                    newMaterial.emissive = child.material.emissive.clone();
-                    newMaterial.emissiveIntensity = child.material.emissiveIntensity || 0;
-                }
-                
-                child.material = newMaterial;
-                child.material.needsUpdate = true;
-            }
-        });
-    }
+	applyMaterialToVase(vaseData) {
+		if (!vaseData || !vaseData.group) {
+			return;
+		}
+
+		const materialType = vaseData.material || 'marble';
+		const material = this.materials[materialType];
+
+		if (!material) {
+			console.warn(
+				`⚠️ Материал ${materialType} ещё не загружен для вазы ${vaseData.id}`
+			);
+			return;
+		}
+
+		vaseData.group.traverse((child) => {
+			if (!child.isMesh) {
+				return;
+			}
+
+			if (!child.userData.originalColor && child.material?.color) {
+				child.userData.originalColor = child.material.color.clone();
+			}
+
+			child.material = material.clone();
+
+			child.userData.vaseId = vaseData.id;
+			child.userData.vaseMaterial = materialType;
+		});
+
+		vaseData.group.userData.material = materialType;
+
+		console.log(
+			`🎨 Материал ${materialType} применён к вазе ${vaseData.id}`
+		);
+	}
     
     // ============================================================
     // ⭐ ЗАГРУЗКА МОДЕЛИ ВАЗЫ
@@ -233,77 +290,174 @@ getSurfaceHeight(x, z) {
     // ============================================================
     // ⭐ ДОБАВЛЕНИЕ ВАЗЫ
     // ============================================================
-    async addVase(vaseId, x, z, scale = 1.0) {
-        try {
-            const model = await this.loadVaseModel(vaseId);
-            if (!model) return null;
-            
-            const config = this.vasesConfig[vaseId];
-            const clone = this.cloneWithUniqueIds(model);
-            
-            // Получаем bounding box ДО масштабирования
-            const box = new THREE.Box3().setFromObject(clone);
-            const size = box.getSize(new THREE.Vector3());
-            const minY = box.min.y;
-            
-            // Вычисляем смещение от дна до центра
-            const bottomOffset = -minY;
-            
-            // Масштабируем
-            const targetHeight = config.defaultHeight || 0.5;
-            const scaleFactor = targetHeight / Math.max(size.y, 0.01);
-            const finalScale = scaleFactor * scale;
-            clone.scale.set(finalScale, finalScale, finalScale);
-            
-            // ⭐ ОПРЕДЕЛЯЕМ ВЫСОТУ ПОВЕРХНОСТИ В ТОЧКЕ (x, z)
-            const clampedX = Math.max(-0.5, Math.min(0.5, x));
-            const clampedZ = Math.max(-0.5, Math.min(0.5, z));
-            const surfaceHeight = this.getSurfaceHeight(clampedX, clampedZ);
-            
-            // ⭐ ПОЗИЦИОНИРУЕМ - ВАЗА СТАНОВИТСЯ НА ПОВЕРХНОСТЬ
-            // +1 мм (0.001) для предотвращения z-fighting
-            const vaseY = surfaceHeight - 0.01;
-            clone.position.set(clampedX, vaseY, clampedZ);
-            clone.rotation.y = Math.random() * Math.PI * 2;
-            
-            clone.userData.type = 'vase';
-            clone.userData.vaseType = vaseId;
-            clone.userData.rotation = clone.rotation.y;
-            clone.userData.selected = false;
-            clone.userData.surfaceHeight = surfaceHeight;
-            
-            this.vasesGroup.add(clone);
-            
-            const vaseData = {
-                id: clone.userData.id,
-                group: clone,
-                type: 'vase',
-                vaseType: vaseId,
-                x: clampedX,
-                z: clampedZ,
-                rotation: clone.rotation.y,
-                scale: finalScale,
-                config: config,
-                selected: false,
-                surfaceHeight: surfaceHeight
-            };
-            
-            this.vases.push(vaseData);
-            
-            if (this.materialsLoaded) {
-                this.applyMaterialToVase(vaseData);
-            }
-            
-            this.selectVase(vaseData.id);
-            this.updateVasesList();
-            
-            console.log(`✅ Ваза ${config.name} добавлена на позицию (${clampedX.toFixed(2)}, ${clampedZ.toFixed(2)}) на высоте ${vaseY.toFixed(3)}`);
-            return vaseData;
-        } catch (error) {
-            console.error('❌ Ошибка добавления вазы:', error);
+
+async addVase(vaseId, x, z, scale = 1.0) {
+    try {
+        const config = this.vasesConfig[vaseId];
+
+        if (!config) {
+            console.warn(`⚠️ Конфигурация вазы ${vaseId} не найдена`);
             return null;
         }
+
+        // Материал должен быть загружен ДО добавления вазы
+		const materialType =
+			this.vaseMaterial ||
+			config.defaultMaterial ||
+			'marble';
+
+        const material = await this.loadMaterial(materialType);
+
+        if (!material) {
+            console.error(
+                `❌ Не удалось загрузить материал ${materialType} для ${vaseId}`
+            );
+            return null;
+        }
+
+        const model = await this.loadVaseModel(vaseId);
+
+        if (!model) {
+            return null;
+        }
+
+        // Если координаты не переданы — выбираем случайные
+        if (!Number.isFinite(x) || !Number.isFinite(z)) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 0.2 + Math.random() * 0.3;
+
+            x = Math.cos(angle) * distance;
+            z = Math.sin(angle) * distance;
+
+            console.log(
+                `📍 Координаты вазы не заданы, выбрана позиция: ` +
+                `(${x.toFixed(2)}, ${z.toFixed(2)})`
+            );
+        }
+
+        const clone = this.cloneWithUniqueIds(model);
+
+        // Размер исходной модели
+        const box = new THREE.Box3().setFromObject(clone);
+        const size = box.getSize(new THREE.Vector3());
+
+        const targetHeight = config.defaultHeight || 0.5;
+
+        const defaultScale =
+            Number(config.defaultScale ?? 1.0);
+
+        const userScale =
+            Number(scale ?? 1.0);
+
+        // Нормализация исходной модели до defaultHeight
+        const baseScale =
+            targetHeight / Math.max(size.y, 0.01);
+
+        // Итоговый масштаб:
+        // исходный размер
+        // × масштаб типа вазы
+        // × пользовательский масштаб
+        const finalScale =
+            baseScale *
+            defaultScale *
+            userScale;
+
+        clone.scale.set(
+            finalScale,
+            finalScale,
+            finalScale
+        );
+
+        // Ограничиваем координаты
+        const clampedX =
+            Math.max(-0.5, Math.min(0.5, x));
+
+        const clampedZ =
+            Math.max(-0.5, Math.min(0.5, z));
+
+        const surfaceHeight =
+            this.getSurfaceHeight(
+                clampedX,
+                clampedZ
+            );
+
+        const vaseY =
+            surfaceHeight - 0.01;
+
+        clone.position.set(
+            clampedX,
+            vaseY,
+            clampedZ
+        );
+
+        clone.rotation.y =
+            Math.random() * Math.PI * 2;
+
+        // Данные объекта
+        clone.userData.type = 'vase';
+        clone.userData.vaseType = vaseId;
+        clone.userData.rotation = clone.rotation.y;
+        clone.userData.selected = false;
+        clone.userData.surfaceHeight = surfaceHeight;
+
+        clone.userData.material = materialType;
+        clone.userData.scale = userScale;
+        clone.userData.defaultScale = defaultScale;
+        clone.userData.baseScale = baseScale;
+
+        this.vasesGroup.add(clone);
+
+        const vaseData = {
+            id: clone.userData.id,
+            group: clone,
+
+            type: 'vase',
+            vaseType: vaseId,
+
+            x: clampedX,
+            z: clampedZ,
+
+            rotation: clone.rotation.y,
+
+            // Масштабы храним отдельно
+            scale: userScale,
+            defaultScale: defaultScale,
+            baseScale: baseScale,
+
+            material: materialType,
+
+            config: config,
+
+            selected: false,
+            surfaceHeight: surfaceHeight
+        };
+
+        this.vases.push(vaseData);
+
+        // Материал гарантированно загружен
+        this.applyMaterialToVase(vaseData);
+
+        this.selectVase(vaseData.id);
+        this.updateVasesList();
+
+        console.log(
+            `✅ Ваза ${config.name} добавлена ` +
+            `на позицию (${clampedX.toFixed(2)}, ${clampedZ.toFixed(2)}) ` +
+            `на высоте ${vaseY.toFixed(3)}`
+        );
+
+        return vaseData;
+
+    } catch (error) {
+        console.error(
+            '❌ Ошибка добавления вазы:',
+            error
+        );
+
+        return null;
     }
+}
+
     
     // ============================================================
     // ⭐ ДОБАВЛЕНИЕ СЛУЧАЙНОЙ ВАЗЫ
@@ -485,38 +639,120 @@ getSurfaceHeight(x, z) {
     // ============================================================
     // ⭐ СМЕНА МАТЕРИАЛА
     // ============================================================
-    async setMaterial(materialType) {
-        console.log(`🔄 Смена материала ваз на: ${materialType}`);
-        await this.loadMaterial(materialType);
+async setMaterial(materialType) {
+    if (!materialType) {
+        console.warn('⚠️ Не указан материал для вазы');
+        return;
     }
+
+    // Запоминаем материал как текущий для новых ваз
+    this.vaseMaterial = materialType;
+
+    const vase = this.vases.find(
+        v => v.id === this.selectedId
+    );
+
+    // Если вазы ещё нет — материал всё равно уже сохранён
+    if (!vase) {
+        console.log(
+            `🎨 Текущий материал для новых ваз: ${materialType}`
+        );
+        return;
+    }
+
+    console.log(
+        `🔄 Смена материала вазы ${vase.id} на: ${materialType}`
+    );
+
+    const material = await this.loadMaterial(materialType);
+
+    if (!material) {
+        console.warn(
+            `❌ Не удалось загрузить материал ${materialType}`
+        );
+        return;
+    }
+
+    vase.material = materialType;
+    vase.group.userData.material = materialType;
+
+    this.applyMaterialToVase(vase);
+
+    console.log(
+        `✅ Материал вазы ${vase.id} изменён на: ${materialType}`
+    );
+}
     
     // ============================================================
     // ⭐ ИЗМЕНЕНИЕ МАСШТАБА
     // ============================================================
-    setScale(scale) {
-        this.vaseScale = scale;
-        this.vases.forEach(vase => {
-            const config = vase.config;
-            const baseScale = config?.defaultScale || 1.0;
-            const newScale = scale * baseScale;
-            vase.scale = newScale;
-            
-            const group = vase.group;
-            const box = new THREE.Box3().setFromObject(group);
-            const size = box.getSize(new THREE.Vector3());
-            const height = config?.defaultHeight || 0.5;
-            const scaleFactor = height / Math.max(size.y, 0.01) * newScale;
-            group.scale.set(scaleFactor, scaleFactor, scaleFactor);
-            
-            // ⭐ ПЕРЕСЧИТЫВАЕМ ВЫСОТУ ПРИ ИЗМЕНЕНИИ МАСШТАБА
-            // Получаем новую высоту поверхности
-            const surfaceHeight = this.getSurfaceHeight(vase.x, vase.z);
-            vase.group.position.y = surfaceHeight + 0.001;
-            vase.surfaceHeight = surfaceHeight;
-            
-            console.log(`📏 Масштаб изменён, новая высота: ${vase.group.position.y.toFixed(3)}`);
-        });
+setScale(scale) {
+    const selected = this.getSelected();
+
+    if (!selected) {
+        console.warn('⚠️ Ваза не выбрана');
+        return;
     }
+
+    const userScale = Number(scale);
+
+    if (!Number.isFinite(userScale) || userScale <= 0) {
+        console.warn(
+            `⚠️ Некорректный масштаб: ${scale}`
+        );
+        return;
+    }
+
+    selected.scale = userScale;
+    selected.group.userData.scale = userScale;
+
+    const baseScale =
+        selected.baseScale || 1.0;
+
+    const defaultScale =
+        selected.defaultScale || 1.0;
+
+    const finalScale =
+        baseScale *
+        defaultScale *
+        userScale;
+
+    selected.group.scale.set(
+        finalScale,
+        finalScale,
+        finalScale
+    );
+
+    // После изменения масштаба снова ставим вазу
+    // на поверхность
+    const surfaceHeight =
+        this.getSurfaceHeight(
+            selected.x,
+            selected.z
+        );
+
+    selected.group.position.y =
+        surfaceHeight - 0.01;
+
+    selected.surfaceHeight =
+        surfaceHeight;
+
+    selected.group.userData.surfaceHeight =
+        surfaceHeight;
+
+    console.log(
+        `📏 Масштаб вазы ${selected.id}:`,
+        {
+            userScale,
+            defaultScale,
+            baseScale,
+            finalScale
+        }
+    );
+
+    this.updateSelectionUI(selected);
+    this.updateVasesList();
+}
     
     // ============================================================
     // ⭐ ОБНОВЛЕНИЕ ПОЗИЦИИ ПРИ ПЕРЕТАСКИВАНИИ

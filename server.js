@@ -17,6 +17,7 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 
@@ -25,7 +26,9 @@ const app = express();
 // ============================================
 // КОНСТАНТЫ ИЗ .ENV
 // ============================================
+const ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!';
+
 const EMAIL_USER = process.env.EMAIL_USER || 'gipsogen2008@gmail.com';
 const EMAIL_PASS = process.env.EMAIL_PASS || 'yzhv gyam rbai rune';
 const PORT = process.env.PORT || 3000;
@@ -258,6 +261,21 @@ app.use('/models', express.static(path.join(__dirname, 'storage', 'models'), {
     }
 }));
 
+// ============================================
+// КАТАЛОГ СТЕЛ
+// ============================================
+
+const CATALOG_MODELS_DIR = path.join(__dirname, 'storage', 'models');
+const CATALOG_PREVIEWS_DIR = path.join(CATALOG_MODELS_DIR, 'previews');
+
+if (!fs.existsSync(CATALOG_MODELS_DIR)) {
+    fs.mkdirSync(CATALOG_MODELS_DIR, { recursive: true });
+}
+
+if (!fs.existsSync(CATALOG_PREVIEWS_DIR)) {
+    fs.mkdirSync(CATALOG_PREVIEWS_DIR, { recursive: true });
+}
+
 app.use('/textures', express.static(path.join(__dirname, 'storage', 'textures'), {
     maxAge: '365d',
     immutable: true,
@@ -352,153 +370,1682 @@ app.get('/downloads/admin_panel', (req, res) => {
         </html>
     `);
 });
+
 // ============================================
-// БАЗА ДАННЫХ SQLite
+// БАЗА ДАННЫХ SQLite + ОДИН ADMIN
 // ============================================
 
 let db;
 
-function initDB() {
-    db = new sqlite3.Database(DB_PATH);
-    
-    db.serialize(() => {
-        db.run(`
-            CREATE TABLE IF NOT EXISTS prices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                key TEXT UNIQUE NOT NULL,
-                value INTEGER NOT NULL,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `, function(err) {
+const ALLOWED_PRICE_KEYS = new Set([
+    'granite',
+    'black_galaxy',
+    'ninimyaki',
+    'marble',
+    'red_granite',
+    'beige_granite',
+    'gray_granite',
+
+    'base_granite',
+    'base_marble',
+    'base_red_granite',
+    'base_other',
+
+    'grass',
+    'gravel',
+    'marble_chips',
+    'red_gravel',
+    'blue_gravel',
+    'black_gravel',
+    'sand',
+    'flowers',
+    'moss',
+
+    'pipe',
+    'chain',
+    'casting',
+    'model_3d',
+    'venzel',
+
+    'stele_work',
+    'engraving',
+    'photo',
+
+    'table',
+    'bench',
+    'picnic_set',
+
+    'delivery',
+    'install'
+]);
+
+
+const DEFAULT_PRICES = {
+    granite: 5000,
+    black_galaxy: 5500,
+    ninimyaki: 4500,
+    marble: 8000,
+    red_granite: 7000,
+    beige_granite: 6500,
+    gray_granite: 6000,
+
+    base_granite: 4000,
+    base_marble: 6000,
+    base_red_granite: 5500,
+    base_other: 3500,
+
+    grass: 500,
+    gravel: 800,
+    marble_chips: 1500,
+    red_gravel: 1200,
+    blue_gravel: 1200,
+    black_gravel: 1400,
+    sand: 600,
+    flowers: 1800,
+    moss: 900,
+
+    pipe: 800,
+    chain: 600,
+    casting: 2000,
+    model_3d: 2500,
+    venzel: 2200,
+
+    stele_work: 5000,
+    engraving: 1500,
+    photo: 2000,
+
+    table: 15000,
+    bench: 12000,
+    picnic_set: 25000,
+
+    delivery: 3000,
+    install: 5000
+};
+
+
+const ADMIN_SESSION_DAYS = 7;
+
+let pricesCache = null;
+let pricesCacheTime = 0;
+
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ PROMISE-ФУНКЦИИ
+// ============================================
+
+function dbRun(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function(err) {
             if (err) {
-                console.error('❌ Ошибка создания таблицы:', err);
+                reject(err);
                 return;
             }
-            console.log('✅ Таблица prices создана');
-            addDefaultPrices();
+
+            resolve({
+                lastID: this.lastID,
+                changes: this.changes
+            });
         });
     });
 }
 
 
+function dbGet(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+            if (err) {
+                reject(err);
+                return;
+            }
 
-function addDefaultPrices() {
-    db.get('SELECT COUNT(*) as count FROM prices', (err, row) => {
-        if (err) {
-            console.error('❌ Ошибка проверки:', err);
-            return;
-        }
-        
-        if (row.count === 0) {
-            const defaultPrices = {
-                granite: 5000, black_galaxy: 5500, ninimyaki: 4500,
-                marble: 8000, red_granite: 7000, beige_granite: 6500, gray_granite: 6000,
-                base_granite: 4000, base_marble: 6000, base_red_granite: 5500, base_other: 3500,
-                grass: 500, gravel: 800, marble_chips: 1500,
-                red_gravel: 1200, blue_gravel: 1200, black_gravel: 1400,
-                sand: 600, flowers: 1800, moss: 900,
-                pipe: 800, chain: 600, casting: 2000, model_3d: 2500, venzel: 2200,
-                stele_work: 5000, engraving: 1500, photo: 2000,
-                table: 15000, bench: 12000, picnic_set: 25000,
-                delivery: 3000, install: 5000
-            };
-            
-            console.log('📦 Добавление стандартных цен...');
-            
-            const stmt = db.prepare('INSERT INTO prices (key, value) VALUES (?, ?)');
-            let count = 0;
-            
-            Object.entries(defaultPrices).forEach(([key, value]) => {
-                stmt.run(key, value, function(err) {
-                    if (!err) count++;
-                });
-            });
-            
-            stmt.finalize(() => {
-                console.log(`✅ Добавлено ${count} стандартных цен`);
-            });
+            resolve(row || null);
+        });
+    });
+}
+
+
+function dbAll(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            resolve(rows || []);
+        });
+    });
+}
+
+
+// ============================================
+// ПАРОЛИ
+// ============================================
+
+function hashPassword(password) {
+    return new Promise((resolve, reject) => {
+        const salt = crypto.randomBytes(16).toString('hex');
+
+        crypto.scrypt(
+            String(password),
+            salt,
+            64,
+            (err, derivedKey) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve(
+                    `${salt}:${derivedKey.toString('hex')}`
+                );
+            }
+        );
+    });
+}
+
+
+function verifyPassword(password, storedHash) {
+    return new Promise((resolve) => {
+        try {
+            if (!storedHash || !storedHash.includes(':')) {
+                resolve(false);
+                return;
+            }
+
+            const [salt, keyHex] = storedHash.split(':');
+
+            crypto.scrypt(
+                String(password),
+                salt,
+                64,
+                (err, derivedKey) => {
+                    if (err) {
+                        resolve(false);
+                        return;
+                    }
+
+                    const storedKey =
+                        Buffer.from(keyHex, 'hex');
+
+                    if (
+                        storedKey.length !==
+                        derivedKey.length
+                    ) {
+                        resolve(false);
+                        return;
+                    }
+
+                    resolve(
+                        crypto.timingSafeEqual(
+                            storedKey,
+                            derivedKey
+                        )
+                    );
+                }
+            );
+
+        } catch (error) {
+            resolve(false);
         }
     });
 }
+
+
+// ============================================
+// ADMIN
+// ============================================
+
+function getFirstAdmin() {
+    return dbGet(`
+        SELECT *
+        FROM admins
+        ORDER BY id
+        LIMIT 1
+    `);
+}
+
+
+function getAdminByLogin(login) {
+    return dbGet(`
+        SELECT *
+        FROM admins
+        WHERE login = ?
+        LIMIT 1
+    `, [login]);
+}
+
+
+function getAdminById(id) {
+    return dbGet(`
+        SELECT
+            id,
+            login,
+            name,
+            active,
+            created_at
+        FROM admins
+        WHERE id = ?
+        LIMIT 1
+    `, [id]);
+}
+
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ЦЕНЫ УСТАНОВКИ
+// ============================================
+//
+// ВАЖНО:
+// Цены НЕ привязаны к admin_id.
+//
+// Один клиент / одна установка
+// использует одну общую таблицу prices.
+//
+
+async function getPrices() {
+    const rows = await dbAll(`
+        SELECT
+            key,
+            value
+        FROM prices
+        ORDER BY key
+    `);
+
+    const result = {};
+
+    rows.forEach(row => {
+        result[row.key] = Number(row.value);
+    });
+
+    return result;
+}
+
+
+async function ensurePrices() {
+    let added = 0;
+
+    for (const [key, value] of Object.entries(DEFAULT_PRICES)) {
+
+        const result = await dbRun(`
+            INSERT OR IGNORE INTO prices (
+                key,
+                value
+            )
+            VALUES (?, ?)
+        `, [
+            key,
+            value
+        ]);
+
+        if (result.changes > 0) {
+            added++;
+        }
+    }
+
+    if (added > 0) {
+        console.log(
+            `💰 Добавлено недостающих цен: ${added}`
+        );
+    }
+}
+
+
+// ============================================
+// МИГРАЦИЯ ТАБЛИЦЫ prices
+// ============================================
+//
+// Поддерживаются:
+//
+// 1. Старый вариант:
+//
+// prices
+//   id
+//   key
+//   value
+//   updated_at
+//
+// 2. Текущий временный multi-admin вариант:
+//
+// prices
+//   id
+//   admin_id
+//   key
+//   value
+//   updated_at
+//
+// После запуска будет:
+//
+// prices
+//   id
+//   key
+//   value
+//   updated_at
+//
+// Если сейчас есть admin_id,
+// берём цены первого администратора.
+//
+
+async function migratePricesToSingleInstallation() {
+
+    const tableInfo = await dbAll(`
+        PRAGMA table_info(prices)
+    `);
+
+
+    // ========================================
+    // Таблицы prices вообще нет
+    // ========================================
+
+    if (tableInfo.length === 0) {
+
+        await dbRun(`
+            CREATE TABLE prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value INTEGER NOT NULL,
+                updated_at TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        console.log(
+            '✅ Создана таблица prices для установки'
+        );
+
+        return;
+    }
+
+
+    // ========================================
+    // Проверяем multi-admin структуру
+    // ========================================
+
+    const hasAdminId = tableInfo.some(
+        column => column.name === 'admin_id'
+    );
+
+
+    if (!hasAdminId) {
+
+        console.log(
+            '✅ Таблица prices уже имеет структуру одной установки'
+        );
+
+        return;
+    }
+
+
+    // ========================================
+    // MULTI-ADMIN -> GLOBAL PRICES
+    // ========================================
+
+    console.log(
+        '🔄 Обнаружена multi-admin структура prices'
+    );
+
+    console.log(
+        '🔄 Перенос цен первого администратора в общую таблицу...'
+    );
+
+
+    const firstAdmin = await getFirstAdmin();
+
+
+    // ========================================
+    // Создаём временную таблицу
+    // ========================================
+
+    await dbRun(`
+        CREATE TABLE prices_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            value INTEGER NOT NULL,
+            updated_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+
+    // ========================================
+    // Переносим цены первого админа
+    // ========================================
+
+    if (firstAdmin) {
+
+        const oldRows = await dbAll(`
+            SELECT
+                key,
+                value,
+                updated_at
+            FROM prices
+            WHERE admin_id = ?
+            ORDER BY id
+        `, [
+            firstAdmin.id
+        ]);
+
+
+        for (const row of oldRows) {
+
+            if (!ALLOWED_PRICE_KEYS.has(row.key)) {
+                continue;
+            }
+
+            await dbRun(`
+                INSERT OR IGNORE INTO prices_new (
+                    key,
+                    value,
+                    updated_at
+                )
+                VALUES (?, ?, ?)
+            `, [
+                row.key,
+                Number(row.value),
+                row.updated_at ||
+                    new Date().toISOString()
+            ]);
+        }
+
+
+        console.log(
+            `✅ Перенесено цен: ${oldRows.length}`
+        );
+
+    } else {
+
+        console.log(
+            '⚠️ Первый администратор не найден, будут использованы стандартные цены'
+        );
+    }
+
+
+    // ========================================
+    // Заменяем старую таблицу
+    // ========================================
+
+    await dbRun(`
+        DROP TABLE prices
+    `);
+
+
+    await dbRun(`
+        ALTER TABLE prices_new
+        RENAME TO prices
+    `);
+
+
+    console.log(
+        '✅ Таблица prices переведена на общие цены установки'
+    );
+}
+
+
+// ============================================
+// СОЗДАНИЕ ПЕРВОГО АДМИНА
+// ============================================
+
+async function createInitialAdmin() {
+
+    let admin = await getFirstAdmin();
+
+
+    if (!admin) {
+
+        console.log(
+            `👤 Создание администратора: ${ADMIN_LOGIN}`
+        );
+
+
+        const passwordHash =
+            await hashPassword(
+                ADMIN_PASSWORD
+            );
+
+
+        const result = await dbRun(`
+            INSERT INTO admins (
+                login,
+                password_hash,
+                name,
+                active
+            )
+            VALUES (?, ?, ?, 1)
+        `, [
+            ADMIN_LOGIN,
+            passwordHash,
+            ADMIN_LOGIN
+        ]);
+
+
+        admin =
+            await getAdminById(
+                result.lastID
+            );
+
+
+        console.log(
+            `✅ Создан администратор #${result.lastID}: ${ADMIN_LOGIN}`
+        );
+
+    } else {
+
+        console.log(
+            `👤 Используется администратор: ${admin.login}`
+        );
+    }
+
+
+    return admin;
+}
+
+
+// ============================================
+// СИНХРОНИЗАЦИЯ ПАРОЛЯ
+// ============================================
+
+async function resetAdminPasswordIfRequested() {
+
+    if (
+        String(
+            process.env.ADMIN_RESET_PASSWORD
+        ).toLowerCase() !== 'true'
+    ) {
+        return;
+    }
+
+
+    const login =
+        ADMIN_LOGIN || 'admin';
+
+
+    const admin =
+        await getAdminByLogin(login);
+
+
+    if (!admin) {
+
+        console.warn(
+            `⚠️ Администратор ${login} не найден для сброса пароля`
+        );
+
+        return;
+    }
+
+
+    const passwordHash =
+        await hashPassword(
+            ADMIN_PASSWORD
+        );
+
+
+    await dbRun(`
+        UPDATE admins
+        SET password_hash = ?
+        WHERE id = ?
+    `, [
+        passwordHash,
+        admin.id
+    ]);
+
+
+    console.log(
+        `🔐 Пароль администратора ${login} обновлён из .env`
+    );
+}
+
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ БД
+// ============================================
+
+async function initDB() {
+
+    db = new sqlite3.Database(
+        DB_PATH
+    );
+
+
+    await dbRun(`
+        PRAGMA foreign_keys = ON
+    `);
+
+
+    // ========================================
+    // ADMINS
+    // ========================================
+
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            login TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT,
+            active INTEGER DEFAULT 1,
+            created_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+
+    console.log(
+        '✅ Таблица admins готова'
+    );
+
+
+    // ========================================
+    // ADMIN SESSIONS
+    // ========================================
+
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT UNIQUE NOT NULL,
+            admin_id INTEGER NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (admin_id)
+                REFERENCES admins(id)
+                ON DELETE CASCADE
+        )
+    `);
+
+
+    console.log(
+        '✅ Таблица admin_sessions готова'
+    );
+
+
+    // ========================================
+    // ПЕРВЫЙ / ЕДИНСТВЕННЫЙ АДМИН
+    // ========================================
+
+    const firstAdmin =
+        await createInitialAdmin();
+
+
+    // ========================================
+    // МИГРАЦИЯ ЦЕН
+    // ========================================
+
+    await migratePricesToSingleInstallation();
+
+
+    // ========================================
+    // ДОБАВЛЯЕМ НЕДОСТАЮЩИЕ ЦЕНЫ
+    // ========================================
+
+    await ensurePrices();
+
+
+    // ========================================
+    // КАТАЛОГ СТЕЛ
+    // ========================================
+
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS steles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            model_id TEXT UNIQUE NOT NULL,
+
+            name TEXT NOT NULL,
+
+            model_file TEXT NOT NULL,
+
+            width REAL NOT NULL DEFAULT 0.6,
+
+            height REAL NOT NULL DEFAULT 1.3,
+
+            depth REAL NOT NULL DEFAULT 0.08,
+
+            model_type TEXT NOT NULL
+                DEFAULT 'vertical',
+
+            rotation TEXT
+                DEFAULT '',
+
+            active INTEGER NOT NULL
+                DEFAULT 1,
+
+            created_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+
+    console.log(
+        '✅ Таблица steles готова'
+    );
+
+
+    // ========================================
+    // ПАРОЛЬ ИЗ .ENV
+    // ========================================
+
+    await resetAdminPasswordIfRequested();
+
+
+    // ========================================
+    // ОЧИСТКА СТАРЫХ СЕССИЙ
+    // ========================================
+
+    await dbRun(`
+        DELETE FROM admin_sessions
+        WHERE expires_at < datetime('now')
+    `);
+
+
+    console.log(
+        '✅ База данных полностью инициализирована'
+    );
+}
+
+// ============================================
+// ADMIN SESSION
+// ============================================
+
+function generateSessionToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+
+function parseCookies(req) {
+
+    const header =
+        req.headers.cookie;
+
+
+    if (!header) {
+        return {};
+    }
+
+
+    const cookies = {};
+
+
+    header.split(';').forEach(part => {
+
+        const index =
+            part.indexOf('=');
+
+
+        if (index === -1) {
+            return;
+        }
+
+
+        const key =
+            part.slice(0, index).trim();
+
+
+        const value =
+            part.slice(index + 1).trim();
+
+
+        cookies[key] =
+            decodeURIComponent(value);
+    });
+
+
+    return cookies;
+}
+
+
+async function createAdminSession(adminId) {
+
+    const token =
+        generateSessionToken();
+
+
+    await dbRun(`
+        INSERT INTO admin_sessions (
+            token,
+            admin_id,
+            expires_at
+        )
+        VALUES (
+            ?,
+            ?,
+            datetime(
+                'now',
+                '+${ADMIN_SESSION_DAYS} days'
+            )
+        )
+    `, [
+        token,
+        adminId
+    ]);
+
+
+    return token;
+}
+
+
+async function getAdminFromSession(req) {
+
+    const cookies =
+        parseCookies(req);
+
+
+    const token =
+        cookies.admin_session;
+
+
+    if (!token) {
+        return null;
+    }
+
+
+    const row = await dbGet(`
+        SELECT
+            a.id,
+            a.login,
+            a.name,
+            a.active
+        FROM admin_sessions s
+        JOIN admins a
+            ON a.id = s.admin_id
+        WHERE s.token = ?
+          AND s.expires_at > datetime('now')
+          AND a.active = 1
+        LIMIT 1
+    `, [
+        token
+    ]);
+
+
+    if (!row) {
+        return null;
+    }
+
+
+    return {
+        id: row.id,
+        login: row.login,
+        name: row.name,
+        active: row.active
+    };
+}
+
+
+async function requireAdmin(req, res, next) {
+
+    try {
+
+        const admin =
+            await getAdminFromSession(req);
+
+
+        if (!admin) {
+
+            return res.status(401).json({
+                success: false,
+                message: 'Требуется авторизация'
+            });
+        }
+
+
+        req.admin = admin;
+
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            '❌ Ошибка проверки сессии:',
+            error
+        );
+
+
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка авторизации'
+        });
+    }
+}
+
+
+// ============================================
+// API: ADMIN LOGIN
+// ============================================
+
+app.post(
+    '/api/admin/login',
+    async (req, res) => {
+
+        try {
+
+            const login =
+                String(
+                    req.body?.login || ''
+                ).trim();
+
+
+            const password =
+                String(
+                    req.body?.password || ''
+                );
+
+
+            if (!login || !password) {
+
+                return res.status(400).json({
+                    success: false,
+                    message: 'Введите логин и пароль'
+                });
+            }
+
+
+            const admin =
+                await getAdminByLogin(
+                    login
+                );
+
+
+            if (
+                !admin ||
+                !admin.active
+            ) {
+
+                return res.status(401).json({
+                    success: false,
+                    message: 'Неверный логин или пароль'
+                });
+            }
+
+
+            const valid =
+                await verifyPassword(
+                    password,
+                    admin.password_hash
+                );
+
+
+            if (!valid) {
+
+                return res.status(401).json({
+                    success: false,
+                    message: 'Неверный логин или пароль'
+                });
+            }
+
+
+            const token =
+                await createAdminSession(
+                    admin.id
+                );
+
+
+            res.setHeader(
+                'Set-Cookie',
+                [
+                    `admin_session=${encodeURIComponent(token)}`,
+                    'HttpOnly',
+                    'SameSite=Lax',
+                    'Path=/',
+                    `Max-Age=${ADMIN_SESSION_DAYS * 24 * 60 * 60}`
+                ].join('; ')
+            );
+
+
+            res.json({
+                success: true,
+                admin: {
+                    id: admin.id,
+                    login: admin.login,
+                    name: admin.name
+                }
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                '❌ Ошибка входа администратора:',
+                error
+            );
+
+
+            res.status(500).json({
+                success: false,
+                message: 'Ошибка сервера'
+            });
+        }
+    }
+);
+
+
+// ============================================
+// API: ADMIN LOGOUT
+// ============================================
+
+app.post(
+    '/api/admin/logout',
+    async (req, res) => {
+
+        try {
+
+            const cookies =
+                parseCookies(req);
+
+
+            const token =
+                cookies.admin_session;
+
+
+            if (token) {
+
+                await dbRun(`
+                    DELETE FROM admin_sessions
+                    WHERE token = ?
+                `, [
+                    token
+                ]);
+            }
+
+
+            res.setHeader(
+                'Set-Cookie',
+                [
+                    'admin_session=',
+                    'HttpOnly',
+                    'SameSite=Lax',
+                    'Path=/',
+                    'Max-Age=0'
+                ].join('; ')
+            );
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                '❌ Ошибка выхода:',
+                error
+            );
+
+
+            res.status(500).json({
+                success: false,
+                message: 'Ошибка сервера'
+            });
+        }
+    }
+);
+
+
+// ============================================
+// API: ТЕКУЩИЙ ADMIN
+// ============================================
+
+app.get(
+    '/api/admin/meapi/admin/me',
+    requireAdmin,
+    (req, res) => {
+
+        res.json({
+            success: true,
+            admin: req.admin
+        });
+    }
+);
+
+// ============================================
+// API: КАТАЛОГ СТЕЛ
+// ============================================
+
+// Получить список всех активных стел
+app.get('/api/admin/steles', requireAdmin, (req, res) => {
+    db.all(`
+        SELECT
+            id,
+            model_id,
+            name,
+            model_file,
+            width,
+            height,
+            depth,
+            model_type,
+            rotation,
+            active,
+            created_at,
+            updated_at
+        FROM steles
+        ORDER BY id ASC
+    `, (err, rows) => {
+        if (err) {
+            console.error('❌ Ошибка получения стел:', err);
+            return res.status(500).json({
+                success: false,
+                message: 'Ошибка получения каталога стел'
+            });
+        }
+
+        res.json({
+            success: true,
+            steles: rows
+        });
+    });
+});
+
+
+// Публичный список активных стел для конструктора
+app.get('/api/steles', (req, res) => {
+    db.all(`
+        SELECT
+            id,
+            model_id,
+            name,
+            model_file,
+            width,
+            height,
+            depth,
+            model_type,
+            rotation
+        FROM steles
+        WHERE active = 1
+        ORDER BY id ASC
+    `, (err, rows) => {
+        if (err) {
+            console.error('❌ Ошибка получения публичных стел:', err);
+            return res.status(500).json({
+                success: false,
+                message: 'Ошибка получения стел'
+            });
+        }
+
+        res.json({
+            success: true,
+            steles: rows
+        });
+    });
+});
+
+
+// Добавить новую стелу
+app.post('/api/admin/steles', requireAdmin, (req, res) => {
+    const {
+        name,
+        model_file,
+        width,
+        height,
+        depth,
+        model_type,
+        rotation,
+        active
+    } = req.body;
+
+    if (!name || !model_file) {
+        return res.status(400).json({
+            success: false,
+            message: 'Название и GLB-файл обязательны'
+        });
+    }
+
+    const cleanName = String(name).trim().slice(0, 200);
+    const cleanFile = path.basename(String(model_file).trim());
+
+    if (!cleanFile.toLowerCase().endsWith('.glb')) {
+        return res.status(400).json({
+            success: false,
+            message: 'Разрешены только GLB-файлы'
+        });
+    }
+
+    const modelId =
+        'catalog_stele_' +
+        Date.now() +
+        '_' +
+        Math.random().toString(36).slice(2, 8);
+
+    const w = Number(width) || 0.6;
+    const h = Number(height) || 1.3;
+    const d = Number(depth) || 0.08;
+
+    const type =
+        model_type === 'horizontal'
+            ? 'horizontal'
+            : 'vertical';
+
+    const rot =
+        rotation
+            ? String(rotation).slice(0, 100)
+            : '';
+
+    const isActive = active === false ? 0 : 1;
+
+    db.run(`
+        INSERT INTO steles (
+            model_id,
+            name,
+            model_file,
+            width,
+            height,
+            depth,
+            model_type,
+            rotation,
+            active
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+        modelId,
+        cleanName,
+        cleanFile,
+        w,
+        h,
+        d,
+        type,
+        rot,
+        isActive
+    ], function(err) {
+        if (err) {
+            console.error('❌ Ошибка добавления стелы:', err);
+
+            return res.status(500).json({
+                success: false,
+                message: 'Не удалось добавить стелу'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Стела добавлена',
+            stele: {
+                id: this.lastID,
+                model_id: modelId,
+                name: cleanName,
+                model_file: cleanFile,
+                width: w,
+                height: h,
+                depth: d,
+                model_type: type,
+                rotation: rot,
+                active: isActive
+            }
+        });
+    });
+});
+
+
+// Изменить стелу
+app.put('/api/admin/steles/:id', requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Некорректный ID'
+        });
+    }
+
+    const {
+        name,
+        model_file,
+        width,
+        height,
+        depth,
+        model_type,
+        rotation,
+        active
+    } = req.body;
+
+    const cleanName = String(name || '').trim().slice(0, 200);
+    const cleanFile = path.basename(String(model_file || '').trim());
+
+    if (!cleanName || !cleanFile) {
+        return res.status(400).json({
+            success: false,
+            message: 'Название и GLB-файл обязательны'
+        });
+    }
+
+    if (!cleanFile.toLowerCase().endsWith('.glb')) {
+        return res.status(400).json({
+            success: false,
+            message: 'Разрешены только GLB-файлы'
+        });
+    }
+
+    db.run(`
+        UPDATE steles
+        SET
+            name = ?,
+            model_file = ?,
+            width = ?,
+            height = ?,
+            depth = ?,
+            model_type = ?,
+            rotation = ?,
+            active = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `, [
+        cleanName,
+        cleanFile,
+        Number(width) || 0.6,
+        Number(height) || 1.3,
+        Number(depth) || 0.08,
+        model_type === 'horizontal' ? 'horizontal' : 'vertical',
+        rotation ? String(rotation).slice(0, 100) : '',
+        active === false ? 0 : 1,
+        id
+    ], function(err) {
+        if (err) {
+            console.error('❌ Ошибка изменения стелы:', err);
+
+            return res.status(500).json({
+                success: false,
+                message: 'Не удалось изменить стелу'
+            });
+        }
+
+        if (this.changes === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Стела не найдена'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Стела изменена'
+        });
+    });
+});
+
+
+// Удалить стелу
+app.delete('/api/admin/steles/:id', requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Некорректный ID'
+        });
+    }
+
+    db.get(
+        'SELECT model_id, model_file FROM steles WHERE id = ?',
+        [id],
+        (err, stele) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Ошибка поиска стелы'
+                });
+            }
+
+            if (!stele) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Стела не найдена'
+                });
+            }
+
+            db.run(
+                'DELETE FROM steles WHERE id = ?',
+                [id],
+                function(deleteErr) {
+                    if (deleteErr) {
+                        console.error(
+                            '❌ Ошибка удаления стелы:',
+                            deleteErr
+                        );
+
+                        return res.status(500).json({
+                            success: false,
+                            message: 'Не удалось удалить стелу'
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        message: 'Стела удалена'
+                    });
+                }
+            );
+        }
+    );
+});
 
 // ============================================
 // API: ЦЕНЫ
 // ============================================
 
-let pricesCache = null;
-let pricesCacheTime = 0;
+app.get(
+    '/api/admin/prices',
+    requireAdmin,
+    async (req, res) => {
 
-app.get('/api/prices', (req, res) => {
-    if (pricesCache && (Date.now() - pricesCacheTime) < 30000) {
-        return res.json(pricesCache);
-    }
-    
-    db.all('SELECT key, value FROM prices', (err, rows) => {
-        if (err) {
-            console.error('Ошибка получения цен:', err);
-            return res.status(500).json({ error: 'Ошибка сервера' });
+        try {
+
+            const prices =
+                await getPrices();
+
+
+            res.json(prices);
+
+
+        } catch (error) {
+
+            console.error(
+                '❌ Ошибка получения цен:',
+                error
+            );
+
+
+            res.status(500).json({
+                success: false,
+                message: 'Ошибка получения цен'
+            });
         }
-        
-        const prices = {};
-        rows.forEach(row => {
-            prices[row.key] = row.value;
-        });
-        
-        pricesCache = prices;
-        pricesCacheTime = Date.now();
-        res.json(prices);
-    });
-});
+    }
+);
 
-app.post('/api/prices', (req, res) => {
-    const { prices, password } = req.body;
-    
-    // Используем пароль из .env
-    if (password !== ADMIN_PASSWORD) {
-        return res.status(403).json({ 
-            success: false, 
-            message: 'Неверный пароль' 
-        });
-    }
-    
-    if (!prices || typeof prices !== 'object') {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Некорректные данные' 
-        });
-    }
-    
-    const stmt = db.prepare('UPDATE prices SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?');
-    let success = true;
-    let count = 0;
-    
-    Object.entries(prices).forEach(([key, value]) => {
-        stmt.run(value, key, (err) => {
-            if (err) {
-                console.error(`Ошибка обновления ${key}:`, err);
-                success = false;
-            } else {
-                count++;
+
+app.post(
+    '/api/admin/prices',
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const incomingPrices =
+                req.body?.prices;
+
+
+            if (
+                !incomingPrices ||
+                typeof incomingPrices !== 'object' ||
+                Array.isArray(incomingPrices)
+            ) {
+
+                return res.status(400).json({
+                    success: false,
+                    message: 'Некорректные данные цен'
+                });
             }
-        });
-    });
-    
-    stmt.finalize(() => {
-        pricesCache = null;
-        pricesCacheTime = 0;
-        
-        if (success) {
-            res.json({ 
-                success: true, 
-                message: `Обновлено ${count} цен` 
+
+
+            let count = 0;
+
+
+            for (
+                const [key, rawValue]
+                of Object.entries(incomingPrices)
+            ) {
+
+                if (
+                    !ALLOWED_PRICE_KEYS.has(key)
+                ) {
+                    continue;
+                }
+
+
+                const value =
+                    Number(rawValue);
+
+
+                if (
+                    !Number.isFinite(value) ||
+                    value < 0 ||
+                    value > 1000000000
+                ) {
+
+                    return res.status(400).json({
+                        success: false,
+                        message:
+                            `Некорректная цена: ${key}`
+                    });
+                }
+
+
+                const result =
+                    await dbRun(`
+                        UPDATE prices
+                        SET
+                            value = ?,
+                            updated_at =
+                                CURRENT_TIMESTAMP
+                        WHERE key = ?
+                    `, [
+                        Math.round(value),
+                        key
+                    ]);
+
+
+                if (result.changes > 0) {
+
+                    count++;
+
+                } else {
+
+                    await dbRun(`
+                        INSERT OR IGNORE INTO prices (
+                            key,
+                            value
+                        )
+                        VALUES (?, ?)
+                    `, [
+                        key,
+                        Math.round(value)
+                    ]);
+
+                    count++;
+                }
+            }
+
+
+            pricesCache = null;
+            pricesCacheTime = 0;
+
+
+            res.json({
+                success: true,
+                message:
+                    `Обновлено ${count} цен`
             });
-        } else {
-            res.status(500).json({ 
-                success: false, 
-                message: 'Ошибка сохранения' 
+
+
+        } catch (error) {
+
+            console.error(
+                '❌ Ошибка сохранения цен:',
+                error
+            );
+
+
+            res.status(500).json({
+                success: false,
+                message: 'Ошибка сохранения цен'
             });
         }
-    });
+    }
+);
+
+
+// ============================================
+// API: ПУБЛИЧНЫЕ ЦЕНЫ
+// ============================================
+//
+// Конструктор получает цены без авторизации.
+//
+// В Variant 1 это цены конкретной установки
+// / конкретного клиента.
+//
+// Никакого admin_id здесь нет.
+//
+
+app.get(
+    '/api/prices',
+    async (req, res) => {
+
+        try {
+
+            if (
+                pricesCache &&
+                (Date.now() - pricesCacheTime) < 30000
+            ) {
+
+                return res.json(
+                    pricesCache
+                );
+            }
+
+
+            const prices =
+                await getPrices();
+
+
+            pricesCache =
+                prices;
+
+
+            pricesCacheTime =
+                Date.now();
+
+
+            res.json(prices);
+
+
+        } catch (error) {
+
+            console.error(
+                '❌ Ошибка получения публичных цен:',
+                error
+            );
+
+
+            res.status(500).json({
+                error: 'Ошибка сервера'
+            });
+        }
+    }
+);
+
+
+// ============================================
+// СТАРТ БД
+// ============================================
+
+initDB().catch(error => {
+
+    console.error(
+        '❌ Критическая ошибка инициализации БД:',
+        error
+    );
+
+
+    process.exit(1);
 });
 
 // ============================================
@@ -1071,7 +2618,7 @@ app.delete('/api/projects/:id', (req, res) => {
 preCacheFiles();
 console.log(`✅ Кэшировано ${fileCache.size} файлов`);
 
-initDB();
+
 
 app.post('/api/check-license', (req, res) => {
     const { deviceId } = req.body;

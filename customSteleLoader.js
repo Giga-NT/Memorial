@@ -10,26 +10,77 @@ let modelCache = new Map();
 let currentModelId = null;
 
 export async function loadModelList() {
+    // =====================================================
+    // ВРЕМЕННО: ОСНОВНОЙ ИСТОЧНИК — СТАРЫЙ КАТАЛОГ
+    //
+    // БД steles пока не подключаем к сцене.
+    // Таблица в SQLite остаётся и будет подключена
+    // после того, как сделаем совместимость с createStele().
+    // =====================================================
+
     try {
-        const response = await fetch('./models/models-list.json');
-        if (!response.ok) throw new Error('Файл models-list.json не найден');
-        const data = await response.json();
-        
+        const response =
+            await fetch('./models/models-list.json', {
+                cache: 'no-store'
+            });
+
+        if (!response.ok) {
+            throw new Error(
+                'Файл models-list.json не найден'
+            );
+        }
+
+        const data =
+            await response.json();
+
+        // Очищаем текущий список
+        Object.keys(customModels).forEach(key => {
+            delete customModels[key];
+        });
+
+        // Загружаем старые модели
         data.models.forEach(item => {
+
             customModels[item.id] = {
-                path: `./models/${item.file}`,
-                name: item.name || item.file.replace('.glb', ''),
-                defaultWidth: item.defaultWidth || 0.6,
-                defaultHeight: item.defaultHeight || 1.3,
-                defaultDepth: item.defaultDepth || 0.08,
-                modelType: item.modelType || 'vertical',
+
+                path:
+                    `./models/${item.file}`,
+
+                name:
+                    item.name ||
+                    item.file.replace('.glb', ''),
+
+                defaultWidth:
+                    Number(item.defaultWidth) || 0.6,
+
+                defaultHeight:
+                    Number(item.defaultHeight) || 1.3,
+
+                defaultDepth:
+                    Number(item.defaultDepth) || 0.08,
+
+                modelType:
+                    item.modelType ||
+                    'vertical',
+
+                rotation:
+                    item.rotation || ''
             };
         });
-        
-        console.log(`✅ Загружено ${data.models.length} моделей`);
+
+        console.log(
+            `✅ Загружено ${data.models.length} моделей из старого каталога`
+        );
+
         return data.models;
+
     } catch (error) {
-        console.warn('⚠️ Не удалось загрузить список моделей');
+
+        console.error(
+            '❌ Не удалось загрузить models-list.json:',
+            error
+        );
+
         return [];
     }
 }

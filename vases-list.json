@@ -5,21 +5,32 @@
             "file": "vase1.glb",
             "name": "Классическая",
             "defaultScale": 1.0,
-            "defaultHeight": 0.3
+            "defaultHeight": 0.5,
+            "defaultMaterial": "marble"
         },
         {
             "id": "vase2",
             "file": "vase2.glb",
             "name": "С узором",
             "defaultScale": 1.0,
-            "defaultHeight": 0.35
+            "defaultHeight": 0.55,
+            "defaultMaterial": "granite"
         },
         {
             "id": "vase3",
             "file": "vase3.glb",
             "name": "Высокая",
             "defaultScale": 0.9,
-            "defaultHeight": 0.4
+            "defaultHeight": 0.6,
+            "defaultMaterial": "marble"
+        },
+        {
+            "id": "vase4",
+            "file": "Abajur.glb",
+            "name": "Абажур",
+            "defaultScale": 0.3,
+            "defaultHeight": 0.45,
+            "defaultMaterial": "marble"
         }
     ]
 }

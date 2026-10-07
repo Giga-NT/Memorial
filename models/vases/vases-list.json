@@ -23,6 +23,14 @@
             "defaultScale": 0.9,
             "defaultHeight": 0.6,
             "defaultMaterial": "marble"
+        },
+        {
+            "id": "vase4",
+            "file": "Abajur.glb",
+            "name": "Абажур",
+            "defaultScale": 0.3,
+            "defaultHeight": 0.45,
+            "defaultMaterial": "marble"
         }
     ]
 }

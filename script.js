@@ -3923,11 +3923,25 @@ setTimeout(() => {
 // Обработчики кнопок
 document.getElementById('addVaseBtn')?.addEventListener('click', async function() {
     const manager = initVasesManager();
-    const vase = await manager.addVaseRandom();
+
+    // Получаем выбранный тип вазы из списка
+    const vaseTypeSelect = document.getElementById('vaseTypeSelect');
+    const vaseId = vaseTypeSelect?.value;
+
+    if (!vaseId) {
+        showToast('❌ Не выбран тип вазы', 'error');
+        return;
+    }
+
+    console.log(`🏺 Добавление выбранной вазы: ${vaseId}`);
+
+    // Добавляем именно выбранную вазу, а не случайную
+    const vase = await manager.addVase(vaseId);
+
     if (vase) {
         showToast('🏺 Ваза добавлена!', 'success');
     } else {
-        showToast('❌ Ошибка добавления вазы', 'error');
+        showToast('❌ Не удалось добавить вазу', 'error');
     }
 });
 
@@ -3990,7 +4004,6 @@ document.getElementById('addTableGardenBtn')?.addEventListener('click', async fu
     }
 });
 
-// script.js
 
 // ============================================================
 // ⭐ ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ДЛЯ СНЯТИЯ ВЫДЕЛЕНИЯ
