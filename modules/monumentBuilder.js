@@ -16,6 +16,7 @@ import {
 
 import { createFlowerbedBorder } from './flowerbedBorder.js';
 import { createStelePedestal } from './stelePedestal.js';
+import { createGraveSlab } from './graveSlab.js';
 
 
 // ============================================================
@@ -1660,6 +1661,9 @@ export async function updateMainMonument(
         flowerbedType:
             state.flowerbedType || 'grass',
 
+        flowerbedMode:
+            state.flowerbedMode || 'flowerbed',
+			
         steleType:
             state.steleType ||
             state.steleModel ||
@@ -2030,47 +2034,81 @@ export async function updateMainMonument(
 		);
 	}
 
-	// ============================================================
-	// 6. ЦВЕТНИК
-	// ============================================================
 
-	const flowerbed =
-		await createFlowerbed(params);
-
-	if (flowerbed) {
-
-		monumentGroup.add(
-			flowerbed
-		);
-
-		console.log(
-			'✅ Цветник добавлен'
-		);
-	}
 
 	// ============================================================
-	// 6.1. БОРДЮР ЦВЕТНИКА
+	// 6. ЦВЕТНИК ИЛИ НАДГРОБНАЯ ПЛИТА
 	// ============================================================
 
-	const borderParams = {
-		...params,
-		material: params.borderMaterial
-	};
+	if (params.flowerEnabled !== false) {
 
-	const flowerbedBorder =
-		await createFlowerbedBorder(
-			borderParams
-		);
+		// ========================================================
+		// НАДГРОБНАЯ ПЛИТА
+		// ========================================================
 
-	if (flowerbedBorder) {
+		if (params.flowerbedMode === 'slab') {
 
-		monumentGroup.add(
-			flowerbedBorder
-		);
+			const graveSlab =
+				createGraveSlab(params);
 
-		console.log(
-			'✅ Бордюр цветника добавлен'
-		);
+			if (graveSlab) {
+
+				monumentGroup.add(
+					graveSlab
+				);
+
+				console.log(
+					'🪦 Надгробная плита добавлена'
+				);
+			}
+
+		}
+
+		// ========================================================
+		// ОБЫЧНЫЙ ЦВЕТНИК
+		// ========================================================
+
+		else {
+
+			const flowerbed =
+				await createFlowerbed(params);
+
+			if (flowerbed) {
+
+				monumentGroup.add(
+					flowerbed
+				);
+
+				console.log(
+					'🌺 Цветник добавлен'
+				);
+			}
+
+			// ====================================================
+			// БОРДЮР ЦВЕТНИКА
+			// ====================================================
+
+			const borderParams = {
+				...params,
+				material: params.borderMaterial
+			};
+
+			const flowerbedBorder =
+				await createFlowerbedBorder(
+					borderParams
+				);
+
+			if (flowerbedBorder) {
+
+				monumentGroup.add(
+					flowerbedBorder
+				);
+
+				console.log(
+					'🎨 Бордюр цветника добавлен'
+				);
+			}
+		}
 	}
 
     // ============================================================
@@ -2423,17 +2461,43 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
     }
 
 
-    // ============================================================
-    // ЦВЕТНИК
-    // ============================================================
+	// ============================================================
+	// ЦВЕТНИК ИЛИ НАДГРОБНАЯ ПЛИТА
+	// ============================================================
 
-    const flowerbed =
-        await createFlowerbed(params);
+	if (params.flowerEnabled !== false) {
 
-    if (flowerbed) {
-        group.add(flowerbed);
-    }
+		if (params.flowerbedMode === 'slab') {
 
+			const graveSlab =
+				createGraveSlab(params);
+
+			if (graveSlab) {
+				group.add(graveSlab);
+			}
+
+		} else {
+
+			const flowerbed =
+				await createFlowerbed(params);
+
+			if (flowerbed) {
+				group.add(flowerbed);
+			}
+
+			const borderParams = {
+				...params,
+				material: params.borderMaterial
+			};
+
+			const flowerbedBorder =
+				await createFlowerbedBorder(borderParams);
+
+			if (flowerbedBorder) {
+				group.add(flowerbedBorder);
+			}
+		}
+	}
 
     // ============================================================
     // БОРДЮР ЦВЕТНИКА

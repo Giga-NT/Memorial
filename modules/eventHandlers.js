@@ -377,6 +377,22 @@ export function initFlowerbedHandlers() {
         throttledUpdate();
     });
 
+	document.getElementById('flowerbedMode')?.addEventListener('change', (e) => {
+		state.flowerbedMode = e.target.value;
+
+		const flowerTypeControls =
+			document.getElementById('flowerbedType')?.closest('.control-group');
+
+		if (flowerTypeControls) {
+			flowerTypeControls.style.display =
+				state.flowerbedMode === 'flowerbed'
+					? 'block'
+					: 'none';
+		}
+
+		throttledUpdate();
+	});
+
     document.getElementById('flowerColor')?.addEventListener('input', (e) => {
         state.flowerColor = e.target.value;
         throttledUpdate();

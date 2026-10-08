@@ -267,11 +267,20 @@
 
                 <div class="subsection">
                     <div class="subsection-title">🌺 Цветник</div>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="flowerEnabled" checked>
-                        <label for="flowerEnabled">✅ Показывать цветник</label>
-                    </div>
-                    <div id="flowerControls" class="flower-controls">
+					<div class="control-group">
+						<label for="flowerbedMode">Тип оформления</label>
+						<select id="flowerbedMode">
+							<option value="flowerbed">🌺 Цветник</option>
+							<option value="slab">🪦 Надгробная плита</option>
+						</select>
+					</div>
+
+					<div class="checkbox-group">
+						<input type="checkbox" id="flowerEnabled" checked>
+						<label for="flowerEnabled">✅ Показывать оформление</label>
+					</div>
+
+					<div id="flowerControls" class="flower-controls">
                         <div class="control-group-with-input">
                             <label for="flowerWidth">Ширина</label>
                             <div class="input-with-range">

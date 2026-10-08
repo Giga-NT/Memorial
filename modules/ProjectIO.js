@@ -100,6 +100,7 @@ export class ProjectIO {
             'textColor',
             'photoShape',
             'flowerbedType',
+			'flowerbedMode',
             'fenceType',
             'fenceMaterial',
             'fenceGateSide',
@@ -1721,23 +1722,28 @@ export class ProjectIO {
                                     ui.gateWidth
                                 ) || 0.8,
 
-                            flowerEnabled:
-                                ui.flowerEnabled ??
-                                true,
+							flowerEnabled:
+								ui.flowerEnabled ??
+								true,
 
-                            flowerWidth:
-                                parseFloat(
-                                    ui.flowerWidth
-                                ) || 0.6,
+							flowerWidth:
+								parseFloat(
+									ui.flowerWidth
+								) || 0.6,
 
-                            flowerLength:
-                                parseFloat(
-                                    ui.flowerLength
-                                ) || 0.9,
+							flowerLength:
+								parseFloat(
+									ui.flowerLength
+								) || 0.9,
 
-                            flowerbedType:
-                                ui.flowerbedType ||
-                                'grass',
+							flowerbedType:
+								ui.flowerbedType ||
+								'grass',
+
+							flowerbedMode:
+								ui.flowerbedMode ||
+								'flowerbed',
+
 
                             pathEnabled:
                                 ui.pathEnabled ??

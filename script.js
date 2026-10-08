@@ -781,6 +781,7 @@ const state = {
     fullName: "Иванов Иван Иванович", dates: "01.01.1950 — 01.01.2026",
     epitaph: "Светлая память\nо дорогих людях", textColor: '#FFFFFF',
     flowerbedType: 'grass', photoScale: 1.0, photoOffsetX: 0, photoOffsetY: 0,
+	flowerbedMode: 'flowerbed',
     isDraggingPhoto: false, enableMoveMode: false,
     fontFamily: "Arial, sans-serif", nameFontSize: 24, datesFontSize: 24, epitaphFontSize: 24,
     photoShape: 'oval', photoWidthMm: 100, photoHeightMm: 140,

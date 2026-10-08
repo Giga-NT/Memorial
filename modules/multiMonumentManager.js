@@ -5,6 +5,8 @@ import { loadFlowerbedTexture } from './textures.min.js';
 import { createStelePedestal } from './stelePedestal.js';
 import { createFlowerbedBorder } from './flowerbedBorder.js';
 import { applyBackgroundToGroup} from './backgrounds.js';
+import { createGraveSlab } from './graveSlab.js';
+
 
 // ⭐ КАРТА ТЕКСТУР
 const TEXTURE_PATHS = {
@@ -1045,6 +1047,9 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const flowerTypeEl = document.getElementById('flowerbedType');
         if (flowerTypeEl) data.flowerbedType = flowerTypeEl.value;
+		
+		const flowerModeEl = document.getElementById('flowerbedMode');
+		if (flowerModeEl) data.flowerbedMode = flowerModeEl.value;
         
         const fenceEnabledEl = document.getElementById('fenceEnabled');
         if (fenceEnabledEl) data.fenceEnabled = fenceEnabledEl.checked;
@@ -1381,6 +1386,9 @@ updatePhotoPosition(photoMesh, x, y) {
 		
 		const flowerbedTypeEl = document.getElementById('flowerbedType');
 		if (flowerbedTypeEl) window.state.flowerbedType = flowerbedTypeEl.value;
+
+		const flowerbedModeEl = document.getElementById('flowerbedMode');
+		if (flowerbedModeEl) window.state.flowerbedMode = flowerbedModeEl.value;
 		
 		const fenceEnabledEl = document.getElementById('fenceEnabled');
 		if (fenceEnabledEl) window.state.fenceEnabled = fenceEnabledEl.checked;
@@ -1533,6 +1541,9 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const flowerTypeEl = document.getElementById('flowerbedType');
         if (flowerTypeEl) data.flowerbedType = flowerTypeEl.value;
+
+		const flowerModeEl = document.getElementById('flowerbedMode');
+		if (flowerModeEl) data.flowerbedMode = flowerModeEl.value;
         
         const fenceEnabledEl = document.getElementById('fenceEnabled');
         if (fenceEnabledEl) data.fenceEnabled = fenceEnabledEl.checked;
@@ -2059,6 +2070,7 @@ updatePhotoPosition(photoMesh, x, y) {
 			'flowerLength': 'flowerLength',
 			'flowerEnabled': 'flowerEnabled',
 			'flowerbedType': 'flowerbedType',
+			'flowerbedMode': 'flowerbedMode',
 			'fenceWidth': 'fenceWidth',
 			'fenceLength': 'fenceLength',
 			'fenceEnabled': 'fenceEnabled',
@@ -2147,8 +2159,26 @@ updatePhotoPosition(photoMesh, x, y) {
 		
 		// ⭐ ЦВЕТНИК
 		const flowerControls = document.getElementById('flowerControls');
+
 		if (flowerControls) {
-			flowerControls.style.display = data.flowerEnabled !== false ? 'block' : 'none';
+			flowerControls.style.display =
+				data.flowerEnabled !== false
+					? 'block'
+					: 'none';
+		}
+
+		const flowerbedModeEl =
+			document.getElementById('flowerbedMode');
+
+		if (flowerbedModeEl) {
+
+			flowerbedModeEl.value =
+				data.flowerbedMode ||
+				'flowerbed';
+
+			flowerbedModeEl.dispatchEvent(
+				new Event('change')
+			);
 		}
 		
 		// ⭐ ОБНОВЛЯЕМ АКТИВНУЮ МОДЕЛЬ В СЕТКЕ
@@ -2677,156 +2707,204 @@ updatePhotoPosition(photoMesh, x, y) {
 
 
 			// ========================================================
-			// 2. ЦВЕТНИК
+			// 2. ЦВЕТНИК ИЛИ НАДГРОБНАЯ ПЛИТА
 			// ========================================================
 
 			if (
 				data.flowerEnabled !== false
 			) {
 
-				const flowerW =
-					data.flowerWidth || 0.6;
-
-				const flowerL =
-					data.flowerLength || 0.9;
-
 				if (
-					flowerW > 0.05 &&
-					flowerL > 0.05
+					data.flowerbedMode === 'slab'
 				) {
 
 					try {
 
-						const flowerBedGeo =
-							new THREE.PlaneGeometry(
-								flowerW,
-								flowerL
+						const graveSlab =
+							createGraveSlab({
+								...data,
+
+								flowerWidth:
+									flowerW,
+
+								flowerLength:
+									flowerL,
+
+								baseHeight:
+									baseH,
+
+								borderMaterial:
+									borderMaterialType,
+
+								baseMaterial:
+									baseMaterialType
+							});
+
+						if (graveSlab) {
+
+							mon.group.add(
+								graveSlab
 							);
 
-						const flowerbedTexture =
-							await loadFlowerbedTexture(
-								data.flowerbedType || 'grass'
+							console.log(
+								`🪦 Надгробная плита добавлена для дублера #${mon.id}`
 							);
-
-						let flowerMat;
-
-						if (flowerbedTexture) {
-
-							flowerMat =
-								new THREE.MeshStandardMaterial({
-									map: flowerbedTexture,
-									roughness: 0.7,
-									metalness: 0.05
-								});
-
-						} else {
-
-							const fallbackColors = {
-
-								grass: 0x4caf50,
-								gravel: 0x888888,
-								marble_chips: 0xf5f5f5,
-								red_gravel: 0xcd5c5c,
-								blue_gravel: 0x4682b4,
-								black_gravel: 0x333333,
-								sand: 0xf4e4a0,
-								flowers: 0x7cb342,
-								moss: 0x5d8c3e
-							};
-
-							flowerMat =
-								new THREE.MeshStandardMaterial({
-									color:
-										fallbackColors[
-											data.flowerbedType ||
-											'grass'
-										] || 0x4caf50,
-									roughness: 0.8
-								});
 						}
-
-						const flowerBed =
-							new THREE.Mesh(
-								flowerBedGeo,
-								flowerMat
-							);
-
-						flowerBed.rotation.x =
-							-Math.PI / 2;
-
-						flowerBed.position.set(
-							0,
-							baseH + 0.005,
-							0
-						);
-
-						flowerBed.receiveShadow =
-							true;
-
-						mon.group.add(
-							flowerBed
-						);
-
-						console.log(
-							`🌺 Цветник создан для дублера #${mon.id}`
-						);
 
 					} catch (e) {
 
 						console.warn(
-							'⚠️ Ошибка создания цветника для дублера:',
+							'⚠️ Ошибка создания надгробной плиты для дублера:',
+							e
+						);
+					}
+
+				} else {
+
+					// ========================================================
+					// ЦВЕТНИК
+					// ========================================================
+
+					if (
+						flowerW > 0.05 &&
+						flowerL > 0.05
+					) {
+
+						try {
+
+							const flowerBedGeo =
+								new THREE.PlaneGeometry(
+									flowerW,
+									flowerL
+								);
+
+							const flowerbedTexture =
+								await loadFlowerbedTexture(
+									data.flowerbedType || 'grass'
+								);
+
+							let flowerMat;
+
+							if (flowerbedTexture) {
+
+								flowerMat =
+									new THREE.MeshStandardMaterial({
+										map: flowerbedTexture,
+										roughness: 0.7,
+										metalness: 0.05
+									});
+
+							} else {
+
+								const fallbackColors = {
+									grass: 0x4caf50,
+									gravel: 0x888888,
+									marble_chips: 0xf5f5f5,
+									red_gravel: 0xcd5c5c,
+									blue_gravel: 0x4682b4,
+									black_gravel: 0x333333,
+									sand: 0xf4e4a0,
+									flowers: 0x7cb342,
+									moss: 0x5d8c3e
+								};
+
+								flowerMat =
+									new THREE.MeshStandardMaterial({
+										color:
+											fallbackColors[
+												data.flowerbedType ||
+												'grass'
+											] || 0x4caf50,
+										roughness: 0.8
+									});
+							}
+
+							const flowerBed =
+								new THREE.Mesh(
+									flowerBedGeo,
+									flowerMat
+								);
+
+							flowerBed.rotation.x =
+								-Math.PI / 2;
+
+							flowerBed.position.set(
+								0,
+								baseH + 0.005,
+								0
+							);
+
+							flowerBed.receiveShadow =
+								true;
+
+							mon.group.add(
+								flowerBed
+							);
+
+							console.log(
+								`🌺 Цветник создан для дублера #${mon.id}`
+							);
+
+						} catch (e) {
+
+							console.warn(
+								'⚠️ Ошибка создания цветника для дублера:',
+								e
+							);
+						}
+					}
+
+					// ========================================================
+					// БОРДЮР ЦВЕТНИКА
+					// ========================================================
+
+					try {
+
+						const borderParams = {
+
+							...data,
+
+							graveWidth:
+								graveW,
+
+							graveLength:
+								graveL,
+
+							baseHeight:
+								baseH,
+
+							material:
+								borderMaterialType
+						};
+
+						const flowerbedBorder =
+							await createFlowerbedBorder(
+								borderParams
+							);
+
+						if (flowerbedBorder) {
+
+							mon.group.add(
+								flowerbedBorder
+							);
+
+							console.log(
+								`🎨 Бордюр дублера: ${borderMaterialType}`
+							);
+
+							console.log(
+								`✅ Бордюр цветника добавлен для дублера #${mon.id}`
+							);
+						}
+
+					} catch (e) {
+
+						console.warn(
+							'⚠️ Ошибка создания бордюра цветника для дублера:',
 							e
 						);
 					}
 				}
-			}
-
-
-			// ========================================================
-			// 3. БОРДЮР ЦВЕТНИКА
-			// ========================================================
-
-			try {
-
-				const borderParams = {
-
-					...data,
-
-					graveWidth: graveW,
-					graveLength: graveL,
-					baseHeight: baseH,
-
-					// ⭐ СОБСТВЕННЫЙ материал бордюра
-					material:
-						borderMaterialType
-				};
-
-				const flowerbedBorder =
-					await createFlowerbedBorder(
-						borderParams
-					);
-
-				if (flowerbedBorder) {
-
-					mon.group.add(
-						flowerbedBorder
-					);
-
-					console.log(
-						`🎨 Бордюр дублера: ${borderMaterialType}`
-					);
-
-					console.log(
-						`✅ Бордюр цветника добавлен для дублера #${mon.id}`
-					);
-				}
-
-			} catch (error) {
-
-				console.error(
-					`❌ Ошибка создания бордюра дублера #${mon.id}:`,
-					error
-				);
 			}
 
 
