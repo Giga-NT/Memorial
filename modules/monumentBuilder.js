@@ -1661,11 +1661,17 @@ export async function updateMainMonument(
         flowerbedType:
             state.flowerbedType || 'grass',
 
-        flowerbedMode:
-            state.flowerbedMode || 'flowerbed',
+		flowerbedMode:
+			state.flowerbedMode || 'flowerbed',
 
 		graveSlabModel:
 			state.graveSlabModel || 'slab1',
+
+		graveSlabMaterial:
+			state.graveSlabMaterial || 'granite',
+
+		graveSlabDecorMaterial:
+			state.graveSlabDecorMaterial || 'marble',
 			
         steleType:
             state.steleType ||

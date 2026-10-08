@@ -1491,11 +1491,25 @@ updatePhotoPosition(photoMesh, x, y) {
 		if (flowerbedTypeEl) window.state.flowerbedType = flowerbedTypeEl.value;
 
 		const flowerModeEl = document.getElementById('flowerbedMode');
-		if (flowerModeEl) data.flowerbedMode = flowerModeEl.value;
+		if (flowerModeEl) {
+			window.state.flowerbedMode = flowerModeEl.value;
+		}
 
 		// ⭐ Выбранная модель надгробной плиты
-		data.graveSlabModel =
-			window.state?.graveSlabModel || 'slab1';
+		if (window.state) {
+			window.state.graveSlabModel =
+				window.state.graveSlabModel || 'slab1';
+
+			window.state.graveSlabMaterial =
+				document.getElementById('graveSlabMaterialSelect')?.value ||
+				window.state.graveSlabMaterial ||
+				'granite';
+
+			window.state.graveSlabDecorMaterial =
+				document.getElementById('graveSlabDecorMaterialSelect')?.value ||
+				window.state.graveSlabDecorMaterial ||
+				'marble';
+		}
 
 		const fenceEnabledEl = document.getElementById('fenceEnabled');
 		if (fenceEnabledEl) window.state.fenceEnabled = fenceEnabledEl.checked;
@@ -1655,6 +1669,17 @@ updatePhotoPosition(photoMesh, x, y) {
 		// ⭐ ВЫБРАННАЯ МОДЕЛЬ НАДГРОБНОЙ ПЛИТЫ
 		data.graveSlabModel =
 			window.state?.graveSlabModel || 'slab1';
+
+		// ⭐ МАТЕРИАЛЫ НАДГРОБНОЙ ПЛИТЫ
+		data.graveSlabMaterial =
+			document.getElementById('graveSlabMaterialSelect')?.value ||
+			window.state?.graveSlabMaterial ||
+			'granite';
+
+		data.graveSlabDecorMaterial =
+			document.getElementById('graveSlabDecorMaterialSelect')?.value ||
+			window.state?.graveSlabDecorMaterial ||
+			'marble';
         
         const fenceEnabledEl = document.getElementById('fenceEnabled');
         if (fenceEnabledEl) data.fenceEnabled = fenceEnabledEl.checked;

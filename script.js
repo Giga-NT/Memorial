@@ -791,6 +791,8 @@ const state = {
     epitaph: "Светлая память\nо дорогих людях", textColor: '#FFFFFF',
     flowerbedType: 'grass', photoScale: 1.0, photoOffsetX: 0, photoOffsetY: 0,
 	flowerbedMode: 'flowerbed',
+	graveSlabMaterial: 'granite',
+	graveSlabDecorMaterial: 'marble',
     isDraggingPhoto: false, enableMoveMode: false,
     fontFamily: "Arial, sans-serif", nameFontSize: 24, datesFontSize: 24, epitaphFontSize: 24,
     photoShape: 'oval', photoWidthMm: 100, photoHeightMm: 140,
@@ -5522,6 +5524,38 @@ if (borderMaterialSelect) {
         console.log(
             '🎨 Материал бордюра:',
             state.borderMaterial
+        );
+
+        throttledUpdate();
+    });
+}
+
+const graveSlabMaterialSelect =
+    document.getElementById('graveSlabMaterialSelect');
+
+if (graveSlabMaterialSelect) {
+    graveSlabMaterialSelect.addEventListener('change', (e) => {
+        state.graveSlabMaterial = e.target.value;
+
+        console.log(
+            '🪦 Материал плиты:',
+            state.graveSlabMaterial
+        );
+
+        throttledUpdate();
+    });
+}
+
+const graveSlabDecorMaterialSelect =
+    document.getElementById('graveSlabDecorMaterialSelect');
+
+if (graveSlabDecorMaterialSelect) {
+    graveSlabDecorMaterialSelect.addEventListener('change', (e) => {
+        state.graveSlabDecorMaterial = e.target.value;
+
+        console.log(
+            '✝️ Материал креста:',
+            state.graveSlabDecorMaterial
         );
 
         throttledUpdate();

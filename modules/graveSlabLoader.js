@@ -128,14 +128,20 @@ export async function loadGraveSlabModel(modelId) {
             throw new Error('GLB не содержит scene');
         }
 
-        root.traverse(object => {
-            if (!object.isMesh) {
-                return;
-            }
+		root.traverse(object => {
+			if (!object.isMesh) {
+				return;
+			}
 
-            object.castShadow = true;
-            object.receiveShadow = true;
-        });
+			object.castShadow = true;
+			object.receiveShadow = true;
+
+			if (object.name === 'Slab') {
+				object.userData.graveSlabPart = 'slab';
+			} else if (object.name.startsWith('Cross')) {
+				object.userData.graveSlabPart = 'decor';
+			}
+		});
 
         modelCache.set(modelId, root);
 

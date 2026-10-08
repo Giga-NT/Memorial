@@ -378,6 +378,7 @@ export function initFlowerbedHandlers() {
     });
 
 	document.getElementById('flowerbedMode')?.addEventListener('change', (e) => {
+		console.log('🔥 flowerbedMode CHANGE:', e.target.value);
 		state.flowerbedMode = e.target.value;
 
 		const flowerTypeControls =
@@ -395,6 +396,17 @@ export function initFlowerbedHandlers() {
 
 		if (graveSlabModelControls) {
 			graveSlabModelControls.style.display =
+				state.flowerbedMode === 'slab'
+					? 'block'
+					: 'none';
+		}
+
+		// 🎨 Материалы надгробной плиты
+		const graveSlabMaterialControls =
+			document.getElementById('graveSlabMaterialControls');
+
+		if (graveSlabMaterialControls) {
+			graveSlabMaterialControls.style.display =
 				state.flowerbedMode === 'slab'
 					? 'block'
 					: 'none';

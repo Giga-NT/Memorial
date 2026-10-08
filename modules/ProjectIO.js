@@ -102,6 +102,8 @@ export class ProjectIO {
             'flowerbedType',
 			'flowerbedMode',
 			'graveSlabModel',
+			'graveSlabMaterial',
+			'graveSlabDecorMaterial',
             'fenceType',
             'fenceMaterial',
             'fenceGateSide',
@@ -679,6 +681,19 @@ export class ProjectIO {
 			borderMaterial:
 				this.state.borderMaterial ||
 				'granite',
+
+			graveSlabModel:
+				this.state.graveSlabModel ||
+				'slab1',
+	
+			graveSlabMaterial:
+				this.state.graveSlabMaterial ||
+				'granite',
+
+			graveSlabDecorMaterial:
+				this.state.graveSlabDecorMaterial ||
+				'marble',
+
             // ----------------------------------------------------
             // ТЕКСТ
             // ----------------------------------------------------
@@ -2331,6 +2346,19 @@ export class ProjectIO {
 				'borderMaterialSelect',
 				state.borderMaterial
 			);
+			
+			setSelect(
+				'graveSlabMaterialSelect',
+				state.graveSlabMaterial ||
+				'granite'
+			);
+
+			setSelect(
+				'graveSlabDecorMaterialSelect',
+				state.graveSlabDecorMaterial ||
+				'marble'
+			);
+
 		}
         // --------------------------------------------------------
         // СТЕЛА
