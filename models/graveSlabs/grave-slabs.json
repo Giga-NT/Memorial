@@ -1,0 +1,38 @@
+{
+    "version": 1,
+    "models": [
+        {
+            "id": "slab1",
+            "name": "Надгробная плита 1",
+            "file": "slab1.glb",
+            "preview": "previews/slab1.png",
+            "width": 0.6,
+            "length": 0.9,
+            "thickness": 0.06,
+            "modelType": "horizontal",
+            "defaultMaterial": "granite"
+        },
+        {
+            "id": "slab2",
+            "name": "Надгробная плита 2",
+            "file": "slab2.glb",
+            "preview": "previews/slab2.png",
+            "width": 0.6,
+            "length": 0.9,
+            "thickness": 0.06,
+            "modelType": "horizontal",
+            "defaultMaterial": "granite"
+        },
+        {
+            "id": "slab3",
+            "name": "Надгробная плита 3",
+            "file": "slab3.glb",
+            "preview": "previews/slab3.png",
+            "width": 0.6,
+            "length": 0.9,
+            "thickness": 0.06,
+            "modelType": "horizontal",
+            "defaultMaterial": "granite"
+        }
+    ]
+}

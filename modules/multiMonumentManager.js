@@ -968,28 +968,30 @@ updatePhotoPosition(photoMesh, x, y) {
 }
 
 
-    // ⭐ СБОР ДАННЫХ ИЗ UI (ДЛЯ ДУБЛЕРОВ)
-    collectUIData() {
-        const data = {};
-        
-        const fullNameEl = document.getElementById('fullName');
-        if (fullNameEl) data.fullName = fullNameEl.value;
-        
-        const datesEl = document.getElementById('datesText');
-        if (datesEl) data.dates = datesEl.value;
-        
-        const epitaphEl = document.getElementById('epitaphText');
-        if (epitaphEl) data.epitaph = epitaphEl.value;
-        
-        const widthEl = document.getElementById('widthRange');
-        if (widthEl) data.width = parseFloat(widthEl.value);
-        
-        const heightEl = document.getElementById('heightRange');
-        if (heightEl) data.height = parseFloat(heightEl.value);
-        
-        const depthEl = document.getElementById('depthRange');
-        if (depthEl) data.depth = parseFloat(depthEl.value) || 0.1;
-        
+	// ⭐ СБОР ДАННЫХ ИЗ UI (ДЛЯ ДУБЛЕРОВ)
+	collectUIData() {
+		const data = {};
+
+		const fullNameEl = document.getElementById('fullName');
+		if (fullNameEl) data.fullName = fullNameEl.value;
+
+		const datesEl = document.getElementById('datesText');
+		if (datesEl) data.dates = datesEl.value;
+
+		const epitaphEl = document.getElementById('epitaphText');
+		if (epitaphEl) data.epitaph = epitaphEl.value;
+
+		const widthEl = document.getElementById('widthRange');
+		if (widthEl) data.width = parseFloat(widthEl.value);
+
+		const heightEl = document.getElementById('heightRange');
+		if (heightEl) data.height = parseFloat(heightEl.value);
+
+		const depthEl = document.getElementById('depthRange');
+		if (depthEl) {
+			data.depth = parseFloat(depthEl.value) || 0.1;
+		}
+
 		const materialEl =
 			document.getElementById('materialSelect');
 
@@ -1001,8 +1003,7 @@ updatePhotoPosition(photoMesh, x, y) {
 			document.getElementById('baseMaterialSelect');
 
 		if (baseMaterialEl) {
-			data.baseMaterial =
-				baseMaterialEl.value;
+			data.baseMaterial = baseMaterialEl.value;
 		}
 
 		const pedestalMaterialEl =
@@ -1020,135 +1021,208 @@ updatePhotoPosition(photoMesh, x, y) {
 			data.borderMaterial =
 				borderMaterialEl.value;
 		}
-        
-        const textColorEl = document.getElementById('textColor');
-        if (textColorEl) data.textColor = textColorEl.value;
-        
-        const fontEl = document.getElementById('fontFamily');
-        if (fontEl) data.fontFamily = fontEl.value;
-        
-        const graveWEl = document.getElementById('graveWidth');
-        if (graveWEl) data.graveWidth = parseFloat(graveWEl.value);
-        
-        const graveLEl = document.getElementById('graveLength');
-        if (graveLEl) data.graveLength = parseFloat(graveLEl.value);
-        
-        const baseHEl = document.getElementById('baseHeight');
-        if (baseHEl) data.baseHeight = parseFloat(baseHEl.value);
-        
-        const flowerEnabledEl = document.getElementById('flowerEnabled');
-        if (flowerEnabledEl) data.flowerEnabled = flowerEnabledEl.checked;
-        
-        const flowerWEl = document.getElementById('flowerWidth');
-        if (flowerWEl) data.flowerWidth = parseFloat(flowerWEl.value);
-        
-        const flowerLEl = document.getElementById('flowerLength');
-        if (flowerLEl) data.flowerLength = parseFloat(flowerLEl.value);
-        
-        const flowerTypeEl = document.getElementById('flowerbedType');
-        if (flowerTypeEl) data.flowerbedType = flowerTypeEl.value;
-		
-		const flowerModeEl = document.getElementById('flowerbedMode');
-		if (flowerModeEl) data.flowerbedMode = flowerModeEl.value;
-        
-        const fenceEnabledEl = document.getElementById('fenceEnabled');
-        if (fenceEnabledEl) data.fenceEnabled = fenceEnabledEl.checked;
-        
-        const fenceWEl = document.getElementById('fenceWidth');
-        if (fenceWEl) data.fenceWidth = parseFloat(fenceWEl.value);
-        
-        const fenceLEl = document.getElementById('fenceLength');
-        if (fenceLEl) data.fenceLength = parseFloat(fenceLEl.value);
-        
-        const fenceTypeEl = document.getElementById('fenceType');
-        if (fenceTypeEl) data.fenceType = fenceTypeEl.value;
-        
-        const fenceHEl = document.getElementById('fenceHeight');
-        if (fenceHEl) data.fenceHeight = parseFloat(fenceHEl.value);
-        
-        const fenceMatEl = document.getElementById('fenceMaterial');
-        if (fenceMatEl) data.fenceMaterial = fenceMatEl.value;
-        
-		const gateSideEl = document.getElementById('fenceGateSide');
-		if (gateSideEl) data.fenceGateSide = gateSideEl.value;
 
-		// ⭐ Данные фото и позиции декалей берём из window.state
-		data.textureUrl = window.state?.textureUrl || null;
-		data.photoIndex = Number(window.state?.photoIndex) || 0;
-		data.backgroundId = window.state?.backgroundId || '';
+		const textColorEl =
+			document.getElementById('textColor');
+
+		if (textColorEl) {
+			data.textColor = textColorEl.value;
+		}
+
+		const fontEl =
+			document.getElementById('fontFamily');
+
+		if (fontEl) {
+			data.fontFamily = fontEl.value;
+		}
+
+		const graveWEl =
+			document.getElementById('graveWidth');
+
+		if (graveWEl) {
+			data.graveWidth =
+				parseFloat(graveWEl.value);
+		}
+
+		const graveLEl =
+			document.getElementById('graveLength');
+
+		if (graveLEl) {
+			data.graveLength =
+				parseFloat(graveLEl.value);
+		}
+
+		const baseHEl =
+			document.getElementById('baseHeight');
+
+		if (baseHEl) {
+			data.baseHeight =
+				parseFloat(baseHEl.value);
+		}
+
+		const flowerEnabledEl =
+			document.getElementById('flowerEnabled');
+
+		if (flowerEnabledEl) {
+			data.flowerEnabled =
+				flowerEnabledEl.checked;
+		}
+
+		const flowerWEl =
+			document.getElementById('flowerWidth');
+
+		if (flowerWEl) {
+			data.flowerWidth =
+				parseFloat(flowerWEl.value);
+		}
+
+		const flowerLEl =
+			document.getElementById('flowerLength');
+
+		if (flowerLEl) {
+			data.flowerLength =
+				parseFloat(flowerLEl.value);
+		}
+
+		const flowerTypeEl =
+			document.getElementById('flowerbedType');
+
+		if (flowerTypeEl) {
+			data.flowerbedType =
+				flowerTypeEl.value;
+		}
+
+		const flowerModeEl =
+			document.getElementById('flowerbedMode');
+
+		if (flowerModeEl) {
+			data.flowerbedMode =
+				flowerModeEl.value;
+		}
+
+		// ⭐ Выбранная модель надгробной плиты
+		data.graveSlabModel =
+			window.state?.graveSlabModel || 'slab1';
+
+		const fenceEnabledEl =
+			document.getElementById('fenceEnabled');
+
+		if (fenceEnabledEl) {
+			data.fenceEnabled =
+				fenceEnabledEl.checked;
+		}
+
+		const fenceWEl =
+			document.getElementById('fenceWidth');
+
+		if (fenceWEl) {
+			data.fenceWidth =
+				parseFloat(fenceWEl.value);
+		}
+
+		const fenceLEl =
+			document.getElementById('fenceLength');
+
+		if (fenceLEl) {
+			data.fenceLength =
+				parseFloat(fenceLEl.value);
+		}
+
+		const fenceTypeEl =
+			document.getElementById('fenceType');
+
+		if (fenceTypeEl) {
+			data.fenceType =
+				fenceTypeEl.value;
+		}
+
+		const fenceHEl =
+			document.getElementById('fenceHeight');
+
+		if (fenceHEl) {
+			data.fenceHeight =
+				parseFloat(fenceHEl.value);
+		}
+
+		const fenceMatEl =
+			document.getElementById('fenceMaterial');
+
+		if (fenceMatEl) {
+			data.fenceMaterial =
+				fenceMatEl.value;
+		}
+
+		const gateSideEl =
+			document.getElementById('fenceGateSide');
+
+		if (gateSideEl) {
+			data.fenceGateSide =
+				gateSideEl.value;
+		}
+
+		const gateWEl =
+			document.getElementById('gateWidth');
+
+		if (gateWEl) {
+			data.gateWidth =
+				parseFloat(gateWEl.value);
+		}
+
+		const fenceOffXEl =
+			document.getElementById('fenceOffsetX');
+
+		if (fenceOffXEl) {
+			data.fenceOffsetX =
+				parseFloat(fenceOffXEl.value) || 0;
+		}
+
+		const fenceOffZEl =
+			document.getElementById('fenceOffsetZ');
+
+		if (fenceOffZEl) {
+			data.fenceOffsetZ =
+				parseFloat(fenceOffZEl.value) || 0;
+		}
+
+		const pathEnabledEl =
+			document.getElementById('pathEnabled');
+
+		if (pathEnabledEl) {
+			data.pathEnabled =
+				pathEnabledEl.checked;
+		}
+
+		// ⭐ Данные фото и позиций декалей
+		// берём из window.state
+		data.textureUrl =
+			window.state?.textureUrl || null;
+
+		data.photoIndex =
+			Number(window.state?.photoIndex) || 0;
 
 		data.backgroundId =
 			window.state?.backgroundId || '';
 
-		data.textOffsetX = Number(window.state?.textOffsetX) || 0;
-		data.textOffsetY = Number(window.state?.textOffsetY) || 0;
+		data.textOffsetX =
+			Number(window.state?.textOffsetX) || 0;
 
-		data.textOffsetX = Number(window.state?.textOffsetX) || 0;
-		data.textOffsetY = Number(window.state?.textOffsetY) || 0;
-		data.epitaphOffsetX = Number(window.state?.epitaphOffsetX) || 0;
-		data.epitaphOffsetY = Number(window.state?.epitaphOffsetY) || 0;
-		data.photoOffsetX = Number(window.state?.photoOffsetX) || 0;
-		data.photoOffsetY = Number(window.state?.photoOffsetY) || 0;
+		data.textOffsetY =
+			Number(window.state?.textOffsetY) || 0;
+
+		data.epitaphOffsetX =
+			Number(window.state?.epitaphOffsetX) || 0;
+
+		data.epitaphOffsetY =
+			Number(window.state?.epitaphOffsetY) || 0;
+
+		data.photoOffsetX =
+			Number(window.state?.photoOffsetX) || 0;
+
+		data.photoOffsetY =
+			Number(window.state?.photoOffsetY) || 0;
 
 		return data;
-         
-         container.innerHTML = html;
-         
-         // Обработчики
-         const mainItem = container.querySelector('.monument-item[data-index="-1"]');
-         if (mainItem) {
-             mainItem.addEventListener('click', (e) => {
-                 if (e.target.closest('button')) return;
-                 this.selectMainMonument();
-             });
-             const mainSelectBtn = mainItem.querySelector('.select-main-btn');
-             if (mainSelectBtn) {
-                 mainSelectBtn.addEventListener('click', (e) => {
-                     e.stopPropagation();
-                     this.selectMainMonument();
-                 });
-             }
-         }
-
-         container.querySelectorAll('.monument-item[data-index]').forEach(el => {
-             const index = parseInt(el.dataset.index);
-             if (isNaN(index)) return;
-             
-             el.addEventListener('click', (e) => {
-                 if (e.target.closest('button')) return;
-                 this.selectMonument(index);
-             });
-         });
-         
-         container.querySelectorAll('.select-monument-btn').forEach(btn => {
-             btn.addEventListener('click', (e) => {
-                 e.stopPropagation();
-                 const index = parseInt(btn.dataset.index);
-                 this.selectMonument(index);
-             });
-         });
-         
-         container.querySelectorAll('.apply-monument-btn').forEach(btn => {
-             btn.addEventListener('click', (e) => {
-                 e.stopPropagation();
-                 const index = parseInt(btn.dataset.index);
-                 this.applyPendingChanges(index);
-             });
-         });
-         
-         container.querySelectorAll('.remove-monument-btn').forEach(btn => {
-             btn.addEventListener('click', (e) => {
-                 e.stopPropagation();
-                 const index = parseInt(btn.dataset.index);
-                 this.removeMonument(index);
-             });
-         });
-         
-         const dupBtn = document.getElementById('duplicateMonumentBtn');
-         const delBtn = document.getElementById('deleteMonumentBtn');
-         if (dupBtn) dupBtn.style.display = this.monuments.length > 0 ? 'block' : 'none';
-         if (delBtn) delBtn.style.display = this.monuments.length > 0 ? 'block' : 'none';
-     }
+	}
      
      escapeHtml(text) {
          if (!text) return 'Без имени';
@@ -1220,6 +1294,35 @@ updatePhotoPosition(photoMesh, x, y) {
                  console.log('📐 Модель стелы сохранена в pending:', modelId);
              }
          });
+		 
+		document.addEventListener('graveSlabModelSelected', (e) => {
+			console.log(
+				'🧪 EVENT graveSlabModelSelected ПОЛУЧЕН:',
+				e.detail
+			);
+
+			const modelId = e.detail?.modelId;
+
+			if (
+				modelId &&
+				this.currentMode === 'duplicator' &&
+				this.activeIndex >= 0
+			) {
+				const uiData = this.collectUIData();
+
+				uiData.graveSlabModel = modelId;
+
+				this.pendingChanges = uiData;
+				this.pendingIndex = this.activeIndex;
+
+				this.renderMonumentList();
+
+				console.log(
+					'🪦 Модель надгробной плиты сохранена в pending:',
+					modelId
+				);
+			}
+		});
      }
 
      // ⭐ ОБРАБОТЧИК ИЗМЕНЕНИЙ UI
@@ -1387,9 +1490,13 @@ updatePhotoPosition(photoMesh, x, y) {
 		const flowerbedTypeEl = document.getElementById('flowerbedType');
 		if (flowerbedTypeEl) window.state.flowerbedType = flowerbedTypeEl.value;
 
-		const flowerbedModeEl = document.getElementById('flowerbedMode');
-		if (flowerbedModeEl) window.state.flowerbedMode = flowerbedModeEl.value;
-		
+		const flowerModeEl = document.getElementById('flowerbedMode');
+		if (flowerModeEl) data.flowerbedMode = flowerModeEl.value;
+
+		// ⭐ Выбранная модель надгробной плиты
+		data.graveSlabModel =
+			window.state?.graveSlabModel || 'slab1';
+
 		const fenceEnabledEl = document.getElementById('fenceEnabled');
 		if (fenceEnabledEl) window.state.fenceEnabled = fenceEnabledEl.checked;
 		
@@ -1544,6 +1651,10 @@ updatePhotoPosition(photoMesh, x, y) {
 
 		const flowerModeEl = document.getElementById('flowerbedMode');
 		if (flowerModeEl) data.flowerbedMode = flowerModeEl.value;
+		
+		// ⭐ ВЫБРАННАЯ МОДЕЛЬ НАДГРОБНОЙ ПЛИТЫ
+		data.graveSlabModel =
+			window.state?.graveSlabModel || 'slab1';
         
         const fenceEnabledEl = document.getElementById('fenceEnabled');
         if (fenceEnabledEl) data.fenceEnabled = fenceEnabledEl.checked;
@@ -2284,8 +2395,19 @@ updatePhotoPosition(photoMesh, x, y) {
 		console.log('🌺 BORDER:', dataToApply.borderMaterial);
 		console.log('🗿 STELE:', dataToApply.material);
         
-        // Обновляем данные
-        mon.data = { ...dataToApply };
+		console.log(
+			'🪦 ПРОВЕРКА pending GRAVE SLAB:',
+			dataToApply.graveSlabModel
+		);
+
+		// Обновляем данные
+		mon.data = { ...dataToApply };
+		
+		console.log(
+			'🪦 GRAVE SLAB ПОСЛЕ ЗАПИСИ В mon.data:',
+			mon.data.graveSlabModel
+		);
+		
         
         // ⭐ Очищаем pending
         this.pendingChanges = null;
@@ -2602,6 +2724,11 @@ updatePhotoPosition(photoMesh, x, y) {
 
 			const data = mon.data;
 
+			console.log(
+				'🪦 ПРОВЕРКА МОДЕЛИ ПЛИТЫ:',
+				data.graveSlabModel
+			);
+
 			// ========================================================
 			// НЕЗАВИСИМЫЕ МАТЕРИАЛЫ
 			// ========================================================
@@ -2721,14 +2848,14 @@ updatePhotoPosition(photoMesh, x, y) {
 					try {
 
 						const graveSlab =
-							createGraveSlab({
+							await createGraveSlab({
 								...data,
 
 								flowerWidth:
-									flowerW,
+									data.flowerWidth || 1.2,
 
 								flowerLength:
-									flowerL,
+									data.flowerLength || 0.8,
 
 								baseHeight:
 									baseH,

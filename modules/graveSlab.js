@@ -1,95 +1,86 @@
 import * as THREE from 'three';
 
-const DEFAULT_THICKNESS = 0.06;
-const DEFAULT_OFFSET = 0.005;
+import {
+    getGraveSlabModel,
+    loadGraveSlabModel,
+    fitGraveSlabToDimensions,
+    placeOnGround
+} from './graveSlabLoader.js';
 
-const STONE_COLORS = {
-    granite: 0x1a1a1a,
-    black_galaxy: 0x111111,
-    ninimyaki: 0x1a2a1a,
-    marble: 0xf5f5f5,
-    red_granite: 0x8b0000,
-    beige_granite: 0xd4b896,
-    gray_granite: 0x808080
-};
+export async function createGraveSlab(params = {}) {
+    const modelId =
+        params.graveSlabModel || 'slab1';
 
-export function createGraveSlab(params = {}) {
+    const modelInfo =
+        getGraveSlabModel(modelId);
 
-    const width =
-        Number(params.flowerWidth) || 0.6;
-
-    const length =
-        Number(params.flowerLength) || 0.9;
-
-    const baseHeight =
-        Number(params.baseHeight) || 0.15;
-
-    const thickness =
-        Number(params.graveSlabThickness) ||
-        DEFAULT_THICKNESS;
-
-    const materialType =
-        params.slabMaterial ||
-        params.borderMaterial ||
-        params.baseMaterial ||
-        'granite';
-
-    if (width <= 0 || length <= 0) {
-        console.warn(
-            '⚠️ Некорректные размеры надгробной плиты:',
-            {
-                width,
-                length
-            }
+    if (!modelInfo) {
+        console.error(
+            `❌ Не найдена модель плиты: ${modelId}`
         );
 
         return null;
     }
 
-    const color =
-        STONE_COLORS[materialType] ??
-        STONE_COLORS.granite;
+    const width =
+        Number(params.flowerWidth) ||
+        modelInfo.width ||
+        0.6;
 
-    const material =
-        new THREE.MeshStandardMaterial({
-            color,
-            roughness: 0.2,
-            metalness: 0.05
-        });
+    const length =
+        Number(params.flowerLength) ||
+        modelInfo.length ||
+        0.9;
 
-    const geometry =
-        new THREE.BoxGeometry(
-            width,
-            thickness,
-            length
-        );
+    const thickness =
+        Number(params.graveSlabThickness) ||
+        modelInfo.thickness ||
+        0.06;
+
+    const baseHeight =
+        Number(params.baseHeight) || 0.15;
 
     const slab =
-        new THREE.Mesh(
-            geometry,
-            material
-        );
+        await loadGraveSlabModel(modelId);
+
+    if (!slab) {
+        return null;
+    }
+
+    fitGraveSlabToDimensions(slab, {
+        width,
+        thickness,
+        length
+    });
+
+    placeOnGround(slab);
 
     slab.position.set(
         0,
-        baseHeight +
-        DEFAULT_OFFSET +
-        thickness / 2,
+        baseHeight + 0.005,
         0
     );
-
-    slab.castShadow = true;
-    slab.receiveShadow = true;
 
     slab.name = 'graveSlab';
 
     slab.userData = {
         type: 'graveSlab',
+        modelId,
         width,
         length,
         thickness,
-        materialType
+        materialType:
+            modelInfo.defaultMaterial || 'granite'
     };
+
+    slab.traverse(object => {
+        if (!object.isMesh) {
+            return;
+        }
+
+        object.castShadow = true;
+        object.receiveShadow = true;
+    });
 
     return slab;
 }

@@ -390,6 +390,16 @@ export function initFlowerbedHandlers() {
 					: 'none';
 		}
 
+		const graveSlabModelControls =
+			document.getElementById('graveSlabModelControls');
+
+		if (graveSlabModelControls) {
+			graveSlabModelControls.style.display =
+				state.flowerbedMode === 'slab'
+					? 'block'
+					: 'none';
+		}
+
 		throttledUpdate();
 	});
 

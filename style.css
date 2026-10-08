@@ -1983,3 +1983,138 @@ body.dragging-photo {
     border-color: rgba(76, 175, 80, 0.8);
     color: #4caf50;
 }
+
+
+
+/* ============================================================
+   НАДГРОБНЫЕ ПЛИТЫ — ПРЕВЬЮ МОДЕЛЕЙ
+   ============================================================ */
+
+#graveSlabOptionsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+}
+
+/* Карточка плиты */
+#graveSlabOptionsGrid .grave-slab-option {
+    position: relative;
+
+    width: 100%;
+    height: 110px;
+
+    padding: 0;
+    margin: 0;
+
+    overflow: hidden;
+
+    border: 2px solid transparent;
+    border-radius: 10px;
+
+    background: rgba(255, 255, 255, 0.05);
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+/* Наведение */
+#graveSlabOptionsGrid .grave-slab-option:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Выбранная плита */
+#graveSlabOptionsGrid .grave-slab-option.selected {
+    border-color: #00a896;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 168, 150, 0.2);
+}
+
+/* Область превью */
+#graveSlabOptionsGrid .model-preview {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(0, 0, 0, 0.25);
+
+    overflow: hidden;
+}
+
+/* Картинка */
+#graveSlabOptionsGrid .model-preview img {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+    object-position: center;
+
+    pointer-events: none;
+
+    transition: transform 0.2s ease;
+}
+
+/* Лёгкое увеличение при наведении */
+#graveSlabOptionsGrid .grave-slab-option:hover .model-preview img {
+    transform: scale(1.03);
+}
+
+/* Название поверх изображения */
+#graveSlabOptionsGrid .model-name {
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    padding: 7px 8px;
+
+    color: #fff;
+
+    font-size: 11px;
+    font-weight: 500;
+
+    text-align: center;
+
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(0, 0, 0, 0.85)
+    );
+
+    pointer-events: none;
+}
+
+/* Выбранное название */
+#graveSlabOptionsGrid .grave-slab-option.selected .model-name {
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Мобильные */
+@media (max-width: 600px) {
+    #graveSlabOptionsGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    #graveSlabOptionsGrid .grave-slab-option {
+        height: 85px;
+    }
+
+    #graveSlabOptionsGrid .model-name {
+        font-size: 9px;
+        padding: 5px 4px;
+    }
+}

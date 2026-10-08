@@ -49,6 +49,15 @@ import {
 } from './modules/monumentBuilder.js';
 
 
+import {
+    loadGraveSlabModelList
+} from './modules/graveSlabLoader.js';
+
+import {
+    renderGraveSlabGrid
+} from './modules/previews/graveSlabPreview.js';
+
+
 
 // ============================================================
 // ⭐ ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ СОБЫТИЙ
@@ -828,6 +837,7 @@ const state = {
     baseHeight: 0.15,
     flowerWidth: 0.6,
     flowerLength: 0.9,
+	flowerLength: 0.9,
     flowerEnabled: true,
     flowerPosX: 0,
     flowerPosZ: 0,
@@ -5422,12 +5432,30 @@ setTimeout(() => {
 // ⭐ ИНИЦИАЛИЗАЦИЯ СПИСКА МОДЕЛЕЙ
 // ============================================================
 async function initModelList() {
+    // Загружаем модели стел
     await loadModelList();
+
     const models = getModelList();
-    console.log(`✅ Загружено ${models.length} моделей в интерфейс`);
-    // ⭐ Вызываем сетку вместо списка
+
+    console.log(
+        `✅ Загружено ${models.length} моделей стел в интерфейс`
+    );
+
     renderSteleGrid();
+
+    // Загружаем модели надгробных плит
+    const graveSlabModels =
+        await loadGraveSlabModelList();
+
+    console.log(
+        `✅ Загружено ${graveSlabModels.length} моделей надгробных плит`
+    );
+
+    renderGraveSlabGrid();
 }
+
+initModelList();
+
 initModelList();
 window.monumentGroup = monumentGroup;
 

@@ -1663,6 +1663,9 @@ export async function updateMainMonument(
 
         flowerbedMode:
             state.flowerbedMode || 'flowerbed',
+
+		graveSlabModel:
+			state.graveSlabModel || 'slab1',
 			
         steleType:
             state.steleType ||
@@ -2049,7 +2052,7 @@ export async function updateMainMonument(
 		if (params.flowerbedMode === 'slab') {
 
 			const graveSlab =
-				createGraveSlab(params);
+				await createGraveSlab(params);
 
 			if (graveSlab) {
 
@@ -2399,6 +2402,12 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         flowerEnabled:
             data.flowerEnabled ?? true,
 
+		flowerbedMode:
+			data.flowerbedMode || 'flowerbed',
+
+		graveSlabModel:
+			data.graveSlabModel || 'slab1',
+
         flowerWidth:
             data.flowerWidth || 1.2,
 
@@ -2470,7 +2479,7 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
 		if (params.flowerbedMode === 'slab') {
 
 			const graveSlab =
-				createGraveSlab(params);
+				await createGraveSlab(params);
 
 			if (graveSlab) {
 				group.add(graveSlab);

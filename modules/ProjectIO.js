@@ -101,6 +101,7 @@ export class ProjectIO {
             'photoShape',
             'flowerbedType',
 			'flowerbedMode',
+			'graveSlabModel',
             'fenceType',
             'fenceMaterial',
             'fenceGateSide',
