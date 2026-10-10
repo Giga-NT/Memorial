@@ -99,6 +99,24 @@
             "rotation": "x:90"
         },
         {
+            "id": "custom_stl9",
+            "file": "stele9.glb",
+            "name": "Двойная",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.1,
+            "modelType": "vertical"
+        },
+        {
+            "id": "custom_stl99",
+            "file": "stele99.glb",
+            "name": "Двойная узкая",
+            "defaultWidth": 0.6,
+            "defaultHeight": 1.3,
+            "defaultDepth": 0.1,
+            "modelType": "vertical"
+        },
+        {
             "id": "custom_stl_monument",
             "file": "monument.glb",
             "name": "555",
