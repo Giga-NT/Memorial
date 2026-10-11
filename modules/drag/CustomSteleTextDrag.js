@@ -39,64 +39,51 @@ export class CustomSteleTextDrag extends DragManager {
 			manager.activeIndex >= 0 &&
 			manager.monuments?.[manager.activeIndex]?.data
 		) {
-			const duplicateState =
-				manager.monuments[manager.activeIndex].data;
+			this.state = manager.monuments[manager.activeIndex].data;
+		}
 
-			// Чтобы DragManager начинал движение
-			// с позиции именно этого дублера
-			this.state = duplicateState;
+		const burial = this.getActiveBurial();
 
+		if (burial) {
 			return {
-				x: duplicateState.textOffsetX || 0,
-				y: duplicateState.textOffsetY || 0
+				x: Number(burial.textOffsetX) || 0,
+				y: Number(burial.textOffsetY) || 0
 			};
 		}
 
 		return {
-			x: this.state.textOffsetX || 0,
-			y: this.state.textOffsetY || 0
+			x: Number(this.state.textOffsetX) || 0,
+			y: Number(this.state.textOffsetY) || 0
 		};
 	}
 
 	updateOffsets(type, x, y) {
 		const manager = window.multiMonumentManager;
 
-		// ============================================================
-		// 🔒 Если редактируем дублер — меняем ТОЛЬКО его data
-		// ============================================================
 		if (
 			manager &&
 			manager.currentMode === 'duplicator' &&
 			manager.activeIndex >= 0 &&
 			manager.monuments?.[manager.activeIndex]?.data
 		) {
-			const duplicateState =
-				manager.monuments[manager.activeIndex].data;
+			this.state = manager.monuments[manager.activeIndex].data;
+		}
 
-			duplicateState.textOffsetX = x;
-			duplicateState.textOffsetY = y;
-			duplicateState.frontTextureNeedsUpdate = true;
+		const burial = this.getActiveBurial();
 
-			// ВАЖНО:
-			// дальше forceDecalUpdate() должен работать именно
-			// с данными этого дублера
-			this.state = duplicateState;
+		if (burial) {
+			// Меняем координаты только активного человека
+			burial.textOffsetX = x;
+			burial.textOffsetY = y;
+
+			this.state.frontTextureNeedsUpdate = true;
 
 			this.updateDisplay();
 			this.forceDecalUpdate();
-
-			console.log('🔒 DRAG дублера: MAIN state не изменён', {
-				index: manager.activeIndex,
-				textOffsetX: x,
-				textOffsetY: y
-			});
-
 			return;
 		}
 
-		// ============================================================
-		// 🏠 MAIN
-		// ============================================================
+		// Старый режим — если записей погребённых нет
 		this.state.textOffsetX = x;
 		this.state.textOffsetY = y;
 		this.state.frontTextureNeedsUpdate = true;
@@ -138,11 +125,13 @@ export class CustomSteleTextDrag extends DragManager {
 		const move = (dx, dy) => {
 			if (!this.checkEnabled()) return;
 
-			const x = (this.state.textOffsetX || 0) + dx;
-			const y = (this.state.textOffsetY || 0) + dy;
+			const offsets = this.getOffsets(this.type);
 
-			this.updateOffsets(this.type, x, y);
-			this.forceDecalUpdate();
+			this.updateOffsets(
+				this.type,
+				offsets.x + dx,
+				offsets.y + dy
+			);
 		};
 
 		up?.addEventListener('click', () => move(0, step));
@@ -305,5 +294,28 @@ export class CustomSteleTextDrag extends DragManager {
 				e
 			);
 		}
+	}
+
+	getActiveBurial() {
+		const burials = this.state?.burials || [];
+		const activeId = this.state?.activeBurialId;
+
+		return burials.find(b => b.id === activeId) || null;
+	}
+
+	getBurialOffset(burial, axis) {
+		if (!burial) return 0;
+
+		const key = axis === 'x' ? 'textOffsetX' : 'textOffsetY';
+		return Number(burial[key]) || 0;
+	}
+
+	setBurialOffset(burial, x, y) {
+		if (!burial) return false;
+
+		burial.textOffsetX = x;
+		burial.textOffsetY = y;
+
+		return true;
 	}
 }

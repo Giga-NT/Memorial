@@ -710,13 +710,20 @@ export class ProjectIO {
                 this.state.dates ||
                 '',
 
-            epitaph:
-                this.state.epitaph ||
-                '',
+			epitaph:
+				this.state.epitaph ||
+				'',
 
-            textColor:
-                this.state.textColor ||
-                '#ffffff',
+			burials:
+				this.cloneData(this.state.burials || []),
+
+			activeBurialId:
+				this.state.activeBurialId || null,
+
+			textColor:
+				this.state.textColor ||
+				'#ffffff',
+
 
             nameFontSize:
                 this.state.nameFontSize ??
@@ -931,7 +938,9 @@ export class ProjectIO {
 
             this.syncStateFromUI();
 
-
+			if (typeof window.captureActiveBurialRecord === 'function') {
+				window.captureActiveBurialRecord();
+			}
             // ----------------------------------------------------
             // 2. Основной памятник
             // ----------------------------------------------------
@@ -1945,7 +1954,20 @@ export class ProjectIO {
                         this.state,
                         realData
                     );
+					// Поддержка старых проектов с одним человеком
+					if (!Array.isArray(this.state.burials) || this.state.burials.length === 0) {
+						this.state.burials = [{
+							id: 'person-legacy',
+							fullName: this.state.fullName || '',
+							dates: this.state.dates || '',
+							epitaph: this.state.epitaph || '',
+							textureUrl: this.state.textureUrl || this.state.photoUrl || null,
+							photoUrl: this.state.photoUrl || this.state.textureUrl || null
+						}];
+					}
 
+					this.state.activeBurialId =
+						this.state.activeBurialId || this.state.burials[0].id;
 
                     // Название проекта
                     this.state.projectName =
@@ -1986,7 +2008,9 @@ export class ProjectIO {
                     // ==================================================
 					window._isLoadingProject = true;
                     this.updateAllUIFromState();
-
+					if (typeof window.refreshBurialRecordsUI === 'function') {
+						window.refreshBurialRecordsUI();
+					}
 
                     // ==================================================
                     // 5. ОТКЛЮЧАЕМ АВТООБНОВЛЕНИЕ

@@ -972,6 +972,18 @@ updatePhotoPosition(photoMesh, x, y) {
 	collectUIData() {
 		const data = {};
 
+		// Сохраняем текущую запись перед сбором данных
+		if (typeof window.captureActiveBurialRecord === 'function') {
+			window.captureActiveBurialRecord();
+		}
+
+		// Сохраняем всех людей именно для этого памятника
+		data.burials = (window.state?.burials || []).map(person => ({
+			...person
+		}));
+
+		data.activeBurialId = window.state?.activeBurialId || null;
+
 		const fullNameEl = document.getElementById('fullName');
 		if (fullNameEl) data.fullName = fullNameEl.value;
 
@@ -2181,6 +2193,18 @@ updatePhotoPosition(photoMesh, x, y) {
 		const mon = this.monuments[index];
 		let data = this._duplicatorDataCache[index] || mon.data;
 		
+		// Загружаем независимый список людей выбранного памятника
+		if (window.state) {
+			window.state.burials = Array.isArray(data.burials)
+				? data.burials.map(person => ({ ...person }))
+				: [];
+
+			window.state.activeBurialId =
+				data.activeBurialId ||
+				window.state.burials[0]?.id ||
+				null;
+		}
+		
 		console.log('📋 Загружаем данные дублера #' + (index + 1) + ' в UI:', data.fullName);
 		
 		this.isUpdating = true;
@@ -2342,6 +2366,11 @@ updatePhotoPosition(photoMesh, x, y) {
 		}
 
 		this.isUpdating = false;
+
+		// Обновляем панель людей для выбранного дублера
+		if (typeof window.refreshBurialRecordsUI === 'function') {
+			window.refreshBurialRecordsUI();
+		}
 	}
     
     // ⭐ ОБНОВЛЕНИЕ СЕТКИ СТЕЛ
@@ -2399,6 +2428,61 @@ updatePhotoPosition(photoMesh, x, y) {
 			dataToApply = { ...mon.data };
 			console.log('📦 Используем текущие данные монумента');
 		}
+
+
+        // Сохраняем записи людей и выбранного человека
+        const pendingBurials = Array.isArray(this.pendingChanges?.burials)
+            ? this.pendingChanges.burials
+            : null;
+
+        const isActiveDuplicator =
+            this.currentMode === 'duplicator' &&
+            this.activeIndex === index;
+
+        const stateBurials = Array.isArray(window.state?.burials)
+            ? window.state.burials
+            : null;
+
+        const monumentBurials = Array.isArray(mon.data?.burials)
+            ? mon.data.burials
+            : [];
+
+        // При редактировании дублера берём актуальный список из редактора.
+        // Старые данные mon.data используем только как запасной вариант.
+        const savedBurials = pendingBurials
+            ?? (isActiveDuplicator && stateBurials
+                ? stateBurials
+                : monumentBurials);
+
+        dataToApply.burials = savedBurials.map(person => ({
+            ...person,
+            textOffsetX: Number(person.textOffsetX) || 0,
+            textOffsetY: Number(person.textOffsetY) || 0
+        }));
+
+        const requestedActiveId = isActiveDuplicator
+            ? window.state?.activeBurialId
+            : (dataToApply.activeBurialId ?? mon.data?.activeBurialId);
+
+        const activeExists = dataToApply.burials.some(
+            person => person.id === requestedActiveId
+        );
+
+        dataToApply.activeBurialId = activeExists
+            ? requestedActiveId
+            : (dataToApply.burials[0]?.id ?? null);
+
+        console.log('👥 Записи людей сохранены:', {
+            count: dataToApply.burials.length,
+            activeBurialId: dataToApply.activeBurialId,
+            burials: dataToApply.burials.map(person => ({
+                id: person.id,
+                fullName: person.fullName,
+                textOffsetX: person.textOffsetX,
+                textOffsetY: person.textOffsetY
+            }))
+        });
+
 
 		// ⭐ Сохраняем абсолютную позицию фото
 		dataToApply.photoAbsoluteX =
@@ -2816,6 +2900,8 @@ updatePhotoPosition(photoMesh, x, y) {
 			const baseH =
 				data.baseHeight || 0.15;
 
+			const flowerW = data.flowerWidth || 1.2;
+			const flowerL = data.flowerLength || 0.8;
 
 			// ========================================================
 			// 1. ОСНОВАНИЕ / НАДГРОБИЕ
@@ -3546,29 +3632,105 @@ createDecalsForDuplicator(steleGroup, data) {
         const width = data.width || 0.6;
         const height = data.height || 1.2;
         
-        // ⭐ Передняя сторона (ФИО + Даты) С УЧЕТОМ СМЕЩЕНИЙ
-        if ((data.fullName && data.fullName.trim()) || (data.dates && data.dates.trim())) {
-            const texture = this.createDecalTextureFromData(data, 'front');
-            const textWidth = width * 0.85;
-            const textHeight = height * 0.85;
-            const textGeo = new THREE.PlaneGeometry(textWidth, textHeight);
-            const textMat = new THREE.MeshBasicMaterial({ 
-                map: texture, 
-                transparent: true, 
-                side: THREE.DoubleSide, 
-                depthWrite: false, 
-                alphaTest: 0.05 
+
+        // ⭐ ПЕРЕДНЯЯ СТОРОНА: ОТДЕЛЬНЫЙ ТЕКСТ ДЛЯ КАЖДОГО ПОГРЕБЁННОГО
+
+        const burials = Array.isArray(data.burials) && data.burials.length
+            ? data.burials
+            : [{
+                id: 'default',
+                fullName: data.fullName || '',
+                dates: data.dates || '',
+                textOffsetX: data.textOffsetX ?? 0,
+                textOffsetY: data.textOffsetY ?? 0,
+                nameFontSize: data.nameFontSize,
+                datesFontSize: data.datesFontSize
+            }];
+
+        const burialSpacing = 0.22;
+
+        burials.forEach((burial, index) => {
+            const fullName = burial.fullName || '';
+            const dates = burial.dates || '';
+
+            if (
+                typeof fullName !== 'string' ||
+                typeof dates !== 'string'
+            ) {
+                console.warn('Некорректные данные записи:', burial);
+                return;
+            }
+
+            if (!fullName.trim() && !dates.trim()) {
+                return;
+            }
+
+            // Собственные данные человека, не изменяем data дублёра
+            const personData = {
+                ...data,
+                ...burial,
+                fullName,
+                dates,
+                textOffsetX: Number(
+                    burial.textOffsetX ?? data.textOffsetX ?? 0
+                ),
+                textOffsetY: Number(
+                    burial.textOffsetY ?? data.textOffsetY ?? 0
+                ),
+                frontTextureCache: null,
+                frontTextureNeedsUpdate: true
+            };
+
+            const texture = this.createDecalTextureFromData(
+                personData,
+                'front'
+            );
+
+            const textGeo = new THREE.PlaneGeometry(
+                width * 0.85,
+                height * 0.85
+            );
+
+            const textMat = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                alphaTest: 0.05
             });
+
             const textMesh = new THREE.Mesh(textGeo, textMat);
-            
-            // ⭐ ПРИМЕНЯЕМ СМЕЩЕНИЯ ИЗ DATA
-            const offsetX = (data.textOffsetX || 0) * width * 0.5;
-            const offsetY = (data.textOffsetY || 0) * height * 0.5;
-            
-            textMesh.position.set(offsetX, center.y + offsetY, frontZ - 0.015);
-            textMesh.renderOrder = 9;
+
+            const offsetX =
+                personData.textOffsetX * width * 0.5;
+
+            const offsetY =
+                personData.textOffsetY * height * 0.5;
+
+            textMesh.position.set(
+                offsetX,
+                center.y + offsetY - index * burialSpacing,
+                frontZ - 0.015
+            );
+
+            textMesh.renderOrder = 9 + index;
+
+            // Метаданные нужны для выбора и перемещения конкретной записи
+            textMesh.userData.isBurialText = true;
+            textMesh.userData.type = 'burialText';
+            textMesh.userData.burialId = burial.id;
+            textMesh.userData.isDraggable = true;
+
             decalsGroup.add(textMesh);
-        }
+
+            console.log('✍️ Текст погребённого создан:', {
+                id: burial.id,
+                fullName,
+                dates,
+                position: textMesh.position.toArray()
+            });
+        });
+
         
 		// ⭐ ФОТО (С ПОДДЕРЖКОЙ ПЕРЕТАСКИВАНИЯ)
 		if (data.textureUrl) {
@@ -3640,30 +3802,92 @@ createDecalsForDuplicator(steleGroup, data) {
 			});
 		}
         
-        // ⭐ Задняя сторона (Эпитафия) С УЧЕТОМ СМЕЩЕНИЙ
-        if (data.epitaph && data.epitaph.trim()) {
-            const texture = this.createDecalTextureFromData(data, 'back');
-            const textWidth = width * 0.85;
-            const textHeight = height * 0.85;
-            const textGeo = new THREE.PlaneGeometry(textWidth, textHeight);
-            const textMat = new THREE.MeshBasicMaterial({ 
-                map: texture, 
-                transparent: true, 
-                side: THREE.DoubleSide, 
-                depthWrite: false, 
-                alphaTest: 0.05 
+
+        // ⭐ Задняя сторона: персональная эпитафия каждого погребённого
+        const burialsWithEpitaph = Array.isArray(data.burials)
+            ? data.burials.filter(burial =>
+                typeof burial.epitaph === 'string' &&
+                burial.epitaph.trim()
+            )
+            : [];
+
+        // Совместимость со старыми данными без массива burials
+        const epitaphs = Array.isArray(data.burials) && data.burials.length
+            ? burialsWithEpitaph
+            : (
+                typeof data.epitaph === 'string' && data.epitaph.trim()
+                    ? [{
+                        id: 'default',
+                        epitaph: data.epitaph,
+                        epitaphOffsetX: data.epitaphOffsetX,
+                        epitaphOffsetY: data.epitaphOffsetY
+                    }]
+                    : []
+            );
+
+        const epitaphSpacing = 0.22;
+
+        epitaphs.forEach((burial, index) => {
+            const epitaphText = burial.epitaph.trim();
+
+            // Передаём персональную эпитафию в генератор текстуры
+            const epitaphData = {
+                ...data,
+                ...burial,
+                epitaph: epitaphText,
+                frontTextureCache: null,
+                frontTextureNeedsUpdate: true
+            };
+
+            const texture = this.createDecalTextureFromData(
+                epitaphData,
+                'back'
+            );
+
+            const textGeo = new THREE.PlaneGeometry(
+                width * 0.85,
+                height * 0.85
+            );
+
+            const textMat = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                alphaTest: 0.05
             });
+
             const textMesh = new THREE.Mesh(textGeo, textMat);
-            
-            // ⭐ ПРИМЕНЯЕМ СМЕЩЕНИЯ ЭПИТАФИИ ИЗ DATA
-            const epitaphOffsetX = (data.epitaphOffsetX || 0) * width * 0.5;
-            const epitaphOffsetY = (data.epitaphOffsetY || 0) * height * 0.5;
-            
-            textMesh.position.set(epitaphOffsetX, center.y + epitaphOffsetY, backZ + 0.015);
+
+            const epitaphOffsetX =
+                (Number(burial.epitaphOffsetX ?? data.epitaphOffsetX) || 0)
+                * width * 0.5;
+
+            const epitaphOffsetY =
+                (Number(burial.epitaphOffsetY ?? data.epitaphOffsetY) || 0)
+                * height * 0.5;
+
+            textMesh.position.set(
+                epitaphOffsetX,
+                center.y + epitaphOffsetY - index * epitaphSpacing,
+                backZ + 0.015
+            );
+
             textMesh.rotation.y = Math.PI;
-            textMesh.renderOrder = 9;
+            textMesh.renderOrder = 9 + index;
+
+            textMesh.userData.type = 'burialEpitaph';
+            textMesh.userData.burialId = burial.id;
+            textMesh.userData.isDraggable = true;
+
             decalsGroup.add(textMesh);
-        }
+
+            console.log('🪦 Эпитафия создана:', {
+                burialId: burial.id,
+                epitaph: epitaphText
+            });
+        });
+
         
         // ⭐ ГРАВИРОВКИ (перед)
         if (data.engravingsFront && data.engravingsFront.length > 0) {
@@ -3720,7 +3944,7 @@ createDecalsForDuplicator(steleGroup, data) {
         return null;
     }
 }
-	    // ⭐ СОЗДАНИЕ ТЕКСТУРЫ ДЛЯ ДЕКАЛЕЙ
+
 // ⭐ СОЗДАНИЕ ТЕКСТУРЫ ДЛЯ ДЕКАЛЕЙ ДУБЛЕРА
 createDecalTextureFromData(data, type = 'front') {
     const canvas = document.createElement('canvas');
@@ -3883,7 +4107,13 @@ createDecalTextureFromData(data, type = 'front') {
         this.pendingIndex = -1;
         
         const source = this.monuments[index];
-        const newData = { ...source.data };
+		const newData = {
+			...source.data,
+			burials: (source.data.burials || []).map(person => ({
+				...person
+			})),
+			activeBurialId: source.data.activeBurialId || null
+		};
         newData.id = this.nextId++;
         newData.name = `Копия ${source.data.name || index + 1}`;
         

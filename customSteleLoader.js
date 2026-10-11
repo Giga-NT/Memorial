@@ -788,34 +788,67 @@ export function positionDecalsOnCustomStele(
     const backZ = (state.decalBackZ !== undefined) ? state.decalBackZ : -0.702;
 
     // ============================================================
-    // === 1. ТЕКСТ НА ЛИЦЕВОЙ СТОРОНЕ ===
+    // === 1. ФИО И ДАТЫ ВСЕХ ПОГРЕБЁННЫХ ===
     // ============================================================
-    if (state.fullName && state.fullName.trim()) {
-        let texture;
-        if (state.frontTextureNeedsUpdate || !state.frontTextureCache) {
-            texture = createFrontTexture(state);
-            state.frontTextureCache = texture;
-            state.frontTextureNeedsUpdate = false;
-        } else {
-            texture = state.frontTextureCache;
-        }
-        
-        const textGeo = new THREE.PlaneGeometry(decalWidth, decalHeight);
-        const textMat = new THREE.MeshBasicMaterial({ 
-            map: texture, 
-            transparent: true, 
-            side: THREE.DoubleSide, 
-            depthWrite: false, 
-            alphaTest: 0.05 
-        });
-        const textMesh = new THREE.Mesh(textGeo, textMat);
-        textMesh.position.set(0, textCenterY, frontZ);
-        textMesh.renderOrder = 9;
-        decalsGroup.add(textMesh);
-    }
-    
 
-    
+    const burials = Array.isArray(state.burials) && state.burials.length
+        ? state.burials
+        : [{
+            id: 'default',
+            fullName: state.fullName,
+            dates: state.dates,
+            textOffsetX: state.textOffsetX || 0,
+            textOffsetY: state.textOffsetY || 0
+        }];
+
+    burials.forEach((burial, index) => {
+        if (!burial.fullName || !burial.fullName.trim()) return;
+
+        const personState = {
+            ...state,
+            fullName: burial.fullName,
+            dates: burial.dates || '',
+            textOffsetX: Number(burial.textOffsetX) || 0,
+            textOffsetY: Number(burial.textOffsetY) || 0,
+            frontTextureCache: null,
+            frontTextureNeedsUpdate: true,
+			nameFontSize: Number(burial.nameFontSize) || state.nameFontSize,
+			datesFontSize: Number(burial.datesFontSize) || state.datesFontSize
+        };
+
+        const texture = createFrontTexture(personState);
+
+        const textGeo = new THREE.PlaneGeometry(
+            decalWidth,
+            decalHeight
+        );
+
+        const textMat = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            alphaTest: 0.05
+        });
+
+        const textMesh = new THREE.Mesh(textGeo, textMat);
+
+		// Каждую следующую запись располагаем ниже предыдущей
+		const burialSpacing = 0.22;
+		textMesh.position.set(
+			0,
+			textCenterY - index * burialSpacing,
+			frontZ
+		);
+        textMesh.renderOrder = 9 + index;
+
+        textMesh.userData.isBurialText = true;
+        textMesh.userData.burialId = burial.id;
+        textMesh.userData.type = 'burialText';
+        textMesh.userData.isDraggable = true;
+
+        decalsGroup.add(textMesh);
+    });
     // ============================================================
     // === 3. ФОТО ===
     // ============================================================

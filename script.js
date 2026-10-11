@@ -57,7 +57,7 @@ import {
     renderGraveSlabGrid
 } from './modules/previews/graveSlabPreview.js';
 
-
+import { initBurialRecords } from './modules/burialRecords.js';
 
 // ============================================================
 // ⭐ ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ СОБЫТИЙ
@@ -96,7 +96,8 @@ function initAllHandlers() {
     initFenceOptionsHandlers();
     initTextPositionHandlers();
     initEpitaphPositionHandlers();
-    
+
+	
     console.log('✅ Все обработчики событий инициализированы');
 }
 
@@ -813,6 +814,8 @@ const state = {
     enableMoveEngraving: false,
     epitaphOffsetX: 0,
     epitaphOffsetY: 0,
+	burials: [],
+	activeBurialId: null,
     enableMoveEpitaph: false,
     frontTextureCache: null,
     backTextureCache: null,
@@ -873,6 +876,8 @@ window.controls = controls;
 window.renderer = renderer;
 window.monumentGroup = monumentGroup;
 window.decalsGroup = decalsGroup;
+
+
 
 const dragManagers = initDragManagers({
     state: state,
@@ -6710,6 +6715,12 @@ window.state = state;
 window.textureCache = textureCache;
 window.resetTileManager = resetTileManager;
 window.throttledUpdate = throttledUpdate;
+
+initBurialRecords(
+    window.state,
+    window.textureCache,
+    window.throttledUpdate
+);
 window.markTexturesDirty = markTexturesDirty;
 window.updateLayoutPreview = updateLayoutPreview;
 window.showToast = showToast;
