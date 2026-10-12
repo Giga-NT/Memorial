@@ -835,9 +835,13 @@ export function positionDecalsOnCustomStele(
 
 		// Каждую следующую запись располагаем ниже предыдущей
 		const burialSpacing = 0.22;
+		const offsetX = Number(burial.textOffsetX ?? 0);
+		const offsetY = Number(burial.textOffsetY ?? 0);
+
 		textMesh.position.set(
-			0,
-			textCenterY - index * burialSpacing,
+			offsetX * decalWidth * 0.5,
+			textCenterY + offsetY * decalHeight * 0.5
+				- index * burialSpacing,
 			frontZ
 		);
         textMesh.renderOrder = 9 + index;

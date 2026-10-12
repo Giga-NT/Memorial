@@ -2447,18 +2447,33 @@ updatePhotoPosition(photoMesh, x, y) {
             ? mon.data.burials
             : [];
 
-        // При редактировании дублера берём актуальный список из редактора.
-        // Старые данные mon.data используем только как запасной вариант.
+        // Сначала выбираем список записей, который будет применён.
         const savedBurials = pendingBurials
             ?? (isActiveDuplicator && stateBurials
                 ? stateBurials
                 : monumentBurials);
 
-        dataToApply.burials = savedBurials.map(person => ({
-            ...person,
-            textOffsetX: Number(person.textOffsetX) || 0,
-            textOffsetY: Number(person.textOffsetY) || 0
-        }));
+        // При применении сохраняем актуальные координаты перетаскивания.
+        // pendingChanges может содержать старую копию записей.
+        const currentBurialsById = new Map(
+            monumentBurials
+                .filter(person => person?.id != null)
+                .map(person => [person.id, person])
+        );
+
+        dataToApply.burials = savedBurials.map(person => {
+            const current = currentBurialsById.get(person.id);
+
+            return {
+                ...person,
+                textOffsetX: Number(
+                    current?.textOffsetX ?? person.textOffsetX ?? 0
+                ),
+                textOffsetY: Number(
+                    current?.textOffsetY ?? person.textOffsetY ?? 0
+                )
+            };
+        });
 
         const requestedActiveId = isActiveDuplicator
             ? window.state?.activeBurialId

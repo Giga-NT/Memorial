@@ -16,7 +16,9 @@ const makePerson = () => ({
     textOffsetX: 0,
     textOffsetY: 0,
     epitaphOffsetX: 0,
-    epitaphOffsetY: 0
+    epitaphOffsetY: 0,
+    nameFontSize: 48,
+    datesFontSize: 32
 });
 
 function invalidateTextures() {
@@ -27,10 +29,6 @@ function invalidateTextures() {
 function updatePreview() {
     if (typeof throttledUpdate === "function") {
         throttledUpdate();
-    } else {
-        console.warn(
-            "burialRecords: throttledUpdate ещё не назначен."
-        );
     }
 }
 
@@ -71,7 +69,6 @@ function ensureRecords() {
 
 function getActive() {
     ensureRecords();
-
     return state?.burials?.find(person => person.id === activeId)
         || state?.burials?.[0]
         || null;
@@ -91,11 +88,7 @@ function saveFields() {
     if (dates) person.dates = dates.value;
     if (epitaph) person.epitaph = epitaph.value;
 
-    // Не заменяем сохранённое фото null-значением.
-    // Фото обновляется отдельно при загрузке файла.
-    person.textureUrl =
-        person.textureUrl || person.photoUrl || null;
-
+    person.textureUrl = person.textureUrl || person.photoUrl || null;
     person.photoUrl = person.textureUrl;
     state.activeBurialId = person.id;
 }
@@ -110,6 +103,9 @@ function escapeHtml(value) {
     })[character]);
 }
 
+// ============================================================
+// РЕНДЕР СПИСКА — теперь с классами под тёмную тему
+// ============================================================
 function renderList() {
     const list = document.getElementById("burialRecordsList");
     const count = document.getElementById("burialRecordsCount");
@@ -118,56 +114,61 @@ function renderList() {
 
     ensureRecords();
 
-    if (count) {
-        count.textContent = String(state.burials.length);
-    }
+    if (count) count.textContent = String(state.burials.length);
 
     list.innerHTML = state.burials.map((person, index) => {
         const selected = person.id === activeId;
-        const title = person.fullName.trim()
-            || `Человек ${index + 1} — не заполнен`;
+        const title = (person.fullName || "").trim()
+            || `Человек ${index + 1}`;
+        const dates = (person.dates || "").trim();
 
         return `
-            <div style="display:flex;gap:6px;margin:6px 0">
-                <button
-                    type="button"
-                    data-select="${escapeHtml(person.id)}"
-                    style="flex:1;padding:9px;text-align:left;
-                    border:1px solid #aaa;border-radius:6px;
-                    background:${selected ? '#eaf1ff' : '#fff'};
-                    color:#222">
-                    ${selected ? "✏️ " : ""}${escapeHtml(title)}
-                </button>
+            <div class="burial-card ${selected ? "is-active" : ""}"
+                 data-select="${escapeHtml(person.id)}"
+                 role="button"
+                 tabindex="0">
+                <div class="burial-card__preview">
+                    ${person.photoUrl
+                        ? `<img src="${escapeHtml(person.photoUrl)}" alt="">`
+                        : `<span class="burial-card__placeholder">👤</span>`}
+                </div>
 
-                <button
-                    type="button"
-                    data-delete="${escapeHtml(person.id)}"
-                    ${state.burials.length <= 1 ? "disabled" : ""}
-                    title="Удалить запись">
-                    ✕
-                </button>
+                <div class="burial-card__info">
+                    <div class="burial-card__name">${escapeHtml(title)}</div>
+                    ${dates ? `<div class="burial-card__dates">${escapeHtml(dates)}</div>` : ""}
+                </div>
+
+                <div class="burial-card__actions">
+                    <button type="button"
+                            class="burial-card__btn burial-card__btn--del"
+                            data-delete="${escapeHtml(person.id)}"
+                            ${state.burials.length <= 1 ? "disabled" : ""}
+                            title="Удалить запись">🗑️</button>
+                </div>
             </div>
         `;
     }).join("");
 
-    list.querySelectorAll("[data-select]").forEach(button => {
-        button.addEventListener("click", () => {
+    // Клик по карточке — выбрать
+    list.querySelectorAll("[data-select]").forEach(card => {
+        card.addEventListener("click", (e) => {
+            if (e.target.closest("[data-delete]")) return;
             saveFields();
-
-            activeId = button.dataset.select;
+            activeId = card.dataset.select;
             state.activeBurialId = activeId;
-
             showActive();
         });
     });
 
-    list.querySelectorAll("[data-delete]").forEach(button => {
-        button.addEventListener("click", () => {
+    // Удаление
+    list.querySelectorAll("[data-delete]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
             if (state.burials.length <= 1) return;
 
             saveFields();
 
-            const deletingId = button.dataset.delete;
+            const deletingId = btn.dataset.delete;
             const oldIndex = state.burials.findIndex(
                 person => person.id === deletingId
             );
@@ -178,10 +179,8 @@ function renderList() {
 
             if (activeId === deletingId) {
                 const nextIndex = Math.max(0, oldIndex - 1);
-
                 activeId = state.burials[nextIndex].id;
                 state.activeBurialId = activeId;
-
                 showActive();
             } else {
                 renderList();
@@ -209,9 +208,7 @@ function showActive() {
         state.dates = person.dates || "";
         state.epitaph = person.epitaph || "";
 
-        state.textureUrl =
-            person.textureUrl || person.photoUrl || null;
-
+        state.textureUrl = person.textureUrl || person.photoUrl || null;
         state.photoUrl = state.textureUrl;
 
         const name = document.getElementById("fullName");
@@ -222,7 +219,6 @@ function showActive() {
         if (name) name.value = state.fullName;
         if (dates) dates.value = state.dates;
         if (epitaph) epitaph.value = state.epitaph;
-
         if (upload) upload.value = "";
     } finally {
         changingFields = false;
@@ -238,10 +234,7 @@ function saveActiveBurialFontSize(field, value) {
     if (!person) return;
 
     const fontSize = Number(value);
-
-    if (!Number.isFinite(fontSize) || fontSize <= 0) {
-        return;
-    }
+    if (!Number.isFinite(fontSize) || fontSize <= 0) return;
 
     person[field] = fontSize;
     state.activeBurialId = person.id;
@@ -253,7 +246,6 @@ function saveActiveBurialFontSize(field, value) {
 
 function handlePhotoUpload(event) {
     const file = event.target.files?.[0];
-
     if (!file || !file.type.startsWith("image/")) return;
 
     const person = getActive();
@@ -262,33 +254,22 @@ function handlePhotoUpload(event) {
     const reader = new FileReader();
 
     reader.onload = () => {
-        // Пользователь мог переключить запись во время чтения файла.
-        // Поэтому сохраняем фото в ту запись, для которой началась загрузка.
         const targetPerson = state.burials.find(
             item => item.id === person.id
         );
-
-        if (!targetPerson || typeof reader.result !== "string") {
-            return;
-        }
+        if (!targetPerson || typeof reader.result !== "string") return;
 
         targetPerson.textureUrl = reader.result;
         targetPerson.photoUrl = reader.result;
 
-        // Обновляем общее состояние только если эта запись активна.
         if (state.activeBurialId === targetPerson.id) {
             state.textureUrl = reader.result;
             state.photoUrl = reader.result;
-
             invalidateTextures();
             updatePreview();
         }
 
         renderList();
-    };
-
-    reader.onerror = () => {
-        console.error("Не удалось прочитать файл фотографии.");
     };
 
     reader.readAsDataURL(file);
@@ -308,9 +289,7 @@ export function initBurialRecords(
     const epitaph = document.getElementById("epitaphText");
 
     if (!name || !dates || !epitaph) {
-        console.warn(
-            "burialRecords: не найдены поля ФИО, дат или эпитафии."
-        );
+        console.warn("burialRecords: не найдены поля ФИО, дат или эпитафии.");
         return;
     }
 
@@ -320,32 +299,28 @@ export function initBurialRecords(
 
     if (!document.getElementById("burialRecordsPanel")) {
         const panel = document.createElement("div");
-
         panel.id = "burialRecordsPanel";
-        panel.style.cssText =
-            "margin:0 0 14px;padding:12px;border:1px solid #ccc;" +
-            "border-radius:8px;background:#f7f9fc";
+        panel.className = "burial-panel";
 
         panel.innerHTML = `
-            <strong>👥 Люди на стеле</strong>
-
-            <div style="margin:6px 0">
-                Записей: <span id="burialRecordsCount">1</span>
+            <div class="burial-panel__header">
+                <span class="burial-panel__title">👥 Люди на стеле</span>
+                <span class="burial-panel__count">
+                    <span id="burialRecordsCount">1</span>
+                </span>
             </div>
 
-            <div id="burialRecordsList"></div>
+            <div id="burialRecordsList" class="burial-list"></div>
 
-            <button
-                type="button"
-                id="addBurialRecordBtn"
-                style="width:100%;padding:10px;margin-top:8px">
+            <button type="button"
+                    id="addBurialRecordBtn"
+                    class="burial-panel__add-btn">
                 ＋ Добавить человека
             </button>
 
-            <p style="font-size:12px;color:#555">
-                Выбери запись и редактируй её ФИО, даты,
-                эпитафию и фото.
-            </p>
+            <div class="burial-panel__hint">
+                💡 Выберите запись, чтобы редактировать её ниже
+            </div>
         `;
 
         if (anchor?.parentElement) {
@@ -355,7 +330,6 @@ export function initBurialRecords(
         }
     }
 
-    // Не добавляем повторные обработчики при повторной инициализации.
     if (!initialized) {
         document.getElementById("addBurialRecordBtn")?.addEventListener(
             "click",
@@ -364,18 +338,26 @@ export function initBurialRecords(
 
                 const person = makePerson();
 
+                // Дефолтные значения, чтобы запись была видна
+                person.fullName = "";
+                person.dates = "";
+
                 state.burials.push(person);
                 activeId = person.id;
                 state.activeBurialId = activeId;
 
                 showActive();
+
+                // Фокус на поле ФИО
+                setTimeout(() => {
+                    document.getElementById("fullName")?.focus();
+                }, 50);
             }
         );
 
         [name, dates, epitaph].forEach(element => {
             element.addEventListener("input", () => {
                 if (changingFields) return;
-
                 saveFields();
                 renderList();
             });
@@ -388,22 +370,12 @@ export function initBurialRecords(
 
         document.getElementById("nameFontSize")?.addEventListener(
             "input",
-            event => {
-                saveActiveBurialFontSize(
-                    "nameFontSize",
-                    event.target.value
-                );
-            }
+            event => saveActiveBurialFontSize("nameFontSize", event.target.value)
         );
 
         document.getElementById("datesFontSize")?.addEventListener(
             "input",
-            event => {
-                saveActiveBurialFontSize(
-                    "datesFontSize",
-                    event.target.value
-                );
-            }
+            event => saveActiveBurialFontSize("datesFontSize", event.target.value)
         );
 
         initialized = true;
@@ -413,13 +385,9 @@ export function initBurialRecords(
 
     window.refreshBurialRecordsUI = () => {
         ensureRecords();
-
-        activeId = state.burials.some(
-            person => person.id === state.activeBurialId
-        )
+        activeId = state.burials.some(p => p.id === state.activeBurialId)
             ? state.activeBurialId
             : state.burials[0].id;
-
         showActive();
     };
 

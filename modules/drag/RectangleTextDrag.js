@@ -15,12 +15,25 @@ export class RectangleTextDrag extends DragManager {
         this.sensitivity = 0.7;
     }
 
-    checkEnabled() {
-        if (!this.state) return false;
-        const checkbox = document.getElementById('enableDragText');
-        return checkbox && checkbox.checked && 
-               this.state.steleType === 'rectangle';
-    }
+	checkEnabled() {
+		const manager = window.multiMonumentManager;
+
+		const targetState =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0
+				? manager.monuments?.[manager.activeIndex]?.data
+				: this.state;
+
+		if (!targetState) return false;
+
+		const checkbox = document.getElementById('enableDragText');
+		const model = targetState.steleModel || targetState.steleType;
+
+		return Boolean(
+			checkbox?.checked &&
+			model === 'rectangle'
+		);
+	}
 
     getDragType(y) {
         if (y > 0.15 && y < 0.55) {

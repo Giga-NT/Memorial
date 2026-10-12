@@ -14,14 +14,26 @@ export class CustomSteleTextDrag extends DragManager {
 		this.setupPositionButtons();
 	}
 
-    checkEnabled() {
-        // ⭐ ПРОВЕРЯЕМ, ЧТО state ЕСТЬ
-        if (!this.state) return false;
-        
-        const checkbox = document.getElementById('enableDragText');
-        return checkbox && checkbox.checked && 
-               this.state.steleType && this.state.steleType.startsWith('custom_stl');
-    }
+	checkEnabled() {
+		const manager = window.multiMonumentManager;
+
+		const targetState =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0
+				? manager.monuments?.[manager.activeIndex]?.data
+				: this.state;
+
+		if (!targetState) return false;
+
+		const checkbox = document.getElementById('enableDragText');
+		const model = targetState.steleModel || targetState.steleType;
+
+		return Boolean(
+			checkbox?.checked &&
+			typeof model === 'string' &&
+			model.startsWith('custom_stl')
+		);
+	}
 
     getDragType(y) {
         if (y > 0.15 && y < 0.55) {
@@ -75,6 +87,16 @@ export class CustomSteleTextDrag extends DragManager {
 			// Меняем координаты только активного человека
 			burial.textOffsetX = x;
 			burial.textOffsetY = y;
+
+
+			const uiBurial = window.state?.burials?.find(
+				person => person.id === burial.id
+			);
+
+			if (uiBurial) {
+				uiBurial.textOffsetX = x;
+				uiBurial.textOffsetY = y;
+			}
 
 			this.state.frontTextureNeedsUpdate = true;
 
@@ -296,12 +318,20 @@ export class CustomSteleTextDrag extends DragManager {
 		}
 	}
 
-	getActiveBurial() {
-		const burials = this.state?.burials || [];
-		const activeId = this.state?.activeBurialId;
 
-		return burials.find(b => b.id === activeId) || null;
+	getActiveBurial() {
+		const manager = window.multiMonumentManager;
+
+		const activeId =
+			manager?.currentMode === 'duplicator'
+				? window.state?.activeBurialId ?? this.state?.activeBurialId
+				: this.state?.activeBurialId;
+
+		const burials = this.state?.burials || [];
+
+		return burials.find(person => person.id === activeId) || null;
 	}
+
 
 	getBurialOffset(burial, axis) {
 		if (!burial) return 0;
