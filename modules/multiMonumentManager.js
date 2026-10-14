@@ -332,6 +332,7 @@ setupPhotoDragHandlers() {
 		// ========================================================
 		for (const hit of intersects) {
 			if (
+
 				hit.object === photo ||
 				(
 					hit.object.userData &&

@@ -499,15 +499,15 @@ export class CustomStelePhotoDrag {
     // ВЫБОР АКТИВНОЙ СТЕЛЫ И СОСТОЯНИЯ
     // --------------------------------------------------------
 
-	setActiveTarget({
-		state,
-		decalsGroup,
-		scene = null
-	} = {}) {
-		this.activeState = state || window.state || null;
-		this.activeGroup = decalsGroup || null;
-		this.scene = scene || null;
-	}
+    setActiveTarget({
+        state,
+        decalsGroup,
+        scene = null
+    } = {}) {
+        this.activeState = state || null;
+        this.activeGroup = decalsGroup || null;
+        this.scene = scene || null;
+    }
 
     // --------------------------------------------------------
     // ОЧИСТКА ОБРАБОТЧИКОВ

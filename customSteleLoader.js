@@ -940,20 +940,18 @@ export function positionDecalsOnCustomStele(
 
 			const defaultPhotoX = photoBurials.length > 1
 				? (index - (photoBurials.length - 1) / 2) * 0.28
-				: Number(state.photoAbsoluteX ?? 0);
+				: (state.photoAbsoluteX ?? 0);
 
 			const photoX = Number(
 				burial.photoPositionX ??
 				burial.photoAbsoluteX ??
-				defaultPhotoX
+				(hasOwnPhotoPosition ? 0 : defaultPhotoX)
 			);
 
 			const photoY = Number(
 				burial.photoPositionY ??
 				burial.photoAbsoluteY ??
-				(photoBurials.length > 1
-					? 0.6
-					: Number(state.photoAbsoluteY ?? 0.6))
+				(photoBurials.length > 1 ? 0.6 : (state.photoAbsoluteY ?? 0.6))
 			);
 
             photoMesh.position.set(photoX, photoY, frontZ);
