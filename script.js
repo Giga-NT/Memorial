@@ -883,11 +883,10 @@ const dragManagers = initDragManagers({
     state: state,
     controls: controls,
     renderer: renderer,
+    camera: camera,
+    scene: scene,
     monumentGroup: monumentGroup,
     decalsGroup: decalsGroup,
-    // ⭐ ФИНАЛЬНОЕ РЕШЕНИЕ: Передаём напрямую updateScene.
-    // Внутри initDragManagers она попадёт в onRebuildNeeded,
-    // и FenceDrag вызовет её. Это не зависит от минификатора!
     onUpdate: updateScene
 });
 

@@ -13,6 +13,7 @@ const makePerson = () => ({
     epitaph: "",
     textureUrl: null,
     photoUrl: null,
+    photos: [],
     textOffsetX: 0,
     textOffsetY: 0,
     epitaphOffsetX: 0,
@@ -50,11 +51,27 @@ function ensureRecords() {
         }];
     }
 
-    state.burials = state.burials.map(person => ({
-        ...makePerson(),
-        ...person,
-        id: person.id || makePerson().id
-    }));
+	state.burials = state.burials.map(person => {
+		const legacyPhoto = person.textureUrl || person.photoUrl || null;
+
+		const photos = Array.isArray(person.photos)
+			? person.photos
+			: legacyPhoto
+				? [{
+					id: `photo-${person.id || Date.now()}-1`,
+					url: legacyPhoto,
+					x: 0,
+					y: 0
+				}]
+				: [];
+
+		return {
+			...makePerson(),
+			...person,
+			id: person.id || makePerson().id,
+			photos
+		};
+	});
 
     const savedActiveId = state.activeBurialId;
 
@@ -224,9 +241,10 @@ function showActive() {
         changingFields = false;
     }
 
-    invalidateTextures();
-    renderList();
-    updatePreview();
+	invalidateTextures();
+	renderList();
+	renderPersonPhotos();
+	updatePreview();
 }
 
 function saveActiveBurialFontSize(field, value) {
@@ -244,36 +262,130 @@ function saveActiveBurialFontSize(field, value) {
     updatePreview();
 }
 
+
+function renderPersonPhotos() {
+    const container = document.getElementById("personPhotosList");
+    const person = getActive();
+
+    if (!container) return;
+
+    if (!person) {
+        container.innerHTML = "";
+        return;
+    }
+
+    if (!Array.isArray(person.photos)) {
+        person.photos = [];
+    }
+
+    container.innerHTML = `
+        <div class="person-photos-title">
+            Фото человека: ${person.photos.length} из 2
+        </div>
+        <div class="person-photos-grid">
+            ${person.photos.map((photo, index) => `
+                <div class="person-photo-item">
+                    <img
+                        src="${escapeHtml(photo.url)}"
+                        alt="Фото ${index + 1}"
+                    >
+                    <span>Фото ${index + 1}</span>
+                    <button
+                        type="button"
+                        data-remove-photo="${escapeHtml(photo.id)}"
+                        title="Удалить фотографию"
+                    >Удалить</button>
+                </div>
+            `).join("")}
+        </div>
+        ${person.photos.length >= 2
+            ? "<div>Добавлено максимальное количество фотографий.</div>"
+            : ""}
+    `;
+}
+
+function syncLegacyPhotoFields(person) {
+    const firstPhoto = person.photos?.[0]?.url || null;
+
+    // Совместимость со старым кодом и старыми проектами.
+    person.textureUrl = firstPhoto;
+    person.photoUrl = firstPhoto;
+
+    if (state.activeBurialId === person.id) {
+        state.textureUrl = firstPhoto;
+        state.photoUrl = firstPhoto;
+    }
+}
+
 function handlePhotoUpload(event) {
-    const file = event.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
+    const files = Array.from(event.target.files || [])
+        .filter(file => file.type.startsWith("image/"));
 
     const person = getActive();
-    if (!person) return;
 
-    const reader = new FileReader();
+    if (!person || files.length === 0) return;
 
-    reader.onload = () => {
-        const targetPerson = state.burials.find(
-            item => item.id === person.id
-        );
-        if (!targetPerson || typeof reader.result !== "string") return;
+    if (!Array.isArray(person.photos)) {
+        person.photos = [];
+    }
 
-        targetPerson.textureUrl = reader.result;
-        targetPerson.photoUrl = reader.result;
+    const availableSlots = 2 - person.photos.length;
 
-        if (state.activeBurialId === targetPerson.id) {
-            state.textureUrl = reader.result;
-            state.photoUrl = reader.result;
-            invalidateTextures();
-            updatePreview();
+    if (availableSlots <= 0) {
+        alert("У этого человека уже добавлены 2 фотографии.");
+        event.target.value = "";
+        return;
+    }
+
+    const filesToRead = files.slice(0, availableSlots);
+
+    if (files.length > availableSlots) {
+        alert("Можно добавить не больше 2 фотографий на человека. Будут загружены только доступные.");
+    }
+
+    const personId = person.id;
+
+    Promise.all(filesToRead.map(file => new Promise(resolve => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            resolve(typeof reader.result === "string"
+                ? reader.result
+                : null);
+        };
+
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+    }))).then(urls => {
+        const targetPerson = state.burials.find(item => item.id === personId);
+
+        if (!targetPerson) return;
+
+        if (!Array.isArray(targetPerson.photos)) {
+            targetPerson.photos = [];
         }
 
-        renderList();
-    };
+        urls.filter(Boolean).forEach(url => {
+            if (targetPerson.photos.length >= 2) return;
 
-    reader.readAsDataURL(file);
+            targetPerson.photos.push({
+                id: `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                url,
+                x: 0,
+                y: 0
+            });
+        });
+
+        syncLegacyPhotoFields(targetPerson);
+        renderPersonPhotos();
+        renderList();
+        invalidateTextures();
+        updatePreview();
+
+        event.target.value = "";
+    });
 }
+
 
 export function initBurialRecords(
     appState,
@@ -294,7 +406,8 @@ export function initBurialRecords(
     }
 
     ensureRecords();
-
+	renderPersonPhotos();
+	
     const anchor = name.closest(".control-group")?.parentElement;
 
     if (!document.getElementById("burialRecordsPanel")) {
@@ -367,6 +480,30 @@ export function initBurialRecords(
             "change",
             handlePhotoUpload
         );
+
+		document.getElementById("personPhotosList")?.addEventListener(
+			"click",
+			event => {
+				const button = event.target.closest("[data-remove-photo]");
+				if (!button) return;
+
+				const person = getActive();
+				if (!person || !Array.isArray(person.photos)) return;
+
+				const photoId = button.dataset.removePhoto;
+
+				person.photos = person.photos.filter(
+					photo => photo.id !== photoId
+				);
+
+				syncLegacyPhotoFields(person);
+
+				renderPersonPhotos();
+				renderList();
+				invalidateTextures();
+				updatePreview();
+			}
+		);
 
         document.getElementById("nameFontSize")?.addEventListener(
             "input",

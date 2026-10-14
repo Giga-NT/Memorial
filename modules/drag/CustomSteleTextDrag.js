@@ -4,7 +4,7 @@
 // ============================================================
 
 import { DragManager } from './DragManager.js';
-import { findCustomStele, getSteleCenter } from './drag-utils.js';
+import { findCustomStele, getSteleCenter, getEventPosition } from './drag-utils.js';
 
 export class CustomSteleTextDrag extends DragManager {
 	constructor(options = {}) {
@@ -69,26 +69,34 @@ export class CustomSteleTextDrag extends DragManager {
 		};
 	}
 
+
 	updateOffsets(type, x, y) {
 		const manager = window.multiMonumentManager;
 
-		if (
-			manager &&
-			manager.currentMode === 'duplicator' &&
+		const isDuplicator =
+			manager?.currentMode === 'duplicator' &&
 			manager.activeIndex >= 0 &&
-			manager.monuments?.[manager.activeIndex]?.data
-		) {
-			this.state = manager.monuments[manager.activeIndex].data;
-		}
+			manager.monuments?.[manager.activeIndex]?.data;
 
-		const burial = this.getActiveBurial();
+		if (isDuplicator) {
+			const mon = manager.monuments[manager.activeIndex];
 
-		if (burial) {
-			// Меняем координаты только активного человека
+			this.state = mon.data;
+
+			const burial = this.getActiveBurial();
+
+			if (!burial) {
+				console.warn(
+					'Не найдена активная запись для перемещения текста'
+				);
+				return;
+			}
+
+			// Сохраняем координаты именно в данных дублера.
 			burial.textOffsetX = x;
 			burial.textOffsetY = y;
 
-
+			// Обновляем UI-копию записи, если она существует.
 			const uiBurial = window.state?.burials?.find(
 				person => person.id === burial.id
 			);
@@ -98,41 +106,233 @@ export class CustomSteleTextDrag extends DragManager {
 				uiBurial.textOffsetY = y;
 			}
 
-			this.state.frontTextureNeedsUpdate = true;
+			// Запоминаем выбранную запись.
+			mon.data.activeBurialId = burial.id;
+
+			// Обновляем кэш дублера.
+			manager._duplicatorDataCache[manager.activeIndex] = {
+				...mon.data,
+				burials: mon.data.burials.map(person => ({
+					...person
+				}))
+			};
+
+			mon.data.frontTextureNeedsUpdate = true;
 
 			this.updateDisplay();
-			this.forceDecalUpdate();
+
+			// ВАЖНО:
+			// Здесь НЕ вызываем forceDecalUpdate().
+			// Во время drag меняем существующий Mesh.
+			// Пересоздание выполняется кнопкой «Применить».
 			return;
 		}
 
-		// Старый режим — если записей погребённых нет
-		this.state.textOffsetX = x;
-		this.state.textOffsetY = y;
+		// Основной памятник и прежний режим без списка записей.
+		const burial = this.getActiveBurial();
+
+		if (burial) {
+			burial.textOffsetX = x;
+			burial.textOffsetY = y;
+		} else {
+			this.state.textOffsetX = x;
+			this.state.textOffsetY = y;
+		}
+
 		this.state.frontTextureNeedsUpdate = true;
 
 		this.updateDisplay();
 		this.forceDecalUpdate();
 	}
 
-    updateDisplay() {
-        const xVal = document.getElementById('textOffsetXVal');
-        const yVal = document.getElementById('textOffsetYVal');
-        if (xVal) xVal.textContent = this.state.textOffsetX.toFixed(2);
-        if (yVal) yVal.textContent = this.state.textOffsetY.toFixed(2);
-    }
 
-    onDragStart(type) {
-        this.updateDisplay();
-    }
 
-    onDragMove(type, x, y) {
-        this.updateDisplay();
-        this.forceDecalUpdate();
-    }
+	updateDisplay() {
+		const xVal = document.getElementById('textOffsetXVal');
+		const yVal = document.getElementById('textOffsetYVal');
 
-    onDragEnd(type) {
-        this.forceDecalUpdate();
-    }
+		const burial = this.getActiveBurial();
+
+		const x = burial
+			? Number(burial.textOffsetX) || 0
+			: Number(this.state?.textOffsetX) || 0;
+
+		const y = burial
+			? Number(burial.textOffsetY) || 0
+			: Number(this.state?.textOffsetY) || 0;
+
+		if (xVal) xVal.textContent = x.toFixed(3);
+		if (yVal) yVal.textContent = y.toFixed(3);
+	}
+
+
+
+	onDragStart(type) {
+		this.updateDisplay();
+
+		const manager = window.multiMonumentManager;
+
+		if (
+			manager?.currentMode !== 'duplicator' ||
+			manager.activeIndex < 0
+		) {
+			return;
+		}
+
+		const mon = manager.monuments[manager.activeIndex];
+		const burial = this.getActiveBurial();
+
+		if (!mon?.group || !burial) {
+			this.dragState.burialTextMesh = null;
+			return;
+		}
+
+		let textMesh = null;
+
+		// Ищем текст только внутри активного дублера.
+		const decalsGroup = mon.group.children.find(
+			child =>
+				child.name === 'decalsContainer' &&
+				child.parent === mon.group
+		);
+
+		decalsGroup?.traverse(child => {
+			if (
+				!textMesh &&
+				child.isMesh &&
+				child.userData?.isBurialText &&
+				child.userData?.burialId === burial.id
+			) {
+				textMesh = child;
+			}
+		});
+
+		if (!textMesh) {
+			console.warn(
+				'Текст активного захоронения не найден в дублере',
+				burial.id
+			);
+			this.dragState.burialTextMesh = null;
+			return;
+		}
+
+		// Запоминаем исходную позицию Mesh и координаты.
+		this.dragState.burialTextMesh = textMesh;
+
+		this.dragState.burialTextStartPosition = {
+			x: textMesh.position.x,
+			y: textMesh.position.y
+		};
+
+		this.dragState.burialTextStartOffset = {
+			x: Number(burial.textOffsetX) || 0,
+			y: Number(burial.textOffsetY) || 0
+		};
+
+		// Масштаб должен совпадать с createDecalsForDuplicator().
+		this.dragState.burialTextWidth =
+			(mon.data.width || 0.6) * 0.5;
+
+		this.dragState.burialTextHeight =
+			(mon.data.height || 1.2) * 0.5;
+	}
+
+	onDragMove(type, x, y) {
+		const manager = window.multiMonumentManager;
+
+		const isDuplicator =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0;
+
+		if (isDuplicator) {
+			const mesh = this.dragState.burialTextMesh;
+			const start = this.dragState.burialTextStartPosition;
+			const startOffset = this.dragState.burialTextStartOffset;
+
+			if (!mesh || !start || !startOffset) {
+				return;
+			}
+
+			// Перемещаем существующий Mesh.
+			// Не пересоздаём текст и не меняем базовую позицию
+			// каждого кадра относительно предыдущего.
+			mesh.position.x =
+				start.x +
+				(x - startOffset.x) *
+				this.dragState.burialTextWidth;
+
+			mesh.position.y =
+				start.y +
+				(y - startOffset.y) *
+				this.dragState.burialTextHeight;
+
+			if (this.renderer && this.scene && this.controls) {
+				this.renderer.render(
+					this.scene,
+					this.controls.object
+				);
+			}
+
+			this.updateDisplay();
+			return;
+		}
+
+		// Основной памятник оставляем на прежней логике.
+		this.updateDisplay();
+		this.forceDecalUpdate();
+	}
+
+
+	onMove(event) {
+		if (!this.dragState.active) return;
+
+		if (event.cancelable) {
+			event.preventDefault();
+		}
+
+		const pos = getEventPosition(event, this.renderer);
+		if (!pos) return;
+
+		const dx =
+			(pos.x - this.dragState.startX) / this.sensitivity;
+
+		// Исправление инверсии по вертикали:
+		// getEventPosition() уже переворачивает экранную ось Y.
+		const dy =
+			(pos.y - this.dragState.startY) / this.sensitivity;
+
+		let newX = this.dragState.startOffsetX + dx;
+		let newY = this.dragState.startOffsetY + dy;
+
+		newX = Math.max(-this.maxOffset, Math.min(this.maxOffset, newX));
+		newY = Math.max(-this.maxOffset, Math.min(this.maxOffset, newY));
+
+		this.dragState.currentOffsetX = newX;
+		this.dragState.currentOffsetY = newY;
+
+		this.updateOffsets(this.dragState.type, newX, newY);
+		this.onDragMove(this.dragState.type, newX, newY);
+	}
+
+
+	onDragEnd(type) {
+		const manager = window.multiMonumentManager;
+
+		if (
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0
+		) {
+			// Координаты уже записаны в updateOffsets().
+			// Не пересоздаём декали при отпускании мыши.
+			this.dragState.burialTextMesh = null;
+			this.dragState.burialTextStartPosition = null;
+			this.dragState.burialTextStartOffset = null;
+			return;
+		}
+
+		this.forceDecalUpdate();
+	}
+
 
 
 	setupPositionButtons() {

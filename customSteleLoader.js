@@ -714,9 +714,9 @@ export function positionDecalsOnCustomStele(
         }
 
         // 📷 Фото сохраняем
-        if (child.userData?.type === 'photo') {
-            return;
-        }
+        // if (child.userData?.type === 'photo') {
+            // return;
+        // }
 
         // 🗑️ Остальные декали удаляем
         childrenToRemove.push(child);
@@ -780,7 +780,7 @@ export function positionDecalsOnCustomStele(
         return;
     }
     
-    const scale = state.decalScale || 0.99;
+    const scale = state.decalScale ?? 0.85;
     const decalWidth = dims.width * scale;
     const decalHeight = dims.height * scale;
     const textCenterY = 0.6;
@@ -853,68 +853,157 @@ export function positionDecalsOnCustomStele(
 
         decalsGroup.add(textMesh);
     });
+
+
     // ============================================================
-    // === 3. ФОТО ===
+    // === 3. ФОТО КАЖДОГО ПОГРЕБЁННОГО ===
     // ============================================================
-    if (state.textureUrl) {
+
+    const photoBurials = Array.isArray(state.burials)
+        ? state.burials
+        : [];
+
+    photoBurials.forEach((burial, index) => {
+        const photoUrl = burial.textureUrl || burial.photoUrl;
+        if (!photoUrl) return;
+
         const loader = new THREE.TextureLoader();
-        loader.load(state.textureUrl, (tex) => {
+
+        loader.load(photoUrl, (tex) => {
+            // Запись могла быть удалена до завершения загрузки
+            if (
+                !decalsGroup.parent ||
+                !state.burials?.some(person => person.id === burial.id)
+            ) {
+                tex.dispose();
+                return;
+            }
+
             tex.minFilter = THREE.LinearFilter;
             tex.magFilter = THREE.LinearFilter;
-            
+
+            const shape = burial.photoShape || state.photoShape || 'oval';
+
             let w, h;
-            const shape = state.photoShape || 'oval';
-            
+
             if (shape === 'custom') {
-                w = mmToMeters(state.photoWidthMm || 100);
-                h = mmToMeters(state.photoHeightMm || 140);
+                w = mmToMeters(burial.photoWidthMm ?? state.photoWidthMm ?? 100);
+                h = mmToMeters(burial.photoHeightMm ?? state.photoHeightMm ?? 140);
             } else {
-                const presetSizes = { 
-                    'oval':   { w: 0.22, h: 0.28 }, 
-                    'circle': { w: 0.24, h: 0.24 }, 
-                    'square': { w: 0.22, h: 0.22 } 
+                const presetSizes = {
+                    oval:   { w: 0.22, h: 0.28 },
+                    circle: { w: 0.24, h: 0.24 },
+                    square: { w: 0.22, h: 0.22 }
                 };
+
                 const size = presetSizes[shape] || presetSizes.oval;
                 w = size.w;
                 h = size.h;
             }
-            
-            const scale = state.photoScale || 1.0;
-            const finalW = w * scale;
-            const finalH = h * scale;
-            
+
+            const photoScale = Number(
+                burial.photoScale ?? state.photoScale ?? 1
+            );
+
+            const finalW = w * photoScale;
+            const finalH = h * photoScale;
+
             let geometry;
+
             if (shape === 'circle') {
-                const radius = Math.max(finalW, finalH) / 2;
-                geometry = new THREE.CircleGeometry(radius, 64);
+                geometry = new THREE.CircleGeometry(
+                    Math.max(finalW, finalH) / 2,
+                    64
+                );
             } else if (shape === 'oval') {
                 geometry = new THREE.CircleGeometry(0.5, 64);
                 geometry.scale(finalW, finalH, 1);
             } else {
                 geometry = new THREE.PlaneGeometry(finalW, finalH);
             }
-            
-            const photoMat = new THREE.MeshBasicMaterial({ 
-                map: tex, 
-                transparent: true, 
-                side: THREE.DoubleSide, 
-                depthWrite: false, 
-                alphaTest: 0.05 
+
+            const material = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                alphaTest: 0.05
             });
-            const photoMesh = new THREE.Mesh(geometry, photoMat);
-            
-            const photoX = (state.photoAbsoluteX !== undefined) ? state.photoAbsoluteX : 0;
-            const photoY = (state.photoAbsoluteY !== undefined) ? state.photoAbsoluteY : 0.6;
-            
+
+            const photoMesh = new THREE.Mesh(geometry, material);
+
+			const hasOwnPhotoPosition =
+				burial.photoPositionX != null ||
+				burial.photoPositionY != null ||
+				burial.photoAbsoluteX != null ||
+				burial.photoAbsoluteY != null;
+
+			const defaultPhotoX = photoBurials.length > 1
+				? (index - (photoBurials.length - 1) / 2) * 0.28
+				: Number(state.photoAbsoluteX ?? 0);
+
+			const photoX = Number(
+				burial.photoPositionX ??
+				burial.photoAbsoluteX ??
+				defaultPhotoX
+			);
+
+			const photoY = Number(
+				burial.photoPositionY ??
+				burial.photoAbsoluteY ??
+				(photoBurials.length > 1
+					? 0.6
+					: Number(state.photoAbsoluteY ?? 0.6))
+			);
+
             photoMesh.position.set(photoX, photoY, frontZ);
-            photoMesh.renderOrder = 11;
-            
+            photoMesh.renderOrder = 11 + index;
+
             photoMesh.userData.isDraggable = true;
             photoMesh.userData.type = 'photo';
-            
+            photoMesh.userData.burialId = burial.id;
+
+            decalsGroup.add(photoMesh);
+        });
+    });
+
+    // Совместимость со старым проектом без массива burials
+    if (
+        photoBurials.length === 0 &&
+        state.textureUrl
+    ) {
+        const loader = new THREE.TextureLoader();
+
+        loader.load(state.textureUrl, (tex) => {
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+
+            const geometry = new THREE.PlaneGeometry(0.22, 0.28);
+            const material = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                alphaTest: 0.05
+            });
+
+            const photoMesh = new THREE.Mesh(geometry, material);
+
+            photoMesh.position.set(
+                state.photoAbsoluteX ?? 0,
+                state.photoAbsoluteY ?? 0.6,
+                frontZ
+            );
+
+            photoMesh.renderOrder = 11;
+            photoMesh.userData.isDraggable = true;
+            photoMesh.userData.type = 'photo';
+
             decalsGroup.add(photoMesh);
         });
     }
+
+
     
     // ============================================================
     // === 4. ЭПИТАФИЯ ===

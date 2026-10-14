@@ -8,12 +8,14 @@ import { CustomSteleEpitaphDrag } from './CustomSteleEpitaphDrag.js';
 import { RectangleTextDrag } from './RectangleTextDrag.js';
 import { RectangleEpitaphDrag } from './RectangleEpitaphDrag.js';
 import { FenceDrag } from './FenceDrag.js';
+import { CustomStelePhotoDrag } from './CustomStelePhotoDrag.js';
 
 export {
     CustomSteleTextDrag,
     CustomSteleEpitaphDrag,
     RectangleTextDrag,
     RectangleEpitaphDrag,
+	CustomStelePhotoDrag,
     FenceDrag
 };
 
@@ -31,6 +33,30 @@ export function initDragManagers(options = {}) {
     } = options;
     
     const managers = [];
+	
+
+	const customPhotoDrag = new CustomStelePhotoDrag({
+		state,
+		controls,
+		renderer,
+		camera: options.camera,
+		scene: options.scene,
+		monumentGroup,
+		decalsGroup,
+		onUpdate
+	});
+
+	customPhotoDrag.setActiveTarget({
+		state,
+		decalsGroup,
+		scene: options.scene
+	});
+
+	managers.push(customPhotoDrag);
+	window._customPhotoDrag = customPhotoDrag;
+
+
+
     
     // Кастомные стелы
     const customTextDrag = new CustomSteleTextDrag({
@@ -90,7 +116,8 @@ export function initDragManagers(options = {}) {
         onUpdate: onUpdate 
     });
     managers.push(fenceDrag);
-    
+
+   
     // Сохраняем ссылку для доступа из глобального кода
     window._fenceDrag = fenceDrag;
     

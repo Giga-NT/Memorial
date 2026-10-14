@@ -3639,10 +3639,43 @@ createDecalsForDuplicator(steleGroup, data) {
     decalsGroup.name = 'decalsContainer';
     
     try {
-        const boundingBox = new THREE.Box3().setFromObject(steleGroup);
-        const center = boundingBox.getCenter(new THREE.Vector3());
-        const frontZ = boundingBox.max.z + 0.016;
-        const backZ = boundingBox.min.z - 0.016;
+
+		const worldBox = new THREE.Box3().setFromObject(steleGroup);
+
+		// Декали добавляются в mon.group, поэтому координаты
+		// стелы переводим из мировых в локальные координаты родителя.
+		const decalsParent = steleGroup.parent;
+
+		if (!decalsParent) {
+			console.warn('⚠️ У стелы отсутствует родительская группа');
+			return null;
+		}
+
+		decalsParent.updateWorldMatrix(true, false);
+
+		const worldToParent = decalsParent.matrixWorld.clone().invert();
+		const corners = [
+			new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.min.z),
+			new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.max.z),
+			new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.min.z),
+			new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.max.z),
+			new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.min.z),
+			new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.max.z),
+			new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.min.z),
+			new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.max.z)
+		];
+
+		const boundingBox = new THREE.Box3();
+
+		corners.forEach(point => {
+			point.applyMatrix4(worldToParent);
+			boundingBox.expandByPoint(point);
+		});
+
+		const center = boundingBox.getCenter(new THREE.Vector3());
+		const frontZ = boundingBox.max.z + 0.016;
+		const backZ = boundingBox.min.z - 0.016;
+
         
         const width = data.width || 0.6;
         const height = data.height || 1.2;
