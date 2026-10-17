@@ -160,7 +160,11 @@ export class CustomStelePhotoDrag {
         const mesh = new THREE.Mesh(geometry, material);
 
         const defaultX = Number(
-            person.photoPositionX ?? -0.28
+            person.photoPositionX ??
+            person.photoAbsoluteX ??
+            person.photoOffsetX ??
+            options.defaultX ??
+            -0.28
         );
 
         const defaultY = Number(
