@@ -3552,6 +3552,13 @@ updatePhotoPosition(photoMesh, x, y) {
 								if (decalsGroup) {
 									mon.group.add(decalsGroup);
 
+									// Переключаем drag-менеджер на фотографии активного дублера.
+									window._customPhotoDrag?.setActiveTarget({
+										state: data,
+										decalsGroup,
+										scene: this.scene
+									});
+
 									console.log(
 										`✍️ Декали созданы для дублера #${mon.id}:`,
 										decalsGroup.children.length
@@ -3797,76 +3804,54 @@ createDecalsForDuplicator(steleGroup, data) {
         });
 
         
-		// ⭐ ФОТО (С ПОДДЕРЖКОЙ ПЕРЕТАСКИВАНИЯ)
-		if (data.textureUrl) {
-			const loader = new THREE.TextureLoader();
-			loader.load(data.textureUrl, (tex) => {
-				tex.minFilter = THREE.LinearFilter;
-				tex.magFilter = THREE.LinearFilter;
-				
-				let w, h;
-				const shape = data.photoShape || 'oval';
-				if (shape === 'custom') {
-					w = (data.photoWidthMm || 100) / 1000;
-					h = (data.photoHeightMm || 140) / 1000;
-				} else {
-					const presetSizes = { 
-						'oval':   { w: 0.22, h: 0.28 }, 
-						'circle': { w: 0.24, h: 0.24 }, 
-						'square': { w: 0.22, h: 0.22 } 
-					};
-					const size = presetSizes[shape] || presetSizes.oval;
-					w = size.w;
-					h = size.h;
-				}
-				
-				const scale = data.photoScale || 1.0;
-				const finalW = w * scale;
-				const finalH = h * scale;
-				
-				let geometry;
-				if (shape === 'circle') {
-					geometry = new THREE.CircleGeometry(Math.max(finalW, finalH) / 2, 32);
-				} else if (shape === 'oval') {
-					geometry = new THREE.CircleGeometry(0.5, 32);
-					geometry.scale(finalW, finalH, 1);
-				} else {
-					geometry = new THREE.PlaneGeometry(finalW, finalH);
-				}
-				
-				const photoMat = new THREE.MeshBasicMaterial({ 
-					map: tex, 
-					transparent: true, 
-					side: THREE.DoubleSide, 
-					depthWrite: false, 
-					alphaTest: 0.05 
-				});
-				const photoMesh = new THREE.Mesh(geometry, photoMat);
-				
-				// ⭐ ПОЗИЦИЯ ФОТО
-				const photoX =
-					data.photoAbsoluteX ??
-					data.photoOffsetX ??
-					0;
+		// ФОТОГРАФИИ: отдельная фотография для каждой записи погребённого.
+		// Не используем старый одиночный data.textureUrl-блок, иначе все записи
+		// перекрываются одной фотографией активного человека.
+		const photoDrag = window._customPhotoDrag;
+		if (photoDrag && typeof photoDrag.renderPhotos === 'function') {
+			const burialSpacing = 0.22;
+			const photoData = {
+				...data,
+				burials: Array.isArray(data.burials)
+					? data.burials.map((person, index) => ({
+						...person,
+						photoPositionX: person.photoPositionX
+							?? person.photoAbsoluteX
+							?? person.photoOffsetX
+							?? data.photoAbsoluteX
+							?? data.photoOffsetX
+							?? 0,
+						photoPositionY: person.photoPositionY
+							?? person.photoAbsoluteY
+							?? (person.photoOffsetY !== undefined
+								? center.y + Number(person.photoOffsetY || 0)
+								: center.y - index * burialSpacing),
+						photoShape: person.photoShape ?? data.photoShape,
+						photoScale: person.photoScale ?? data.photoScale,
+						photoWidthMm: person.photoWidthMm ?? data.photoWidthMm,
+						photoHeightMm: person.photoHeightMm ?? data.photoHeightMm
+					}))
+					: []
+			};
 
-				const photoY =
-					data.photoAbsoluteY ??
-					(center.y + (data.photoOffsetY || 0));
-				photoMesh.position.set(photoX, photoY, frontZ - 0.013);
-				photoMesh.renderOrder = 11;
-				
-				// ⭐ ДЕЛАЕМ ФОТО ПЕРЕТАСКИВАЕМЫМ
-				photoMesh.userData.isDraggable = true;
-				photoMesh.userData.type = 'photo';
-				photoMesh.userData.limitX = width / 2 - finalW / 2;
-				photoMesh.userData.limitY = height / 2 - finalH / 2;
-				photoMesh.userData.steleCenterY = center.y;
-				photoMesh.userData.photoIndex = data.photoIndex || 0;
-				
-				decalsGroup.add(photoMesh);
-			});
+			const createdPhotos = photoDrag.renderPhotos(
+				decalsGroup,
+				photoData,
+				{
+					defaultY: center.y,
+					frontZ: frontZ - 0.013,
+					limitX: width / 2,
+					limitY: height / 2,
+					centerY: center.y
+				}
+			);
+
+			console.log('📸 Фото дублера созданы:', createdPhotos.length,
+				createdPhotos.map(mesh => mesh.userData.burialId));
+		} else {
+			console.warn('⚠️ CustomStelePhotoDrag не инициализирован — фото дублера не созданы');
 		}
-        
+
 
         // ⭐ Задняя сторона: персональная эпитафия каждого погребённого
         const burialsWithEpitaph = Array.isArray(data.burials)
