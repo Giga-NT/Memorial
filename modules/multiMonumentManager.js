@@ -170,6 +170,7 @@ setupPhotoDragHandlers() {
 
 	let isDragging = false;
 	let selectedPhoto = null;
+	let previousPhotoRenderOrder = null;
 	let dragOffset = { x: 0, y: 0 };
 	const raycaster = new THREE.Raycaster();
 	const mouse = new THREE.Vector2();
@@ -331,6 +332,11 @@ setupPhotoDragHandlers() {
 		// ⭐ ПРОВЕРЯЕМ ПОПАДАНИЯ
 		// ========================================================
 		for (const hit of intersects) {
+			// Портретами конкретных людей управляет
+			// только CustomStelePhotoDrag.
+			if (hit.object.userData?.isBurialPhoto) {
+				return;
+			}
 			if (
 
 				hit.object === photo ||
@@ -349,6 +355,8 @@ setupPhotoDragHandlers() {
 
 				isDragging = true;
 				selectedPhoto = hit.object;
+				previousPhotoRenderOrder = selectedPhoto.renderOrder;
+				selectedPhoto.renderOrder = 10000;
 
 				dragOffset.x =
 					hit.point.x -
@@ -415,12 +423,12 @@ setupPhotoDragHandlers() {
 		const intersectionPoint =
 			new THREE.Vector3();
 
-		r.ray.intersectPlane(
+		const planeHit = r.ray.intersectPlane(
 			plane,
 			intersectionPoint
 		);
 
-		if (!intersectionPoint) {
+		if (!planeHit) {
 			return;
 		}
 
@@ -590,6 +598,14 @@ setupPhotoDragHandlers() {
 
 			if (this.controls) {
 				this.controls.enabled = true;
+			}
+
+			if (
+				selectedPhoto &&
+				previousPhotoRenderOrder !== null
+			) {
+				selectedPhoto.renderOrder = previousPhotoRenderOrder;
+				previousPhotoRenderOrder = null;
 			}
 
 			selectedPhoto = null;

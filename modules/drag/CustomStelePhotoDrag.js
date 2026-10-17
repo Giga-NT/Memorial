@@ -17,7 +17,7 @@ export class CustomStelePhotoDrag {
 
         this.isDragging = false;
         this.selectedPhoto = null;
-        this.dragOffset = new THREE.Vector2();
+        this.dragOffset = new THREE.Vector3();
 
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -350,150 +350,162 @@ export class CustomStelePhotoDrag {
     // --------------------------------------------------------
     // ПЕРЕТАСКИВАНИЕ
     // --------------------------------------------------------
+onPointerDown(event) {
+    const canvas = this.renderer?.domElement;
+    if (!canvas || !this.camera || !this.activeGroup) return;
 
+    const checkbox = document.getElementById('enableMovePhoto');
+    if (checkbox && !checkbox.checked) return;
 
-	onPointerDown(event) {
-		const canvas = this.renderer?.domElement;
-		if (!canvas || !this.camera || !this.activeGroup) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
 
-		const checkbox = document.getElementById('enableMovePhoto');
-		if (checkbox && !checkbox.checked) return;
+    this.mouse.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
 
-		const rect = canvas.getBoundingClientRect();
-		if (!rect.width || !rect.height) return;
+    this.activeGroup.updateMatrixWorld(true);
+    this.raycaster.setFromCamera(this.mouse, this.camera);
 
-		this.mouse.set(
-			((event.clientX - rect.left) / rect.width) * 2 - 1,
-			-((event.clientY - rect.top) / rect.height) * 2 + 1
-		);
+    const photos = [];
 
-		this.activeGroup.updateMatrixWorld(true);
-		this.raycaster.setFromCamera(this.mouse, this.camera);
-
-		const photos = [];
-		this.activeGroup.traverse(child => {
-			if (
-				child.isMesh &&
-				child.userData?.type === 'photo' &&
-				child.userData?.isDraggable
-			) {
-				photos.push(child);
-			}
-		});
-
-		const hits = this.raycaster.intersectObjects(photos, false);
-
-		if (!hits.length) return;
-
-		// Сначала пытаемся выбрать фото активного человека.
-		const activeBurialId =
-			this.activeState?.activeBurialId ??
-			window.state?.activeBurialId;
-
-		const activePhotoHit = hits.find(
-			hit => hit.object.userData?.burialId === activeBurialId
-		);
-
-		const hit = activePhotoHit || hits[0];
-
-		this.selectedPhoto = hit.object;
-		this.selectedBurialId =
-			this.selectedPhoto.userData.burialId ?? null;
-		this.isDragging = true;
-
-		// Плоскость фотографии в мировых координатах.
-		this.selectedPhoto.updateMatrixWorld(true);
-		const worldPosition = new THREE.Vector3();
-		this.selectedPhoto.getWorldPosition(worldPosition);
-
-		const worldNormal = new THREE.Vector3(0, 0, 1)
-			.applyQuaternion(this.selectedPhoto.getWorldQuaternion(new THREE.Quaternion()))
-			.normalize();
-
-		this.dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
-			worldNormal,
-			worldPosition
-		);
-
-		this.dragOffset.copy(hit.point).sub(worldPosition);
-
-		if (this.controls) this.controls.enabled = false;
-		canvas.style.cursor = 'grabbing';
-	}
-
-	onPointerMove(event) {
-		if (!this.isDragging || !this.selectedPhoto || !this.dragPlane) {
-			return;
-		}
-
-		const canvas = this.renderer?.domElement;
-		if (!canvas || !this.camera) return;
-
-		const rect = canvas.getBoundingClientRect();
-		if (!rect.width || !rect.height) return;
-
-		this.mouse.set(
-			((event.clientX - rect.left) / rect.width) * 2 - 1,
-			-((event.clientY - rect.top) / rect.height) * 2 + 1
-		);
-
-		this.raycaster.setFromCamera(this.mouse, this.camera);
-
-		const worldPoint = new THREE.Vector3();
-		if (!this.raycaster.ray.intersectPlane(this.dragPlane, worldPoint)) {
-			return;
-		}
-
-		// Сохраняем точное смещение между курсором и центром фотографии.
-		worldPoint.sub(this.dragOffset);
-
-		const photo = this.selectedPhoto;
-		const parent = photo.parent;
-
-		if (parent) {
-			parent.updateMatrixWorld(true);
-
-			const localPoint = parent.worldToLocal(worldPoint.clone());
-			photo.position.x = localPoint.x;
-			photo.position.y = localPoint.y;
-		} else {
-			photo.position.x = worldPoint.x;
-			photo.position.y = worldPoint.y;
-		}
-
-		this.savePhotoPosition(photo, this.activeState);
-
-		if (this.renderer && this.scene) {
-			this.renderer.render(this.scene, this.camera);
-		}
-	}
-
-
-    onPointerUp() {
-        if (!this.isDragging) return;
-
-        this.isDragging = false;
-
-        if (this.selectedPhoto) {
-            this.savePhotoPosition(
-                this.selectedPhoto,
-                this.activeState
-            );
+    this.activeGroup.traverse(child => {
+        if (
+            child.isMesh &&
+            child.userData?.type === 'photo' &&
+            child.userData?.isDraggable
+        ) {
+            photos.push(child);
         }
+    });
 
-        this.selectedPhoto = null;
-		this.selectedBurialId = null;
+    const hits = this.raycaster.intersectObjects(photos, false);
+    if (!hits.length) return;
 
-        if (this.controls) {
-            this.controls.enabled = true;
-        }
+    const activeId =
+        this.activeState?.activeBurialId ??
+        window.state?.activeBurialId ??
+        null;
 
-        const canvas = this.renderer?.domElement;
+    const hit = activeId != null
+        ? hits.find(item =>
+            String(item.object.userData?.burialId) === String(activeId)
+        )
+        : hits.find(item => item.object.userData?.burialId == null);
 
-        if (canvas) {
-            canvas.style.cursor = 'default';
-        }
+    if (!hit) return;
+
+    // Берём существующий Mesh. Ничего не создаём и не удаляем.
+    this.selectedPhoto = hit.object;
+    this.selectedBurialId =
+        this.selectedPhoto.userData.burialId ?? null;
+
+    this.selectedPhoto.updateMatrixWorld(true);
+
+    const worldPosition = new THREE.Vector3();
+    this.selectedPhoto.getWorldPosition(worldPosition);
+
+    const worldNormal = new THREE.Vector3(0, 0, 1)
+        .applyQuaternion(
+            this.selectedPhoto.getWorldQuaternion(
+                new THREE.Quaternion()
+            )
+        )
+        .normalize();
+
+    this.dragPlane = new THREE.Plane()
+        .setFromNormalAndCoplanarPoint(worldNormal, worldPosition);
+
+    // Обязательно Vector3: все расчёты выполняются в 3D.
+    this.dragOffset.copy(hit.point).sub(worldPosition);
+
+    // Запоминаем исходные координаты для прямого перемещения Mesh.
+    this.dragStartPosition = this.selectedPhoto.position.clone();
+
+    this.isDragging = true;
+
+    if (this.controls) this.controls.enabled = false;
+    canvas.style.cursor = 'grabbing';
+}
+
+onPointerMove(event) {
+    if (!this.isDragging || !this.selectedPhoto || !this.dragPlane) {
+        return;
     }
+
+    const canvas = this.renderer?.domElement;
+    if (!canvas || !this.camera) return;
+
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    this.mouse.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const worldPoint = new THREE.Vector3();
+
+    if (!this.raycaster.ray.intersectPlane(this.dragPlane, worldPoint)) {
+        return;
+    }
+
+    worldPoint.sub(this.dragOffset);
+
+    const photo = this.selectedPhoto;
+    const parent = photo.parent;
+
+    if (!parent) return;
+
+    // Меняем координаты того же самого объекта.
+    // Сцену, геометрию и материал не пересоздаём.
+    parent.updateMatrixWorld(true);
+
+    const localPoint = parent.worldToLocal(worldPoint);
+
+    if (
+        !Number.isFinite(localPoint.x) ||
+        !Number.isFinite(localPoint.y)
+    ) {
+        return;
+    }
+
+    photo.position.x = localPoint.x;
+    photo.position.y = localPoint.y;
+
+    // Сохраняем координаты конкретного человека.
+    this.savePhotoPosition(photo, this.activeState);
+
+    // Не вызываем renderer.render() вручную.
+    // Не меняем renderOrder. Не перестраиваем сцену.
+}
+
+onPointerUp() {
+    if (!this.isDragging) return;
+
+    if (this.selectedPhoto) {
+        this.savePhotoPosition(
+            this.selectedPhoto,
+            this.activeState
+        );
+    }
+
+    this.isDragging = false;
+    this.selectedPhoto = null;
+    this.selectedBurialId = null;
+    this.dragPlane = null;
+    this.dragStartPosition = null;
+
+    if (this.controls) this.controls.enabled = true;
+
+    const canvas = this.renderer?.domElement;
+    if (canvas) canvas.style.cursor = 'default';
+}
+
+
 
     // --------------------------------------------------------
     // ВЫБОР АКТИВНОЙ СТЕЛЫ И СОСТОЯНИЯ

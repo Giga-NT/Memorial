@@ -1375,14 +1375,18 @@ function createPhotoDirect(params, decalsGroup) {
             }
         });
     }
-    if (mainDecalsGroup) {
-        for (const child of mainDecalsGroup.children) {
-            if (child.userData && child.userData.type === 'photo') {
-                existingPhoto = child;
-                break;
-            }
-        }
-    }
+	if (mainDecalsGroup) {
+		for (const child of mainDecalsGroup.children) {
+			if (
+				child.userData?.type === 'photo' &&
+				child.userData?.burialId == null &&
+				child.userData?.isMainPhoto === true
+			) {
+				existingPhoto = child;
+				break;
+			}
+		}
+	}
     
     // ⭐ ЕСЛИ ФОТО УЖЕ ЕСТЬ - ПЕРЕМЕЩАЕМ ЕГО И ФИКСИРУЕМ КООРДИНАТЫ
     if (existingPhoto) {
