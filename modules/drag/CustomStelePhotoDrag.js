@@ -325,7 +325,9 @@ export class CustomStelePhotoDrag {
 			// если активная стела использует отдельный объект данных.
 			const globalBurials = window.state?.burials;
 
-			if (Array.isArray(globalBurials)) {
+			// Данные дублера — отдельная копия. Не переносим её координаты
+			// в основную стелу, даже если ID записей совпадают.
+			if (state === window.state && Array.isArray(globalBurials)) {
 				const globalPerson = globalBurials.find(
 					item => item.id === burialId
 				);
