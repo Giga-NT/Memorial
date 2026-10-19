@@ -774,9 +774,21 @@
                         <button id="btnTextDown" class="pos-btn">⬇️</button>
                         <div></div>
                     </div>
-                    <div class="position-display">
-                        X: <span id="textOffsetXVal">0.00</span> | Y: <span id="textOffsetYVal">0.00</span>
-                    </div>
+
+					<div class="position-display">
+						<label for="textOffsetXInput">X:</label>
+						<input id="textOffsetXInput" type="number" step="0.001"
+							   value="0" style="width:90px">
+
+						<label for="textOffsetYInput">Y:</label>
+						<input id="textOffsetYInput" type="number" step="0.001"
+							   value="0" style="width:90px">
+
+						<button id="btnApplyTextOffsets" type="button">
+							Применить координаты
+						</button>
+					</div>
+
                 </div>
             </div>
         </div>
@@ -881,6 +893,53 @@
                     <label for="enableMovePhoto">✋ Двигать фото мышкой</label>
                     <span class="photo-drag-hint">(перетащите фото на стеле)</span>
                 </div>
+				<!-- Управление координатами фотографии -->
+				<div class="control-group" id="photoPositionControls">
+					<label>📍 Положение фотографии</label>
+
+					<label for="photoPositionPerson">Человек</label>
+					<select id="photoPositionPerson" style="width: 100%; margin-bottom: 8px;">
+						<option value="">Выберите человека</option>
+					</select>
+
+					<div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+						<label for="photoPositionXInput" style="margin: 0;">X</label>
+						<input
+							id="photoPositionXInput"
+							type="number"
+							step="0.001"
+							class="number-input"
+							style="width: 100%;"
+						>
+
+						<label for="photoPositionYInput" style="margin: 0;">Y</label>
+						<input
+							id="photoPositionYInput"
+							type="number"
+							step="0.001"
+							class="number-input"
+							style="width: 100%;"
+						>
+					</div>
+
+					<div class="position-grid">
+						<div></div>
+						<button type="button" id="btnPhotoUp" class="pos-btn">⬆️</button>
+						<div></div>
+
+						<button type="button" id="btnPhotoLeft" class="pos-btn">⬅️</button>
+						<button type="button" id="btnPhotoReset" class="pos-btn reset">⟲</button>
+						<button type="button" id="btnPhotoRight" class="pos-btn">➡️</button>
+
+						<div></div>
+						<button type="button" id="btnPhotoDown" class="pos-btn">⬇️</button>
+						<div></div>
+					</div>
+
+					<div class="position-display">
+						Шаг перемещения: 0.001
+					</div>
+				</div>
             </div>
         </div>
 

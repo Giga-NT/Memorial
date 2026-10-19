@@ -523,26 +523,73 @@ function getTextTarget() {
     return 'main';
 }
 
-// ⭐ ДЛЯ ОСНОВНОГО ТЕКСТА (ФИО)
+
+ // ⭐ ДЛЯ ОСНОВНОГО ТЕКСТА (ФИО)
 function moveText(dx, dy) {
     const target = getTextTarget();
-    
+
+    // Определяем данные активного памятника или дублера.
+    const targetState =
+        target === 'duplicator'
+            ? window.multiMonumentManager?.monuments?.[
+                  window.multiMonumentManager.activeIndex
+              ]?.data
+            : state;
+
+    const model = targetState?.steleModel || targetState?.steleType;
+
+    // Кастомной стелой управляет CustomSteleTextDrag.
+    // Не запускаем старый обработчик, чтобы он не конфликтовал
+    // с новыми стрелками и перетаскиванием мышью.
+    if (typeof model === 'string' && model.startsWith('custom_stl')) {
+        return;
+    }
+
+    // Ниже оставлена старая логика для остальных моделей.
     if (target === 'duplicator') {
         if (window.multiMonumentManager) {
             const index = window.multiMonumentManager.activeIndex;
-            if (index >= 0 && window.multiMonumentManager.monuments[index]) {
-                const mon = window.multiMonumentManager.monuments[index];
+
+            if (
+                index >= 0 &&
+                window.multiMonumentManager.monuments[index]
+            ) {
+				const mon = window.multiMonumentManager.monuments[index];
+
+				// Кастомная стела: её текстом управляет CustomSteleTextDrag.
+				// Не запускаем старую логику с rebuildSimpleMonument().
+				const steleModel = mon.data.steleModel || mon.data.steleType;
+
+				if (
+					typeof steleModel === 'string' &&
+					steleModel.startsWith('custom_stl')
+				) {
+					return;
+				}
                 const step = 0.02;
-                mon.data.textOffsetX = (mon.data.textOffsetX || 0) + dx * step;
-                mon.data.textOffsetY = (mon.data.textOffsetY || 0) + dy * step;
-                window.multiMonumentManager._duplicatorDataCache[index] = { ...mon.data };
+
+                mon.data.textOffsetX =
+                    (mon.data.textOffsetX || 0) + dx * step;
+
+                mon.data.textOffsetY =
+                    (mon.data.textOffsetY || 0) + dy * step;
+
+                window.multiMonumentManager._duplicatorDataCache[index] = {
+                    ...mon.data
+                };
+
                 window.multiMonumentManager.rebuildSimpleMonument(index);
             }
         }
     } else {
         const step = 0.02;
-        state.textOffsetX = (state.textOffsetX || 0) + dx * step;
-        state.textOffsetY = (state.textOffsetY || 0) + dy * step;
+
+        state.textOffsetX =
+            (state.textOffsetX || 0) + dx * step;
+
+        state.textOffsetY =
+            (state.textOffsetY || 0) + dy * step;
+
         if (typeof window.throttledUpdate === 'function') {
             window.throttledUpdate();
         }
@@ -583,7 +630,16 @@ function resetTextPosition() {
         if (window.multiMonumentManager) {
             const index = window.multiMonumentManager.activeIndex;
             if (index >= 0 && window.multiMonumentManager.monuments[index]) {
-                const mon = window.multiMonumentManager.monuments[index];
+				const mon = window.multiMonumentManager.monuments[index];
+
+				const steleModel = mon.data.steleModel || mon.data.steleType;
+
+				if (
+					typeof steleModel === 'string' &&
+					steleModel.startsWith('custom_stl')
+				) {
+					return;
+				}
                 mon.data.textOffsetX = 0;
                 mon.data.textOffsetY = 0;
                 window.multiMonumentManager._duplicatorDataCache[index] = { ...mon.data };

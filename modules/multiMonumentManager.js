@@ -4016,86 +4016,86 @@ if (photoDrag && decalsGroup) {
     }
 }
 
-// ⭐ СОЗДАНИЕ ТЕКСТУРЫ ДЛЯ ДЕКАЛЕЙ ДУБЛЕРА
-createDecalTextureFromData(data, type = 'front') {
-    const canvas = document.createElement('canvas');
-    const isMobile = window.innerWidth < 768;
-    const canvasSize = isMobile ? 512 : 1024;
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const textColor = data.textColor || '#FFFFFF';
-    ctx.fillStyle = textColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = isMobile ? 4 : 8;
-    
-    const fontFamily = data.fontFamily || 'Arial, sans-serif';
-    
-    // ⭐ СМЕЩЕНИЯ УЖЕ УЧТЕНЫ В ПОЗИЦИИ MESH, ПОЭТОМУ НА КАНВАСЕ НЕ СМЕЩАЕМ!
-    // Текст рисуется по центру канваса
-    let currentY = 80;
-    
-    if (type === 'front') {
-        // ФИО
-        if (data.fullName && data.fullName.trim()) {
-            const safeFullName = data.fullName.trim();
-            const fontSize = (data.nameFontSize || 48) * (isMobile ? 0.8 : 1.5);
-            ctx.font = `bold ${fontSize}px ${fontFamily}`;
-            
-            const rawLines = safeFullName.split(/\r?\n/);
-            const allLines = [];
-            rawLines.forEach(line => {
-                if (line.includes('/')) {
-                    const subLines = line.split('/');
-                    subLines.forEach(sub => {
-                        if (sub.trim()) allLines.push(sub.trim());
-                    });
-                } else {
-                    if (line.trim()) allLines.push(line.trim());
-                }
-            });
-            
-            allLines.forEach(line => {
-                ctx.fillText(line, canvas.width / 2, currentY);
-                currentY += (data.nameFontSize || 48) * (isMobile ? 0.9 : 1.8);
-            });
-            currentY += isMobile ? 12 : 25;
-        }
-        
-        // Даты
-        if (data.dates && data.dates.trim()) {
-            const safeDates = data.dates.trim();
-            const fontSize = (data.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
-            ctx.font = `bold ${fontSize}px ${fontFamily}`;
-            ctx.fillText(safeDates, canvas.width / 2, currentY);
-        }
-    } else {
-        // Эпитафия
-        if (data.epitaph && data.epitaph.trim()) {
-            const safeEpitaph = data.epitaph.trim();
-            const lines = safeEpitaph.split(/\r?\n|\//);
-            const fontSize = (data.epitaphFontSize || 40) * (isMobile ? 0.8 : 1.2);
-            ctx.font = `bold ${fontSize}px ${fontFamily}`;
-            
-            lines.forEach(line => {
-                if (line.trim()) {
-                    ctx.fillText(line.trim(), canvas.width / 2, currentY);
-                    currentY += (data.epitaphFontSize || 40) * (isMobile ? 0.9 : 1.5);
-                }
-            });
-        }
-    }
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    return texture;
-}
+	// ⭐ СОЗДАНИЕ ТЕКСТУРЫ ДЛЯ ДЕКАЛЕЙ ДУБЛЕРА
+	createDecalTextureFromData(data, type = 'front') {
+		const canvas = document.createElement('canvas');
+		const isMobile = window.innerWidth < 768;
+		const canvasSize = isMobile ? 512 : 1024;
+		canvas.width = canvasSize;
+		canvas.height = canvasSize;
+		const ctx = canvas.getContext('2d');
+		
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		
+		const textColor = data.textColor || '#FFFFFF';
+		ctx.fillStyle = textColor;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'top';
+		ctx.shadowColor = 'rgba(0,0,0,0.9)';
+		ctx.shadowBlur = isMobile ? 4 : 8;
+		
+		const fontFamily = data.fontFamily || 'Arial, sans-serif';
+		
+		// ⭐ СМЕЩЕНИЯ УЖЕ УЧТЕНЫ В ПОЗИЦИИ MESH, ПОЭТОМУ НА КАНВАСЕ НЕ СМЕЩАЕМ!
+		// Текст рисуется по центру канваса
+		let currentY = 80;
+		
+		if (type === 'front') {
+			// ФИО
+			if (data.fullName && data.fullName.trim()) {
+				const safeFullName = data.fullName.trim();
+				const fontSize = (data.nameFontSize || 48) * (isMobile ? 0.8 : 1.5);
+				ctx.font = `bold ${fontSize}px ${fontFamily}`;
+				
+				const rawLines = safeFullName.split(/\r?\n/);
+				const allLines = [];
+				rawLines.forEach(line => {
+					if (line.includes('/')) {
+						const subLines = line.split('/');
+						subLines.forEach(sub => {
+							if (sub.trim()) allLines.push(sub.trim());
+						});
+					} else {
+						if (line.trim()) allLines.push(line.trim());
+					}
+				});
+				
+				allLines.forEach(line => {
+					ctx.fillText(line, canvas.width / 2, currentY);
+					currentY += (data.nameFontSize || 48) * (isMobile ? 0.9 : 1.8);
+				});
+				currentY += isMobile ? 12 : 25;
+			}
+			
+			// Даты
+			if (data.dates && data.dates.trim()) {
+				const safeDates = data.dates.trim();
+				const fontSize = (data.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
+				ctx.font = `bold ${fontSize}px ${fontFamily}`;
+				ctx.fillText(safeDates, canvas.width / 2, currentY);
+			}
+		} else {
+			// Эпитафия
+			if (data.epitaph && data.epitaph.trim()) {
+				const safeEpitaph = data.epitaph.trim();
+				const lines = safeEpitaph.split(/\r?\n|\//);
+				const fontSize = (data.epitaphFontSize || 40) * (isMobile ? 0.8 : 1.2);
+				ctx.font = `bold ${fontSize}px ${fontFamily}`;
+				
+				lines.forEach(line => {
+					if (line.trim()) {
+						ctx.fillText(line.trim(), canvas.width / 2, currentY);
+						currentY += (data.epitaphFontSize || 40) * (isMobile ? 0.9 : 1.5);
+					}
+				});
+			}
+		}
+		
+		const texture = new THREE.CanvasTexture(canvas);
+		texture.minFilter = THREE.LinearFilter;
+		texture.magFilter = THREE.LinearFilter;
+		return texture;
+	}
 
     // ⭐ ПОДСВЕТКА АКТИВНОГО ДУБЛЕРА
     highlightActiveMonument() {

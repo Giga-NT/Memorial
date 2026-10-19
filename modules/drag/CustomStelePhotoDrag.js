@@ -36,6 +36,7 @@ export class CustomStelePhotoDrag {
             this.onPointerUp.bind(this);
 
         this.bindEvents();
+		this.setupPhotoPositionControls();
     }
 
     // --------------------------------------------------------
@@ -531,7 +532,209 @@ onPointerUp() {
     if (canvas) canvas.style.cursor = 'default';
 }
 
-п
+	// --------------------------------------------------------
+	// РУЧНАЯ НАСТРОЙКА КООРДИНАТ ФОТОГРАФИИ
+	// --------------------------------------------------------
+
+	setupPhotoPositionControls() {
+		const personSelect = document.getElementById('photoPositionPerson');
+		const xInput = document.getElementById('photoPositionXInput');
+		const yInput = document.getElementById('photoPositionYInput');
+
+		if (!personSelect || !xInput || !yInput) return;
+
+		const getTarget = () => {
+			const manager = window.multiMonumentManager;
+
+			// Если выбран дубликатор — работаем с ним.
+			if (
+				manager?.currentMode === 'duplicator' &&
+				manager.activeIndex >= 0
+			) {
+				const monument = manager.monuments?.[manager.activeIndex];
+
+				const group = monument?.group?.children?.find(
+					child =>
+						child.name === 'decalsContainer' &&
+						child.parent === monument.group
+				);
+
+				if (monument?.data && group) {
+					this.setActiveTarget({
+						state: monument.data,
+						decalsGroup: group,
+						scene: this.scene
+					});
+				}
+			} else {
+				// Иначе работаем с основной стелой.
+				this.activeState = window.state || this.activeState;
+				this.activeGroup = this.decalsGroup || this.activeGroup;
+			}
+
+			return {
+				state: this.activeState,
+				group: this.activeGroup
+			};
+		};
+
+		// Получить фото выбранного человека.
+		const getPhoto = () => {
+			const { state, group } = getTarget();
+			const id = personSelect.value;
+
+			if (!state || !group || !id) return null;
+
+			let photo = null;
+
+			group.traverse(child => {
+				if (
+					child.isMesh &&
+					child.userData?.type === 'photo' &&
+					String(child.userData.burialId) === String(id)
+				) {
+					photo = child;
+				}
+			});
+
+			return photo ? { photo, state } : null;
+		};
+
+		// Показать актуальные координаты в полях.
+		const syncInputs = () => {
+			const found = getPhoto();
+
+			if (!found) {
+				xInput.value = '';
+				yInput.value = '';
+				return;
+			}
+
+			xInput.value = found.photo.position.x.toFixed(3);
+			yInput.value = found.photo.position.y.toFixed(3);
+		};
+
+		// Обновить список людей с фотографиями.
+		const refreshPeople = () => {
+			const { state, group } = getTarget();
+			const previous = personSelect.value;
+			const photoIds = new Set();
+
+			group?.traverse(child => {
+				if (
+					child.isMesh &&
+					child.userData?.type === 'photo' &&
+					child.userData?.burialId != null
+				) {
+					photoIds.add(String(child.userData.burialId));
+				}
+			});
+
+			personSelect.innerHTML =
+				'<option value="">Выберите человека</option>';
+
+			(state?.burials || [])
+				.filter(person => photoIds.has(String(person.id)))
+				.forEach(person => {
+					const option = document.createElement('option');
+
+					option.value = String(person.id);
+					option.textContent =
+						person.fullName ||
+						person.name ||
+						person.id;
+
+					personSelect.appendChild(option);
+				});
+
+			if (photoIds.has(previous)) {
+				personSelect.value = previous;
+			}
+
+			syncInputs();
+		};
+
+		// Применить координаты, введённые вручную.
+		const applyCoordinates = () => {
+			const found = getPhoto();
+
+			if (!found) return;
+
+			const x = Number(xInput.value);
+			const y = Number(yInput.value);
+
+			if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+			found.photo.position.x = x;
+			found.photo.position.y = y;
+
+			this.savePhotoPosition(found.photo, found.state);
+			found.photo.updateMatrixWorld(true);
+		};
+
+		// Сдвинуть фотографию на заданный шаг.
+		const move = (dx, dy) => {
+			const found = getPhoto();
+
+			if (!found) {
+				refreshPeople();
+				return;
+			}
+
+			found.photo.position.x += dx;
+			found.photo.position.y += dy;
+
+			this.savePhotoPosition(found.photo, found.state);
+
+			syncInputs();
+			found.photo.updateMatrixWorld(true);
+		};
+
+		// События интерфейса.
+		personSelect.addEventListener('change', syncInputs);
+
+		xInput.addEventListener('change', applyCoordinates);
+		yInput.addEventListener('change', applyCoordinates);
+
+		document.getElementById('btnPhotoUp')
+			?.addEventListener('click', () => move(0, 0.001));
+
+		document.getElementById('btnPhotoDown')
+			?.addEventListener('click', () => move(0, -0.001));
+
+		document.getElementById('btnPhotoLeft')
+			?.addEventListener('click', () => move(-0.001, 0));
+
+		document.getElementById('btnPhotoRight')
+			?.addEventListener('click', () => move(0.001, 0));
+
+		document.getElementById('btnPhotoReset')
+			?.addEventListener('click', () => {
+				const found = getPhoto();
+
+				if (!found) return;
+
+				found.photo.position.set(
+					-0.28,
+					0.6,
+					found.photo.position.z
+				);
+
+				this.savePhotoPosition(found.photo, found.state);
+				syncInputs();
+			});
+
+		this.refreshPhotoPositionControls = refreshPeople;
+
+		personSelect.addEventListener('focus', refreshPeople);
+
+		document.getElementById('enableMovePhoto')
+			?.addEventListener('change', refreshPeople);
+
+		window.addEventListener('focus', refreshPeople);
+
+		refreshPeople();
+	}
 
     // --------------------------------------------------------
     // ВЫБОР АКТИВНОЙ СТЕЛЫ И СОСТОЯНИЯ

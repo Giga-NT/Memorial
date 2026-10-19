@@ -92,9 +92,49 @@ export class CustomSteleTextDrag extends DragManager {
 				return;
 			}
 
-			// Сохраняем координаты именно в данных дублера.
-			burial.textOffsetX = x;
-			burial.textOffsetY = y;
+
+            // Запоминаем прежние координаты текста.
+            const oldX = Number(burial.textOffsetX) || 0;
+            const oldY = Number(burial.textOffsetY) || 0;
+
+            // Сохраняем новые координаты.
+            burial.textOffsetX = x;
+            burial.textOffsetY = y;
+
+            // Находим текст активной записи в сцене дублера.
+            const decalsGroup = mon.group?.children.find(
+                child =>
+                    child.name === 'decalsContainer' &&
+                    child.parent === mon.group
+            );
+
+            let textMesh = null;
+
+            decalsGroup?.traverse(child => {
+                if (
+                    !textMesh &&
+                    child.isMesh &&
+                    child.userData?.isBurialText &&
+                    child.userData?.burialId === burial.id
+                ) {
+                    textMesh = child;
+                }
+            });
+
+            // Сдвигаем существующий текст на разницу координат.
+            if (textMesh) {
+                const textWidth = (mon.data.width || 0.6) * 0.5;
+                const textHeight = (mon.data.height || 1.2) * 0.5;
+
+                textMesh.position.x += (x - oldX) * textWidth;
+                textMesh.position.y += (y - oldY) * textHeight;
+            }
+
+            // Обновляем отображение сцены.
+            if (this.renderer && this.scene && this.controls) {
+                this.renderer.render(this.scene, this.controls.object);
+            }
+
 
 			// Обновляем UI-копию записи, если она существует.
 			const uiBurial = window.state?.burials?.find(
@@ -161,8 +201,28 @@ export class CustomSteleTextDrag extends DragManager {
 			? Number(burial.textOffsetY) || 0
 			: Number(this.state?.textOffsetY) || 0;
 
-		if (xVal) xVal.textContent = x.toFixed(3);
-		if (yVal) yVal.textContent = y.toFixed(3);
+
+		if (xVal) {
+			if (xVal.tagName === 'INPUT') xVal.value = x.toFixed(3);
+			else xVal.textContent = x.toFixed(3);
+		}
+
+		if (yVal) {
+			if (yVal.tagName === 'INPUT') yVal.value = y.toFixed(3);
+			else yVal.textContent = y.toFixed(3);
+		}
+
+		const xInput = document.getElementById('textOffsetXInput');
+		const yInput = document.getElementById('textOffsetYInput');
+
+		if (xInput && document.activeElement !== xInput) {
+			xInput.value = x.toFixed(3);
+		}
+
+		if (yInput && document.activeElement !== yInput) {
+			yInput.value = y.toFixed(3);
+		}
+
 	}
 
 
@@ -360,39 +420,100 @@ export class CustomSteleTextDrag extends DragManager {
 
 
 
-	setupPositionButtons() {
-		const step = 0.001;
 
-		const up = document.getElementById('btnTextUp');
-		const down = document.getElementById('btnTextDown');
-		const left = document.getElementById('btnTextLeft');
-		const right = document.getElementById('btnTextRight');
-		const reset = document.getElementById('btnTextReset');
+setupPositionButtons() {
+    // Защита от повторной регистрации обработчиков.
+    if (CustomSteleTextDrag._buttonsHandlerAttached) return;
+    CustomSteleTextDrag._buttonsHandlerAttached = true;
 
-		const move = (dx, dy) => {
-			if (!this.checkEnabled()) return;
+    const step = 0.01;
 
-			const offsets = this.getOffsets(this.type);
+    document.addEventListener('click', (event) => {
+        const button = event.target?.closest?.(
+            '#btnTextUp, #btnTextDown, #btnTextLeft, #btnTextRight, #btnTextReset'
+        );
 
-			this.updateOffsets(
-				this.type,
-				offsets.x + dx,
-				offsets.y + dy
-			);
-		};
+        if (!button) return;
 
-		up?.addEventListener('click', () => move(0, step));
-		down?.addEventListener('click', () => move(0, -step));
-		left?.addEventListener('click', () => move(-step, 0));
-		right?.addEventListener('click', () => move(step, 0));
+        if (!this.checkEnabled()) {
+            console.warn('[CustomSteleTextDrag] Стрелки отключены: проверьте enableDragText и модель стелы');
+            return;
+        }
 
-		reset?.addEventListener('click', () => {
-			if (!this.checkEnabled()) return;
+        let dx = 0;
+        let dy = 0;
 
-			this.updateOffsets(this.type, 0, 0);
-			this.forceDecalUpdate();
-		});
-	}
+        switch (button.id) {
+            case 'btnTextUp':
+                dy = step;
+                break;
+            case 'btnTextDown':
+                dy = -step;
+                break;
+            case 'btnTextLeft':
+                dx = -step;
+                break;
+            case 'btnTextRight':
+                dx = step;
+                break;
+            case 'btnTextReset':
+                this.updateOffsets(this.type, 0, 0);
+                if (window.multiMonumentManager?.currentMode !== 'duplicator') {
+                    this.forceDecalUpdate();
+                }
+                return;
+            default:
+                return;
+        }
+
+        const offsets = this.getOffsets(this.type);
+
+        console.log('[CustomSteleTextDrag] Нажата стрелка', {
+            button: button.id,
+            before: offsets,
+            after: {
+                x: offsets.x + dx,
+                y: offsets.y + dy
+            }
+        });
+
+        this.updateOffsets(
+            this.type,
+            offsets.x + dx,
+            offsets.y + dy
+        );
+    });
+	
+
+	document.addEventListener('click', (event) => {
+		if (!event.target?.closest?.('#btnApplyTextOffsets')) return;
+
+		if (!this.checkEnabled()) return;
+
+		const xInput = document.getElementById('textOffsetXInput');
+		const yInput = document.getElementById('textOffsetYInput');
+
+		const x = Number(xInput?.value);
+		const y = Number(yInput?.value);
+
+		if (!Number.isFinite(x) || !Number.isFinite(y)) {
+			console.warn('Введите корректные значения X и Y');
+			return;
+		}
+
+		const limit = this.maxOffset;
+
+		if (Math.abs(x) > limit || Math.abs(y) > limit) {
+			console.warn(`Допустимый диапазон координат: от -${limit} до ${limit}`);
+			return;
+		}
+
+		this.updateOffsets(this.type, x, y);
+	});
+
+
+}
+
 
 	forceDecalUpdate() {
 		if (!window.positionDecalsOnCustomStele) {
@@ -519,12 +640,15 @@ export class CustomSteleTextDrag extends DragManager {
 		}
 
 		try {
+			const decalState = isDuplicator
+				? manager.monuments[manager.activeIndex].data
+				: this.state;
+
 			window.positionDecalsOnCustomStele(
 				steleObj,
 				targetDecalsGroup,
-				this.state
+				decalState
 			);
-
 			console.log(
 				'✅ Декали обновлены ТОЛЬКО для активной кастомной стелы'
 			);
@@ -544,17 +668,59 @@ export class CustomSteleTextDrag extends DragManager {
 	}
 
 
+
 	getActiveBurial() {
 		const manager = window.multiMonumentManager;
 
-		const activeId =
-			manager?.currentMode === 'duplicator'
-				? window.state?.activeBurialId ?? this.state?.activeBurialId
-				: this.state?.activeBurialId;
+		const isDuplicator =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0;
 
-		const burials = this.state?.burials || [];
+		// В режиме дублера используем только его собственные данные.
+		const targetState = isDuplicator
+			? manager.monuments?.[manager.activeIndex]?.data
+			: this.state;
 
-		return burials.find(person => person.id === activeId) || null;
+		if (!targetState) {
+			return null;
+		}
+
+		if (isDuplicator) {
+			this.state = targetState;
+		}
+
+		const burials = Array.isArray(targetState.burials)
+			? targetState.burials
+			: [];
+
+		const activeId = targetState.activeBurialId;
+
+		let burial = burials.find(
+			person =>
+				activeId != null &&
+				String(person.id) === String(activeId)
+		);
+
+		// Если запись всего одна, её можно выбрать однозначно.
+		if (!burial && burials.length === 1) {
+			burial = burials[0];
+			targetState.activeBurialId = burial.id;
+		}
+
+		if (!burial) {
+			console.warn(
+				'[CustomSteleTextDrag] Не удалось определить активную запись',
+				{
+					isDuplicator,
+					activeId,
+					burialIds: burials.map(person => person.id)
+				}
+			);
+
+			return null;
+		}
+
+		return burial;
 	}
 
 

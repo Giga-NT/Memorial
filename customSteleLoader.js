@@ -783,8 +783,8 @@ export function positionDecalsOnCustomStele(
     const scale = state.decalScale ?? 1.2;
     const decalWidth = dims.width * scale;
     const decalHeight = dims.height * scale;
-    const textCenterY = - 0.25;
-    const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.599;
+    const textCenterY = - 0.1;
+    const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.619;
     const backZ = (state.decalBackZ !== undefined) ? state.decalBackZ : -0.702;
 
     // ============================================================
