@@ -352,7 +352,41 @@ export class CustomStelePhotoDrag {
     // --------------------------------------------------------
 onPointerDown(event) {
     const canvas = this.renderer?.domElement;
-    if (!canvas || !this.camera || !this.activeGroup) return;
+    if (!canvas || !this.camera) return;
+
+    // При каждом нажатии определяем актуальную группу:
+    // основной памятник или выбранный дублер.
+    const manager = window.multiMonumentManager;
+
+    if (
+        manager?.currentMode === 'duplicator' &&
+        manager.activeIndex >= 0
+    ) {
+        const monument = manager.monuments?.[manager.activeIndex];
+
+        if (!monument?.group || !monument?.data) return;
+
+        const decalsGroup = monument.group.children.find(
+            child =>
+                child.name === 'decalsContainer' &&
+                child.parent === monument.group
+        );
+
+        if (!decalsGroup) return;
+
+        this.setActiveTarget({
+            state: monument.data,
+            decalsGroup,
+            scene: this.scene
+        });
+    } else {
+        // Для основной стелы используем её актуальное состояние.
+        this.activeState = window.state || this.activeState;
+        this.activeGroup =
+            this.decalsGroup || this.activeGroup;
+    }
+
+    if (!this.activeGroup || !this.activeState) return;
 
     const checkbox = document.getElementById('enableMovePhoto');
     if (checkbox && !checkbox.checked) return;
@@ -383,18 +417,10 @@ onPointerDown(event) {
     const hits = this.raycaster.intersectObjects(photos, false);
     if (!hits.length) return;
 
-    const activeId =
-        this.activeState?.activeBurialId ??
-        window.state?.activeBurialId ??
-        null;
+	// Перетаскиваем именно то фото, по которому нажал пользователь.
+	const hit = hits[0];
 
-    const hit = activeId != null
-        ? hits.find(item =>
-            String(item.object.userData?.burialId) === String(activeId)
-        )
-        : hits.find(item => item.object.userData?.burialId == null);
-
-    if (!hit) return;
+	if (!hit) return;
 
     // Берём существующий Mesh. Ничего не создаём и не удаляем.
     this.selectedPhoto = hit.object;
@@ -505,7 +531,7 @@ onPointerUp() {
     if (canvas) canvas.style.cursor = 'default';
 }
 
-
+п
 
     // --------------------------------------------------------
     // ВЫБОР АКТИВНОЙ СТЕЛЫ И СОСТОЯНИЯ
