@@ -3797,75 +3797,81 @@ createDecalsForDuplicator(steleGroup, data) {
         });
 
         
-		// ⭐ ФОТО (С ПОДДЕРЖКОЙ ПЕРЕТАСКИВАНИЯ)
-		if (data.textureUrl) {
-			const loader = new THREE.TextureLoader();
-			loader.load(data.textureUrl, (tex) => {
-				tex.minFilter = THREE.LinearFilter;
-				tex.magFilter = THREE.LinearFilter;
-				
-				let w, h;
-				const shape = data.photoShape || 'oval';
-				if (shape === 'custom') {
-					w = (data.photoWidthMm || 100) / 1000;
-					h = (data.photoHeightMm || 140) / 1000;
-				} else {
-					const presetSizes = { 
-						'oval':   { w: 0.22, h: 0.28 }, 
-						'circle': { w: 0.24, h: 0.24 }, 
-						'square': { w: 0.22, h: 0.22 } 
-					};
-					const size = presetSizes[shape] || presetSizes.oval;
-					w = size.w;
-					h = size.h;
-				}
-				
-				const scale = data.photoScale || 1.0;
-				const finalW = w * scale;
-				const finalH = h * scale;
-				
-				let geometry;
-				if (shape === 'circle') {
-					geometry = new THREE.CircleGeometry(Math.max(finalW, finalH) / 2, 32);
-				} else if (shape === 'oval') {
-					geometry = new THREE.CircleGeometry(0.5, 32);
-					geometry.scale(finalW, finalH, 1);
-				} else {
-					geometry = new THREE.PlaneGeometry(finalW, finalH);
-				}
-				
-				const photoMat = new THREE.MeshBasicMaterial({ 
-					map: tex, 
-					transparent: true, 
-					side: THREE.DoubleSide, 
-					depthWrite: false, 
-					alphaTest: 0.05 
-				});
-				const photoMesh = new THREE.Mesh(geometry, photoMat);
-				
-				// ⭐ ПОЗИЦИЯ ФОТО
-				const photoX =
-					data.photoAbsoluteX ??
-					data.photoOffsetX ??
-					0;
+// ⭐ ФОТО ДЛЯ ВСЕХ ПОГРЕБЁННЫХ В ДУБЛИКАТОРЕ
+const photoDrag = window._customPhotoDrag;
 
-				const photoY =
-					data.photoAbsoluteY ??
-					(center.y + (data.photoOffsetY || 0));
-				photoMesh.position.set(photoX, photoY, frontZ - 0.013);
-				photoMesh.renderOrder = 11;
-				
-				// ⭐ ДЕЛАЕМ ФОТО ПЕРЕТАСКИВАЕМЫМ
-				photoMesh.userData.isDraggable = true;
-				photoMesh.userData.type = 'photo';
-				photoMesh.userData.limitX = width / 2 - finalW / 2;
-				photoMesh.userData.limitY = height / 2 - finalH / 2;
-				photoMesh.userData.steleCenterY = center.y;
-				photoMesh.userData.photoIndex = data.photoIndex || 0;
-				
-				decalsGroup.add(photoMesh);
-			});
-		}
+if (photoDrag && decalsGroup) {
+    const sourceBurials =
+        Array.isArray(data.burials) && data.burials.length
+            ? data.burials
+            : [data];
+
+    const photoBurials = sourceBurials.map((person) => {
+        // Поддерживаем как старый формат, так и массив photos.
+        const firstPhoto = Array.isArray(person.photos)
+            ? person.photos[0]
+            : null;
+
+        const photoUrl =
+            person.photoUrl ||
+            person.textureUrl ||
+            firstPhoto?.url ||
+            firstPhoto?.photoUrl ||
+            null;
+
+        return {
+            ...person,
+
+            photoUrl,
+            textureUrl: photoUrl,
+
+            // Если координаты сохранены для человека —
+            // используем их. Иначе ставим фото в позицию по умолчанию.
+            photoPositionX:
+                person.photoPositionX ??
+                person.photoAbsoluteX ??
+                (
+                    sourceBurials.length === 1
+                        ? data.photoAbsoluteX ??
+                          data.photoOffsetX ??
+                          0
+                        : -0.28
+                ),
+
+            photoPositionY:
+                person.photoPositionY ??
+                person.photoAbsoluteY ??
+                (
+                    sourceBurials.length === 1
+                        ? data.photoAbsoluteY ??
+                          (center.y + (data.photoOffsetY || 0))
+                        : center.y
+                ),
+
+            photoShape:
+                person.photoShape ||
+                data.photoShape ||
+                'oval'
+        };
+    });
+
+    const photoState = {
+        ...data,
+        burials: photoBurials
+    };
+
+    photoDrag.renderPhotos(
+        decalsGroup,
+        photoState,
+        {
+            frontZ: frontZ - 0.013,
+            defaultY: center.y,
+            centerY: center.y,
+            limitX: width / 2 - 0.11,
+            limitY: height / 2 - 0.14
+        }
+    );
+}
         
 
         // ⭐ Задняя сторона: персональная эпитафия каждого погребённого
