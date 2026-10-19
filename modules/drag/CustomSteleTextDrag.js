@@ -304,8 +304,33 @@ export class CustomSteleTextDrag extends DragManager {
 		let newX = this.dragState.startOffsetX + dx;
 		let newY = this.dragState.startOffsetY + dy;
 
+
 		newX = Math.max(-this.maxOffset, Math.min(this.maxOffset, newX));
-		newY = Math.max(-this.maxOffset, Math.min(this.maxOffset, newY));
+
+		const manager = window.multiMonumentManager;
+		const isDuplicator =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0;
+
+		if (
+			isDuplicator &&
+			this.dragState.burialTextHeight > 0
+		) {
+			const lowerLimit =
+				-this.maxOffset -
+				0.15 / this.dragState.burialTextHeight;
+
+			newY = Math.max(
+				lowerLimit,
+				Math.min(this.maxOffset, newY)
+			);
+		} else {
+			newY = Math.max(
+				-this.maxOffset,
+				Math.min(this.maxOffset, newY)
+			);
+		}
+
 
 		this.dragState.currentOffsetX = newX;
 		this.dragState.currentOffsetY = newY;

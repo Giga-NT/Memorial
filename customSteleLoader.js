@@ -780,10 +780,10 @@ export function positionDecalsOnCustomStele(
         return;
     }
     
-    const scale = state.decalScale ?? 0.85;
+    const scale = state.decalScale ?? 1.2;
     const decalWidth = dims.width * scale;
     const decalHeight = dims.height * scale;
-    const textCenterY = 0.6;
+    const textCenterY = - 0.25;
     const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.599;
     const backZ = (state.decalBackZ !== undefined) ? state.decalBackZ : -0.702;
 
@@ -834,13 +834,13 @@ export function positionDecalsOnCustomStele(
         const textMesh = new THREE.Mesh(textGeo, textMat);
 
 		// Каждую следующую запись располагаем ниже предыдущей
-		const burialSpacing = 0.22;
+		const burialSpacing = 0.1;
 		const offsetX = Number(burial.textOffsetX ?? 0);
 		const offsetY = Number(burial.textOffsetY ?? 0);
 
 		textMesh.position.set(
-			offsetX * decalWidth * 0.5,
-			textCenterY + offsetY * decalHeight * 0.5
+			offsetX * decalWidth * 2,
+			textCenterY + offsetY * decalHeight * 2
 				- index * burialSpacing,
 			frontZ
 		);
