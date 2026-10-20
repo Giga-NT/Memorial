@@ -1,31 +1,22 @@
 // modules/eventHandlers.js
 
-import { 
-    state, 
-    textureCache, 
-    resetTileManager, 
-    throttledUpdate, 
-    markTexturesDirty,
-    updateLayoutPreview,
-    showToast,
-    updateFence3DMaterials
-} from '../script.js';
-
 // ============================================================
 // ⭐ ОБРАБОТЧИКИ ДЛЯ РАЗМЕРОВ ОГРАДКИ
 // ============================================================
 
 export function initFenceHandlers() {
     document.getElementById('fenceWidth')?.addEventListener('input', function(e) {
-        state.fenceWidth = parseFloat(e.target.value);
-        document.getElementById('fenceWidthVal').textContent = state.fenceWidth.toFixed(1) + ' м';
-        throttledUpdate();
+        window.state.fenceWidth = parseFloat(e.target.value);
+        document.getElementById('fenceWidthVal').textContent = window.state.fenceWidth.toFixed(1) + ' м';
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
     document.getElementById('fenceLength')?.addEventListener('input', function(e) {
-        state.fenceLength = parseFloat(e.target.value);
-        document.getElementById('fenceLengthVal').textContent = state.fenceLength.toFixed(1) + ' м';
-        throttledUpdate();
+        window.state.fenceLength = parseFloat(e.target.value);
+        document.getElementById('fenceLengthVal').textContent = window.state.fenceLength.toFixed(1) + ' м';
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 }
 
@@ -35,17 +26,19 @@ export function initFenceHandlers() {
 
 export function initCheckboxHandlers() {
     document.getElementById('fenceEnabled')?.addEventListener('change', function(e) {
-        state.fenceEnabled = e.target.checked;
-        throttledUpdate();
+        window.state.fenceEnabled = e.target.checked;
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
     document.getElementById('pathEnabled')?.addEventListener('change', function(e) {
-        state.pathEnabled = e.target.checked;
+        window.state.pathEnabled = e.target.checked;
         const controls = document.getElementById('pathControls');
         if (controls) {
-            controls.style.display = state.pathEnabled ? 'block' : 'none';
+            controls.style.display = window.state.pathEnabled ? 'block' : 'none';
         }
-        throttledUpdate();
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 }
 
@@ -57,22 +50,22 @@ export function initSteleTypeHandlers() {
     const steleTypeSelect = document.getElementById('steleTypeSelect');
     if (steleTypeSelect) {
         steleTypeSelect.addEventListener('change', (e) => {
-            state.steleType = e.target.value;
-            if (state.steleType.startsWith('custom_stl')) {
+            window.state.steleType = e.target.value;
+            if (window.state.steleType.startsWith('custom_stl')) {
                 const selectedOption = e.target.selectedOptions[0];
                 if (selectedOption.dataset.defaultWidth) {
-                    state.width = parseFloat(selectedOption.dataset.defaultWidth);
-                    state.height = parseFloat(selectedOption.dataset.defaultHeight);
-                    state.depth = parseFloat(selectedOption.dataset.defaultDepth || 0.08);
+                    window.state.width = parseFloat(selectedOption.dataset.defaultWidth);
+                    window.state.height = parseFloat(selectedOption.dataset.defaultHeight);
+                    window.state.depth = parseFloat(selectedOption.dataset.defaultDepth || 0.08);
                     const widthRange = document.getElementById('widthRange');
                     const heightRange = document.getElementById('heightRange');
-                    if (widthRange) widthRange.value = state.width;
-                    if (heightRange) heightRange.value = state.height;
-                    if (document.getElementById('widthVal')) document.getElementById('widthVal').textContent = state.width.toFixed(1) + ' м';
-                    if (document.getElementById('heightVal')) document.getElementById('heightVal').textContent = state.height.toFixed(1) + ' м';
+                    if (widthRange) widthRange.value = window.state.width;
+                    if (heightRange) heightRange.value = window.state.height;
+                    if (document.getElementById('widthVal')) document.getElementById('widthVal').textContent = window.state.width.toFixed(1) + ' м';
+                    if (document.getElementById('heightVal')) document.getElementById('heightVal').textContent = window.state.height.toFixed(1) + ' м';
                 }
             }
-            throttledUpdate();
+            window.throttledUpdate();
         });
     }
 }
@@ -87,19 +80,21 @@ export function initSteleSizeHandlers() {
     
     if (widthRange) {
         widthRange.addEventListener('input', (e) => {
-            state.width = parseFloat(e.target.value);
-            document.getElementById('widthVal').textContent = state.width.toFixed(1) + ' м';
-            textureCache.invalidateFront();
-            throttledUpdate();
+            window.state.width = parseFloat(e.target.value);
+            document.getElementById('widthVal').textContent = window.state.width.toFixed(1) + ' м';
+            window.textureCache.invalidateFront();
+            window.throttledUpdate();
+            window.calculatePrice();
         });
     }
     
     if (heightRange) {
         heightRange.addEventListener('input', (e) => {
-            state.height = parseFloat(e.target.value);
-            document.getElementById('heightVal').textContent = state.height.toFixed(1) + ' м';
-            textureCache.invalidateFront();
-            throttledUpdate();
+            window.state.height = parseFloat(e.target.value);
+            document.getElementById('heightVal').textContent = window.state.height.toFixed(1) + ' м';
+            window.textureCache.invalidateFront();
+            window.throttledUpdate();
+            window.calculatePrice();
         });
     }
 }
@@ -116,16 +111,17 @@ export function initPhotoHandlers() {
             const file = e.target.files[0];
             if (file) {
                 if (!isValidFile(file)) {
-                    showToast('❌ Недопустимый файл', 'error');
+                    window.showToast('❌ Недопустимый файл', 'error');
                     textureUpload.value = '';
                     return;
                 }
                 const reader = new FileReader();
                 reader.onload = (evt) => {
-                    state.textureUrl = evt.target.result;
-                    state.modelPhotoUrl = evt.target.result;
-                    textureCache.invalidateFront();
-                    throttledUpdate();
+                    window.state.textureUrl = evt.target.result;
+                    window.state.modelPhotoUrl = evt.target.result;
+                    window.textureCache.invalidateFront();
+                    window.throttledUpdate();
+                    window.calculatePrice();
                 };
                 reader.readAsDataURL(file);
             }
@@ -136,9 +132,10 @@ export function initPhotoHandlers() {
     document.getElementById('photoScale')?.addEventListener('input', function() {
         const val = parseFloat(this.value);
         document.getElementById('photoScaleVal').textContent = val.toFixed(1);
-        state.photoScale = val;
-        textureCache.invalidateFront();
-        throttledUpdate();
+        window.state.photoScale = val;
+        window.textureCache.invalidateFront();
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
     // Форма фото
@@ -153,8 +150,8 @@ export function initPhotoHandlers() {
             if (customSize) {
                 customSize.style.display = shape === 'custom' ? 'block' : 'none';
             }
-            state.photoShape = shape;
-            throttledUpdate();
+            window.state.photoShape = shape;
+            window.throttledUpdate();
         });
     });
 
@@ -163,16 +160,16 @@ export function initPhotoHandlers() {
     const photoHeightMmInput = document.getElementById('photoHeightMm');
     if (photoWidthMmInput) {
         photoWidthMmInput.addEventListener('input', (e) => {
-            state.photoWidthMm = parseInt(e.target.value);
-            textureCache.invalidateFront();
-            throttledUpdate();
+            window.state.photoWidthMm = parseInt(e.target.value);
+            window.textureCache.invalidateFront();
+            window.throttledUpdate();
         });
     }
     if (photoHeightMmInput) {
         photoHeightMmInput.addEventListener('input', (e) => {
-            state.photoHeightMm = parseInt(e.target.value);
-            textureCache.invalidateFront();
-            throttledUpdate();
+            window.state.photoHeightMm = parseInt(e.target.value);
+            window.textureCache.invalidateFront();
+            window.throttledUpdate();
         });
     }
 }
@@ -187,13 +184,13 @@ export function initTextHandlers() {
         fullNameInput.addEventListener('input', (e) => {
             const value = e.target.value;
             if (value.length > 500) {
-                showToast('⚠️ Слишком длинное имя (максимум 500 символов)', 'warning');
+                window.showToast('⚠️ Слишком длинное имя (максимум 500 символов)', 'warning');
                 e.target.value = value.substring(0, 500);
                 return;
             }
-            state.fullName = e.target.value;
-            textureCache.invalidateFront();
-            throttledUpdate();
+            window.state.fullName = e.target.value;
+            window.textureCache.invalidateFront();
+            window.throttledUpdate();
         });
     }
 
@@ -202,13 +199,13 @@ export function initTextHandlers() {
         datesTextInput.addEventListener('input', (e) => {
             const value = e.target.value;
             if (value.length > 200) {
-                showToast('⚠️ Слишком длинная дата (максимум 200 символов)', 'warning');
+                window.showToast('⚠️ Слишком длинная дата (максимум 200 символов)', 'warning');
                 e.target.value = value.substring(0, 200);
                 return;
             }
-            state.dates = e.target.value;
-            textureCache.invalidateFront();
-            throttledUpdate();
+            window.state.dates = e.target.value;
+            window.textureCache.invalidateFront();
+            window.throttledUpdate();
         });
     }
 
@@ -217,23 +214,23 @@ export function initTextHandlers() {
         epitaphTextarea.addEventListener('input', (e) => {
             const value = e.target.value;
             if (value.length > 1000) {
-                showToast('⚠️ Слишком длинная эпитафия (максимум 1000 символов)', 'warning');
+                window.showToast('⚠️ Слишком длинная эпитафия (максимум 1000 символов)', 'warning');
                 e.target.value = value.substring(0, 1000);
                 return;
             }
-            state.epitaph = e.target.value;
-            textureCache.invalidateBack();
-            throttledUpdate();
+            window.state.epitaph = e.target.value;
+            window.textureCache.invalidateBack();
+            window.throttledUpdate();
         });
     }
 
     const textColorInput = document.getElementById('textColor');
     if (textColorInput) {
         textColorInput.addEventListener('input', (e) => {
-            state.textColor = e.target.value;
-            textureCache.invalidateFront();
-            textureCache.invalidateBack();
-            throttledUpdate();
+            window.state.textColor = e.target.value;
+            window.textureCache.invalidateFront();
+            window.textureCache.invalidateBack();
+            window.throttledUpdate();
         });
     }
 
@@ -241,28 +238,28 @@ export function initTextHandlers() {
     if (fontFamilySelect) {
         fontFamilySelect.addEventListener('change', (e) => {
             const newFont = e.target.value;
-            state.fontFamily = newFont;
-            state.frontTextureNeedsUpdate = true;
-            state.backTextureNeedsUpdate = true;
-            textureCache.invalidateFront();
-            textureCache.invalidateBack();
-            state.frontTextureCache = null;
-            state.backTextureCache = null;
-            throttledUpdate();
+            window.state.fontFamily = newFont;
+            window.state.frontTextureNeedsUpdate = true;
+            window.state.backTextureNeedsUpdate = true;
+            window.textureCache.invalidateFront();
+            window.textureCache.invalidateBack();
+            window.state.frontTextureCache = null;
+            window.state.backTextureCache = null;
+            window.throttledUpdate();
         });
     }
 
     document.getElementById('forceFontUpdateBtn')?.addEventListener('click', function() {
         const currentFont = document.getElementById('fontFamily').value;
-        state.fontFamily = currentFont;
-        state.frontTextureNeedsUpdate = true;
-        state.backTextureNeedsUpdate = true;
-        state.frontTextureCache = null;
-        state.backTextureCache = null;
-        textureCache.invalidateFront();
-        textureCache.invalidateBack();
-        throttledUpdate();
-        showToast('✅ Шрифт обновлен: ' + currentFont, 'success');
+        window.state.fontFamily = currentFont;
+        window.state.frontTextureNeedsUpdate = true;
+        window.state.backTextureNeedsUpdate = true;
+        window.state.frontTextureCache = null;
+        window.state.backTextureCache = null;
+        window.textureCache.invalidateFront();
+        window.textureCache.invalidateBack();
+        window.throttledUpdate();
+        window.showToast('✅ Шрифт обновлен: ' + currentFont, 'success');
     });
 }
 
@@ -274,30 +271,30 @@ export function initFontSizeHandlers() {
     const nameFontSizeRange = document.getElementById('nameFontSize');
     if (nameFontSizeRange) {
         nameFontSizeRange.addEventListener('input', (e) => {
-            state.nameFontSize = parseInt(e.target.value);
+            window.state.nameFontSize = parseInt(e.target.value);
             const valDisplay = document.getElementById('nameFontSizeVal');
-            if (valDisplay) valDisplay.textContent = state.nameFontSize;
-            markTexturesDirty();
+            if (valDisplay) valDisplay.textContent = window.state.nameFontSize;
+            window.markTexturesDirty();
         });
     }
 
     const datesFontSizeRange = document.getElementById('datesFontSize');
     if (datesFontSizeRange) {
         datesFontSizeRange.addEventListener('input', (e) => {
-            state.datesFontSize = parseInt(e.target.value);
+            window.state.datesFontSize = parseInt(e.target.value);
             const valDisplay = document.getElementById('datesFontSizeVal');
-            if (valDisplay) valDisplay.textContent = state.datesFontSize;
-            markTexturesDirty();
+            if (valDisplay) valDisplay.textContent = window.state.datesFontSize;
+            window.markTexturesDirty();
         });
     }
 
     const epitaphFontSizeRange = document.getElementById('epitaphFontSize');
     if (epitaphFontSizeRange) {
         epitaphFontSizeRange.addEventListener('input', (e) => {
-            state.epitaphFontSize = parseInt(e.target.value);
+            window.state.epitaphFontSize = parseInt(e.target.value);
             const valDisplay = document.getElementById('epitaphFontSizeVal');
-            if (valDisplay) valDisplay.textContent = state.epitaphFontSize;
-            markTexturesDirty();
+            if (valDisplay) valDisplay.textContent = window.state.epitaphFontSize;
+            window.markTexturesDirty();
         });
     }
 }
@@ -310,25 +307,27 @@ export function initBaseHandlers() {
     document.getElementById('graveWidth')?.addEventListener('input', (e) => {
         const raw = parseFloat(e.target.value);
         const snapped = snapToTile(raw);
-        state.graveWidth = Math.max(0.3, snapped);
-        document.getElementById('graveWidthVal').textContent = state.graveWidth.toFixed(2) + ' м';
-        resetTileManager();
-        throttledUpdate();
+            window.state.graveWidth = Math.max(0.3, snapped);
+        document.getElementById('graveWidthVal').textContent = window.state.graveWidth.toFixed(2) + ' м';
+        window.resetTileManager();
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
     document.getElementById('graveLength')?.addEventListener('input', (e) => {
         const raw = parseFloat(e.target.value);
         const snapped = snapToTile(raw);
-        state.graveLength = Math.max(0.3, snapped);
-        document.getElementById('graveLengthVal').textContent = state.graveLength.toFixed(2) + ' м';
-        resetTileManager();
-        throttledUpdate();
+        window.state.graveLength = Math.max(0.3, snapped);
+        document.getElementById('graveLengthVal').textContent = window.state.graveLength.toFixed(2) + ' м';
+        window.resetTileManager();
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
     document.getElementById('baseHeight')?.addEventListener('input', (e) => {
-        state.baseHeight = parseFloat(e.target.value);
-        document.getElementById('baseHeightVal').textContent = state.baseHeight.toFixed(2) + ' м';
-        throttledUpdate();
+        window.state.baseHeight = parseFloat(e.target.value);
+        document.getElementById('baseHeightVal').textContent = window.state.baseHeight.toFixed(2) + ' м';
+        window.throttledUpdate();
     });
 }
 
@@ -338,55 +337,59 @@ export function initBaseHandlers() {
 
 export function initFlowerbedHandlers() {
     document.getElementById('flowerEnabled')?.addEventListener('change', (e) => {
-        state.flowerEnabled = e.target.checked;
+        window.state.flowerEnabled = e.target.checked;
         const flowerControls = document.getElementById('flowerControls');
         if (flowerControls) {
-            flowerControls.style.display = state.flowerEnabled ? 'block' : 'none';
+            flowerControls.style.display = window.state.flowerEnabled ? 'block' : 'none';
         }
-        resetTileManager();
-        throttledUpdate();
+        window.resetTileManager();
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
     document.getElementById('flowerWidth')?.addEventListener('input', (e) => {
         const raw = parseFloat(e.target.value);
         const snapped = snapToTile(raw);
-        state.flowerWidth = Math.max(0.3, snapped);
-        document.getElementById('flowerWidthVal').textContent = state.flowerWidth.toFixed(2) + ' м';
-        resetTileManager();
-        throttledUpdate();
-        updateLayoutPreview();
+        window.state.flowerWidth = Math.max(0.3, snapped);
+        document.getElementById('flowerWidthVal').textContent = window.state.flowerWidth.toFixed(2) + ' м';
+        window.resetTileManager();
+        window.throttledUpdate();
+        window.updateLayoutPreview();
+        window.calculatePrice();
     });
 
     document.getElementById('flowerLength')?.addEventListener('input', (e) => {
         const raw = parseFloat(e.target.value);
         const snapped = snapToTile(raw);
-        state.flowerLength = Math.max(0.3, snapped);
-        document.getElementById('flowerLengthVal').textContent = state.flowerLength.toFixed(2) + ' м';
-        resetTileManager();
-        throttledUpdate();
-        updateLayoutPreview();
+        window.state.flowerLength = Math.max(0.3, snapped);
+        document.getElementById('flowerLengthVal').textContent = window.state.flowerLength.toFixed(2) + ' м';
+        window.resetTileManager();
+        window.throttledUpdate();
+        window.updateLayoutPreview();
+        window.calculatePrice();
     });
 
     document.getElementById('flowerbedType')?.addEventListener('change', (e) => {
-        state.flowerbedType = e.target.value;
+        window.state.flowerbedType = e.target.value;
         const isTile = e.target.value.startsWith('tile_');
         const tileSettings = document.getElementById('tileSettings');
         if (tileSettings) {
             tileSettings.style.display = isTile ? 'block' : 'none';
         }
-        throttledUpdate();
+        window.throttledUpdate();
+        window.calculatePrice();
     });
 
 	document.getElementById('flowerbedMode')?.addEventListener('change', (e) => {
 		console.log('🔥 flowerbedMode CHANGE:', e.target.value);
-		state.flowerbedMode = e.target.value;
+		window.state.flowerbedMode = e.target.value;
 
 		const flowerTypeControls =
 			document.getElementById('flowerbedType')?.closest('.control-group');
 
 		if (flowerTypeControls) {
 			flowerTypeControls.style.display =
-				state.flowerbedMode === 'flowerbed'
+				window.state.flowerbedMode === 'flowerbed'
 					? 'block'
 					: 'none';
 		}
@@ -396,7 +399,7 @@ export function initFlowerbedHandlers() {
 
 		if (graveSlabModelControls) {
 			graveSlabModelControls.style.display =
-				state.flowerbedMode === 'slab'
+				window.state.flowerbedMode === 'slab'
 					? 'block'
 					: 'none';
 		}
@@ -407,25 +410,27 @@ export function initFlowerbedHandlers() {
 
 		if (graveSlabMaterialControls) {
 			graveSlabMaterialControls.style.display =
-				state.flowerbedMode === 'slab'
+				window.state.flowerbedMode === 'slab'
 					? 'block'
 					: 'none';
 		}
 
-		throttledUpdate();
-	});
+        window.throttledUpdate();
+        window.calculatePrice();
+    });
 
     document.getElementById('flowerColor')?.addEventListener('input', (e) => {
-        state.flowerColor = e.target.value;
-        throttledUpdate();
+        window.state.flowerColor = e.target.value;
+        window.throttledUpdate();
     });
 
     document.querySelectorAll('.flower-color-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const color = btn.dataset.color;
             document.getElementById('flowerColor').value = color;
-            state.flowerColor = color;
-            throttledUpdate();
+            window.state.flowerColor = color;
+            window.throttledUpdate();
+            window.calculatePrice();
         });
     });
 }
@@ -436,30 +441,30 @@ export function initFlowerbedHandlers() {
 
 export function initPathHandlers() {
     document.getElementById('pathWidth')?.addEventListener('input', (e) => {
-        state.pathWidth = parseFloat(e.target.value);
-        document.getElementById('pathWidthVal').textContent = state.pathWidth.toFixed(2) + ' м';
-        throttledUpdate();
+        window.state.pathWidth = parseFloat(e.target.value);
+        document.getElementById('pathWidthVal').textContent = window.state.pathWidth.toFixed(2) + ' м';
+        window.throttledUpdate();
     });
 
     document.getElementById('pathMaterial')?.addEventListener('change', (e) => {
-        state.pathMaterial = e.target.value;
-        throttledUpdate();
+        window.state.pathMaterial = e.target.value;
+        window.throttledUpdate();
     });
 
     document.getElementById('pathTileSize')?.addEventListener('input', (e) => {
-        state.pathTileSize = parseFloat(e.target.value);
-        document.getElementById('pathTileSizeVal').textContent = state.pathTileSize.toFixed(2) + ' м';
-        throttledUpdate();
+        window.state.pathTileSize = parseFloat(e.target.value);
+        document.getElementById('pathTileSizeVal').textContent = window.state.pathTileSize.toFixed(2) + ' м';
+        window.throttledUpdate();
     });
 
     document.getElementById('pathJointColor')?.addEventListener('input', (e) => {
-        state.pathJointColor = e.target.value;
-        throttledUpdate();
+        window.state.pathJointColor = e.target.value;
+        window.throttledUpdate();
     });
 
     document.getElementById('pathTileLayout')?.addEventListener('change', (e) => {
-        state.pathTileLayout = e.target.value;
-        throttledUpdate();
+        window.state.pathTileLayout = e.target.value;
+        window.throttledUpdate();
     });
 }
 
@@ -471,43 +476,45 @@ export function initFenceOptionsHandlers() {
     const fenceTypeSelect = document.getElementById('fenceType');
     if (fenceTypeSelect) {
         fenceTypeSelect.addEventListener('change', (e) => {
-            state.fenceType = e.target.value;
-            throttledUpdate();
+        window.state.fenceType = e.target.value;
+        window.throttledUpdate();
+        window.calculatePrice();
         });
     }
-
     const fenceMaterialSelect = document.getElementById('fenceMaterial');
     if (fenceMaterialSelect) {
         fenceMaterialSelect.addEventListener('change', (e) => {
-            state.fenceMaterial = e.target.value;
-            updateFence3DMaterials();
-            throttledUpdate();
+            window.state.fenceMaterial = e.target.value;
+            window.updateFence3DMaterials();
+            window.throttledUpdate();
         });
     }
 
     const fenceHeightRange = document.getElementById('fenceHeight');
     if (fenceHeightRange) {
         fenceHeightRange.addEventListener('input', (e) => {
-            state.fenceHeight = parseFloat(e.target.value);
-            document.getElementById('fenceHeightVal').textContent = state.fenceHeight.toFixed(1) + ' м';
-            throttledUpdate();
+            window.state.fenceHeight = parseFloat(e.target.value);
+            document.getElementById('fenceHeightVal').textContent = window.state.fenceHeight.toFixed(1) + ' м';
+            window.throttledUpdate();
         });
     }
 
     const fenceGateSideSelect = document.getElementById('fenceGateSide');
     if (fenceGateSideSelect) {
         fenceGateSideSelect.addEventListener('change', (e) => {
-            state.fenceGateSide = e.target.value;
-            throttledUpdate();
+        window.state.fenceGateSide = e.target.value;
+        window.throttledUpdate();
+        window.calculatePrice();
         });
     }
 
     const gateWidthRange = document.getElementById('gateWidth');
     if (gateWidthRange) {
         gateWidthRange.addEventListener('input', (e) => {
-            state.gateWidth = parseFloat(e.target.value);
-            document.getElementById('gateWidthVal').textContent = state.gateWidth.toFixed(1) + ' м';
-            throttledUpdate();
+            window.state.gateWidth = parseFloat(e.target.value);
+            document.getElementById('gateWidthVal').textContent = window.state.gateWidth.toFixed(1) + ' м';
+            window.throttledUpdate();
+            window.calculatePrice();
         });
     }
 }
@@ -584,14 +591,14 @@ function moveText(dx, dy) {
     } else {
         const step = 0.02;
 
-        state.textOffsetX =
-            (state.textOffsetX || 0) + dx * step;
+        window.state.textOffsetX =
+            (window.state.textOffsetX || 0) + dx * step;
 
-        state.textOffsetY =
-            (state.textOffsetY || 0) + dy * step;
+        window.state.textOffsetY =
+            (window.state.textOffsetY || 0) + dy * step;
 
         if (typeof window.throttledUpdate === 'function') {
-            window.throttledUpdate();
+            window.window.throttledUpdate();
         }
     }
 }
@@ -599,26 +606,41 @@ function moveText(dx, dy) {
 // ⭐ ДЛЯ ЭПИТАФИИ
 function moveEpitaph(dx, dy) {
     const target = getTextTarget();
-    
+    const step = 0.02;
+
     if (target === 'duplicator') {
-        if (window.multiMonumentManager) {
-            const index = window.multiMonumentManager.activeIndex;
-            if (index >= 0 && window.multiMonumentManager.monuments[index]) {
-                const mon = window.multiMonumentManager.monuments[index];
-                const step = 0.02;
-                mon.data.epitaphOffsetX = (mon.data.epitaphOffsetX || 0) + dx * step;
-                mon.data.epitaphOffsetY = (mon.data.epitaphOffsetY || 0) + dy * step;
-                window.multiMonumentManager._duplicatorDataCache[index] = { ...mon.data };
-                window.multiMonumentManager.rebuildSimpleMonument(index);
-            }
-        }
-    } else {
-        const step = 0.02;
-        state.epitaphOffsetX = (state.epitaphOffsetX || 0) + dx * step;
-        state.epitaphOffsetY = (state.epitaphOffsetY || 0) + dy * step;
-        if (typeof window.throttledUpdate === 'function') {
-            window.throttledUpdate();
-        }
+        const manager = window.multiMonumentManager;
+        const index = manager?.activeIndex;
+        const mon = manager?.monuments?.[index];
+
+        if (!mon) return;
+
+        // На задней стороне вертикальное направление визуально обратное.
+        mon.data.epitaphOffsetX =
+            (Number(mon.data.epitaphOffsetX) || 0) + dx * step;
+
+        mon.data.epitaphOffsetY =
+            (Number(mon.data.epitaphOffsetY) || 0) - dy * step;
+
+        manager._duplicatorDataCache[index] = {
+            ...mon.data,
+            burials: Array.isArray(mon.data.burials)
+                ? mon.data.burials.map(burial => ({ ...burial }))
+                : mon.data.burials
+        };
+
+        manager.rebuildSimpleMonument(index);
+        return;
+    }
+
+    window.state.epitaphOffsetX =
+        (Number(window.state.epitaphOffsetX) || 0) + dx * step;
+
+    window.state.epitaphOffsetY =
+        (Number(window.state.epitaphOffsetY) || 0) + dy * step;
+
+    if (typeof window.throttledUpdate === 'function') {
+        window.window.throttledUpdate();
     }
 }
 
@@ -647,10 +669,10 @@ function resetTextPosition() {
             }
         }
     } else {
-        state.textOffsetX = 0;
-        state.textOffsetY = 0;
+        window.state.textOffsetX = 0;
+        window.state.textOffsetY = 0;
         if (typeof window.throttledUpdate === 'function') {
-            window.throttledUpdate();
+            window.window.throttledUpdate();
         }
     }
 }
@@ -671,10 +693,10 @@ function resetEpitaphPosition() {
             }
         }
     } else {
-        state.epitaphOffsetX = 0;
-        state.epitaphOffsetY = 0;
+        window.state.epitaphOffsetX = 0;
+        window.state.epitaphOffsetY = 0;
         if (typeof window.throttledUpdate === 'function') {
-            window.throttledUpdate();
+            window.window.throttledUpdate();
         }
     }
 }
@@ -710,15 +732,15 @@ function snapToTile(value) {
 function updateTextOffsetDisplay() {
     const xVal = document.getElementById('textOffsetXVal');
     const yVal = document.getElementById('textOffsetYVal');
-    if (xVal) xVal.textContent = state.textOffsetX.toFixed(2);
-    if (yVal) yVal.textContent = state.textOffsetY.toFixed(2);
+    if (xVal) xVal.textContent = window.state.textOffsetX.toFixed(2);
+    if (yVal) yVal.textContent = window.state.textOffsetY.toFixed(2);
 }
 
 function updateEpitaphOffsetDisplay() {
     const xVal = document.getElementById('epitaphOffsetXVal');
     const yVal = document.getElementById('epitaphOffsetYVal');
-    if (xVal) xVal.textContent = state.epitaphOffsetX.toFixed(2);
-    if (yVal) yVal.textContent = state.epitaphOffsetY.toFixed(2);
+    if (xVal) xVal.textContent = window.state.epitaphOffsetX.toFixed(2);
+    if (yVal) yVal.textContent = window.state.epitaphOffsetY.toFixed(2);
 }
 
 function isValidFile(file) {

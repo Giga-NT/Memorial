@@ -124,3 +124,6 @@ export function initDragManagers(options = {}) {
     console.log('✅ Drag Managers инициализированы:', managers.length);
     return managers;
 }
+
+
+

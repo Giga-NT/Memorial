@@ -7,20 +7,32 @@ import { DragManager } from './DragManager.js';
 import { findCustomStele } from './drag-utils.js';
 
 export class CustomSteleEpitaphDrag extends DragManager {
-    constructor(options = {}) {
-        super(options);
-        this.type = 'epitaph_custom';
-        this.maxOffset = 0.8;
-        this.sensitivity = 0.7;
-    }
+	constructor(options = {}) {
+		super(options);
+		this.type = 'epitaph_custom';
+		this.maxOffset = 0.8;
+		this.sensitivity = 0.7;
+
+		this.setupPositionButtons();
+	}
 
 	checkEnabled() {
 		const checkbox = document.getElementById('enableDragEpitaph');
+		const manager = window.multiMonumentManager;
 
-		return !!checkbox &&
-			   checkbox.checked &&
-			   this.state.steleType &&
-			   this.state.steleType.startsWith('custom_stl');
+		const targetState =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0
+				? manager.monuments?.[manager.activeIndex]?.data
+				: this.state;
+
+		const model = targetState?.steleModel || targetState?.steleType;
+
+		return Boolean(
+			checkbox?.checked &&
+			typeof model === 'string' &&
+			model.startsWith('custom_stl')
+		);
 	}
 
     getDragType(y) {
@@ -31,19 +43,51 @@ export class CustomSteleEpitaphDrag extends DragManager {
         return null;
     }
 
-    getOffsets(type) {
-        return {
-            x: this.state.epitaphOffsetX || 0,
-            y: this.state.epitaphOffsetY || 0
-        };
-    }
+	getOffsets() {
+		const manager = window.multiMonumentManager;
 
-    updateOffsets(type, x, y) {
-        this.state.epitaphOffsetX = x;
-        this.state.epitaphOffsetY = y;
-        this.state.backTextureNeedsUpdate = true;
-        this.updateDisplay();
-    }
+		const targetState =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0
+				? manager.monuments?.[manager.activeIndex]?.data
+				: this.state;
+
+		return {
+			x: Number(targetState?.epitaphOffsetX) || 0,
+			y: Number(targetState?.epitaphOffsetY) || 0
+		};
+	}
+
+	updateOffsets(type, x, y) {
+		const manager = window.multiMonumentManager;
+		const isDuplicator =
+			manager?.currentMode === 'duplicator' &&
+			manager.activeIndex >= 0 &&
+			manager.monuments?.[manager.activeIndex];
+
+		const targetState = isDuplicator
+			? manager.monuments[manager.activeIndex].data
+			: this.state;
+
+		if (!targetState) return;
+
+		targetState.epitaphOffsetX = x;
+		targetState.epitaphOffsetY = y;
+		targetState.backTextureNeedsUpdate = true;
+
+		if (isDuplicator) {
+			const index = manager.activeIndex;
+
+			manager._duplicatorDataCache[index] = {
+				...targetState,
+				burials: Array.isArray(targetState.burials)
+					? targetState.burials.map(burial => ({ ...burial }))
+					: targetState.burials
+			};
+		}
+
+		this.updateDisplay();
+	}
 
     updateDisplay() {
         const xVal = document.getElementById('epitaphOffsetXVal');
@@ -82,6 +126,57 @@ export class CustomSteleEpitaphDrag extends DragManager {
 
 	onDragEnd(type) {
 		this.dragState.epitaphMesh = null;
+	}
+
+	setupPositionButtons() {
+		const step = 0.01;
+
+		document.addEventListener('click', (event) => {
+			const button = event.target?.closest?.(
+				'#btnEpitaphUp, #btnEpitaphDown, ' +
+				'#btnEpitaphLeft, #btnEpitaphRight, #btnEpitaphReset'
+			);
+
+			if (!button) return;
+
+			if (!this.checkEnabled()) {
+				console.warn(
+					'[Epitaph] Перемещение отключено: проверьте enableDragEpitaph и тип стелы'
+				);
+				return;
+			}
+
+			let x = Number(this.state.epitaphOffsetX) || 0;
+			let y = Number(this.state.epitaphOffsetY) || 0;
+
+			switch (button.id) {
+				case 'btnEpitaphUp':
+					y += step;
+					break;
+				case 'btnEpitaphDown':
+					y -= step;
+					break;
+				case 'btnEpitaphLeft':
+					x -= step;
+					break;
+				case 'btnEpitaphRight':
+					x += step;
+					break;
+				case 'btnEpitaphReset':
+					x = 0;
+					y = 0;
+					break;
+			}
+
+			console.log('[Epitaph] Нажата кнопка', {
+				button: button.id,
+				x,
+				y
+			});
+
+			this.updateOffsets(this.type, x, y);
+			this.forceDecalUpdate();
+		});
 	}
 
     forceDecalUpdate() {

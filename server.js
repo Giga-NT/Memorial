@@ -162,7 +162,7 @@ app.use(cors());
 
 app.use((req, res, next) => {
     // Определяем, это HTML страница или нет
-    const isHTML = req.path.endsWith('.html') || req.path === '/' || req.path === '/index.html';
+    const isHTML = req.path.endsWith('.html') || req.path === '/' || req.path === '/index.html' || req.path === '/admin' || req.path === '/admin.html';
     
     if (isHTML) {
         // Разрешаем загрузку из CDN
@@ -298,6 +298,10 @@ app.use('/engravings', express.static(path.join(__dirname, 'storage', 'engraving
 // ============================================
 // АДМИНКА
 // ============================================
+
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+});
 
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
@@ -1487,7 +1491,7 @@ app.post(
 // ============================================
 
 app.get(
-    '/api/admin/meapi/admin/me',
+    '/api/admin/me',
     requireAdmin,
     (req, res) => {
 

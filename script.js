@@ -79,33 +79,9 @@ import {
     initEpitaphPositionHandlers
 } from './modules/eventHandlers.js';
 
-
-
-// Инициализируем все обработчики
-function initAllHandlers() {
-    initFenceHandlers();
-    initCheckboxHandlers();
-    initSteleTypeHandlers();
-    initSteleSizeHandlers();
-    initPhotoHandlers();
-    initTextHandlers();
-    initFontSizeHandlers();
-    initBaseHandlers();
-    initFlowerbedHandlers();
-    initPathHandlers();
-    initFenceOptionsHandlers();
-    initTextPositionHandlers();
-    initEpitaphPositionHandlers();
-
-	
-    console.log('✅ Все обработчики событий инициализированы');
-}
-
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAllHandlers);
-} else {
-    initAllHandlers();
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -5474,6 +5450,7 @@ if (materialSelect) {
         updateCurrentCustomSteleMaterial(state.material);
         resetTileManager();
         throttledUpdate();
+        calculatePrice();
     });
 }
 
@@ -6703,6 +6680,7 @@ export {
     textureCache,
     resetTileManager,
     throttledUpdate,
+    calculatePrice,
     markTexturesDirty,
     updateLayoutPreview,
     showToast,
@@ -6714,6 +6692,7 @@ window.state = state;
 window.textureCache = textureCache;
 window.resetTileManager = resetTileManager;
 window.throttledUpdate = throttledUpdate;
+window.calculatePrice = calculatePrice;
 
 initBurialRecords(
     window.state,
