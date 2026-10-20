@@ -131,8 +131,7 @@ export class CustomStelePhotoDrag {
             height = size.height;
         }
 
-        width *= scale;
-        height *= scale;
+
 
         let geometry;
 
@@ -159,6 +158,7 @@ export class CustomStelePhotoDrag {
         });
 
         const mesh = new THREE.Mesh(geometry, material);
+		mesh.scale.set(scale, scale, 1);
 
         const defaultX = Number(
             person.photoPositionX ?? -0.28
@@ -180,11 +180,14 @@ export class CustomStelePhotoDrag {
         mesh.renderOrder = 11 + index;
 
         // Метаданные связывают фотографию с конкретным человеком.
-        mesh.userData.type = 'photo';
-        mesh.userData.isDraggable = true;
-        mesh.userData.isBurialPhoto = true;
-        mesh.userData.burialId = person.id;
-        mesh.userData.photoIndex = index;
+		mesh.userData.type = 'photo';
+		mesh.userData.isDraggable = true;
+		mesh.userData.isBurialPhoto = true;
+		mesh.userData.burialId = person.id;
+		mesh.userData.photoIndex = index;
+
+		// Индивидуальный масштаб именно этого фото.
+		mesh.userData.photoScale = scale;
 
         mesh.userData.limitX =
             Number(options.limitX ?? 0.3);

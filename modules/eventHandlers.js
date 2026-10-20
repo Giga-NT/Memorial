@@ -128,15 +128,118 @@ export function initPhotoHandlers() {
         });
     }
 
-    // Масштаб фото
-    document.getElementById('photoScale')?.addEventListener('input', function() {
-        const val = parseFloat(this.value);
-        document.getElementById('photoScaleVal').textContent = val.toFixed(1);
-        window.state.photoScale = val;
-        window.textureCache.invalidateFront();
-        window.throttledUpdate();
-        window.calculatePrice();
+
+    // Масштаб фото: меняем только выбранную фотографию
+    document.getElementById('photoScale')?.addEventListener('input', function () {
+        const val = Number.parseFloat(this.value);
+
+        if (!Number.isFinite(val) || val <= 0) return;
+
+        const label = document.getElementById('photoScaleVal');
+        if (label) label.textContent = val.toFixed(1);
+
+        const manager = window.multiMonumentManager;
+        const isDuplicator =
+            manager?.currentMode === 'duplicator' &&
+            manager.activeIndex >= 0;
+
+        let state;
+        let decalsGroup;
+
+        if (isDuplicator) {
+            const monument = manager.monuments?.[manager.activeIndex];
+
+            if (!monument?.data || !monument?.group) return;
+
+            state = monument.data;
+
+            decalsGroup = monument.group.children.find(
+                child =>
+                    child.name === 'decalsContainer' &&
+                    child.parent === monument.group
+            );
+        } else {
+            state = window.state;
+            decalsGroup = window._customPhotoDrag?.decalsGroup;
+        }
+
+        if (!state || !decalsGroup) return;
+
+        const select = document.getElementById('photoPositionPerson');
+        const selectedId = select?.value;
+
+        let photoMesh = null;
+
+        decalsGroup.traverse(child => {
+            if (
+                child.isMesh &&
+                child.userData?.type === 'photo' &&
+                (
+                    selectedId
+                        ? String(child.userData.burialId) === String(selectedId)
+                        : child.userData.burialId === 'legacy-photo'
+                )
+            ) {
+                photoMesh = child;
+            }
+        });
+
+        if (!photoMesh) {
+            console.warn('Не найдено выбранное фото для изменения масштаба');
+            return;
+        }
+
+        const previousScale = Number(photoMesh.userData.photoScale ?? 1);
+        if (!Number.isFinite(previousScale) || previousScale <= 0) return;
+
+		photoMesh.scale.set(val, val, 1);
+		photoMesh.userData.photoScale = val;
+
+        const burials = Array.isArray(state.burials)
+            ? state.burials
+            : [];
+
+        const person = burials.find(
+            item => String(item.id) === String(photoMesh.userData.burialId)
+        );
+
+        if (person) {
+            person.photoScale = val;
+        } else {
+            state.photoScale = val;
+        }
+
+        photoMesh.scale.set(val, val, 1);
+        photoMesh.userData.photoScale = val;
+        photoMesh.updateMatrixWorld(true);
+
+        if (isDuplicator) {
+            const index = manager.activeIndex;
+            const monument = manager.monuments[index];
+
+            // Сохраняем индивидуальный масштаб в данных дубликатора
+            if (monument?.data) {
+                monument.data.burials = burials.map(item => ({ ...item }));
+            }
+
+            // Сохраняем индивидуальный масштаб в кэше
+            manager._duplicatorDataCache ??= {};
+            manager._duplicatorDataCache[index] = {
+                ...monument.data,
+                burials: burials.map(item => ({ ...item }))
+            };
+
+            // Обновляем pendingChanges, не теряя остальные поля
+            if (manager.pendingIndex === index && manager.pendingChanges) {
+                manager.pendingChanges.burials = burials.map(item => ({
+                    ...item
+                }));
+            }
+        }
+
+        photoMesh.updateMatrixWorld(true);
     });
+
 
     // Форма фото
     document.querySelectorAll('.shape-option').forEach(option => {

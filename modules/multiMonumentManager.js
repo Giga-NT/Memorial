@@ -1354,31 +1354,132 @@ updatePhotoPosition(photoMesh, x, y) {
 		});
      }
 
-     // ⭐ ОБРАБОТЧИК ИЗМЕНЕНИЙ UI
+
+
+	// ОБРАБОТЧИК ИЗМЕНЕНИЙ UI
 	_handleUIChange(e) {
-		// ⭐ ЕСЛИ ИЗМЕНЕНИЕ ОТ ЧЕКБОКСА "Включить перемещение фото" - НЕ СОХРАНЯЕМ
-		if (e.target && e.target.id === 'enableMovePhoto') {
-			console.log('⏸️ Чекбокс переключен, позиция НЕ сохраняется');
+		if (e.target?.id === 'enableMovePhoto') {
+			console.log('Чекбокс переключен, позиция не сохраняется');
 			return;
 		}
-		
-		// ⭐ 1. ЕСЛИ МЫ В РЕЖИМЕ ДУБЛЕРА - СОХРАНЯЕМ В PENDING
+
 		if (this.currentMode === 'duplicator' && this.activeIndex >= 0) {
 			const uiData = this.collectUIData();
-			this.pendingChanges = uiData;
+			const monument = this.monuments?.[this.activeIndex];
+
+			if (!monument?.data) {
+				console.warn('Не найдены данные активного дублера');
+				return;
+			}
+
+			// Масштаб фото сохраняем отдельно для выбранного человека.
+			if (e.target?.id === 'photoScale') {
+				const activeId =
+					window.state?.activeBurialId ??
+					monument.data.activeBurialId;
+
+				const scale = Number(e.target.value);
+
+				const savedBurials = Array.isArray(monument.data.burials)
+					? monument.data.burials
+					: [];
+
+				if (
+					activeId != null &&
+					Number.isFinite(scale) &&
+					scale > 0 &&
+					savedBurials.length > 0
+				) {
+					const activePersonExists = savedBurials.some(
+						person => String(person.id) === String(activeId)
+					);
+
+					if (!activePersonExists) {
+						console.warn(
+							'Выбранный человек не найден в записях дублера',
+							{ activeId, burials: savedBurials }
+						);
+					} else {
+						// Обновляем масштаб только выбранного человека.
+						monument.data.burials = savedBurials.map(person =>
+							String(person.id) === String(activeId)
+								? { ...person, photoScale: scale }
+								: { ...person }
+						);
+
+						// Сохраняем активного человека в данных дублера.
+						monument.data.activeBurialId = activeId;
+
+						// Обновляем кэш текущего дублера.
+						this._duplicatorDataCache ??= {};
+
+						this._duplicatorDataCache[this.activeIndex] = {
+							...(this._duplicatorDataCache[this.activeIndex] || {}),
+							...monument.data,
+							burials: monument.data.burials.map(person => ({
+								...person
+							})),
+							activeBurialId: activeId
+						};
+
+						// Синхронизируем изменения с pendingChanges.
+						uiData.activeBurialId = activeId;
+						uiData.burials = monument.data.burials.map(person => ({
+							...person
+						}));
+
+						console.log('Масштаб фото сохранён:', {
+							activeId,
+							scale,
+							burials: uiData.burials.map(person => ({
+								id: person.id,
+								name: person.fullName ?? person.name,
+								photoScale: person.photoScale
+							}))
+						});
+					}
+				} else {
+					console.warn(
+						'Не удалось определить выбранного человека для photoScale',
+						{
+							activeId,
+							scale,
+							burialsCount: savedBurials.length
+						}
+					);
+				}
+			}
+
+			// Сохраняем остальные изменения интерфейса.
+			this.pendingChanges = {
+				...uiData,
+				burials: Array.isArray(monument.data.burials)
+					? monument.data.burials.map(person => ({ ...person }))
+					: (uiData.burials || []).map(person => ({ ...person }))
+			};
+
 			this.pendingIndex = this.activeIndex;
+
 			this.renderMonumentList();
-			
-			console.log(`📝 Изменения сохранены для дублера #${this.activeIndex + 1}:`, uiData.fullName);
-			console.log('📍 window.state НЕ ИЗМЕНЕН:', window.state?.fullName);
+
+			console.log(
+				`Изменения сохранены для дублера #${this.activeIndex + 1}:`,
+				this.pendingChanges.fullName,
+				this.pendingChanges.burials?.map(person => ({
+					id: person.id,
+					name: person.fullName ?? person.name,
+					photoScale: person.photoScale
+				}))
+			);
+
 			return;
 		}
-		
-		// ⭐ 2. ЕСЛИ МЫ В РЕЖИМЕ ОСНОВНОГО - ОБНОВЛЯЕМ STATE И СЦЕНУ
+
 		if (this.currentMode === 'main') {
 			this.syncStateFromUI();
-			
+
 			clearTimeout(this._updateTimeout);
+
 			this._updateTimeout = setTimeout(() => {
 				if (window.updateScene && !window._disableAutoMonument) {
 					window.updateScene();
@@ -1386,6 +1487,8 @@ updatePhotoPosition(photoMesh, x, y) {
 			}, 100);
 		}
 	}
+
+
 
 	syncStateFromUI() {
 		if (window._isLoadingProject) {
@@ -2478,19 +2581,22 @@ updatePhotoPosition(photoMesh, x, y) {
                 .map(person => [person.id, person])
         );
 
-        dataToApply.burials = savedBurials.map(person => {
-            const current = currentBurialsById.get(person.id);
+		dataToApply.burials = savedBurials.map(person => {
+			const current = currentBurialsById.get(person.id);
 
-            return {
-                ...person,
-                textOffsetX: Number(
-                    current?.textOffsetX ?? person.textOffsetX ?? 0
-                ),
-                textOffsetY: Number(
-                    current?.textOffsetY ?? person.textOffsetY ?? 0
-                )
-            };
-        });
+			return {
+				...person,
+				photoScale: Number(
+					current?.photoScale ?? person.photoScale ?? 1
+				),
+				textOffsetX: Number(
+					current?.textOffsetX ?? person.textOffsetX ?? 0
+				),
+				textOffsetY: Number(
+					current?.textOffsetY ?? person.textOffsetY ?? 0
+				)
+			};
+		});
 
         const requestedActiveId = isActiveDuplicator
             ? window.state?.activeBurialId
@@ -3848,10 +3954,14 @@ if (photoDrag && decalsGroup) {
                         : center.y
                 ),
 
-            photoShape:
-                person.photoShape ||
-                data.photoShape ||
-                'oval'
+			photoShape:
+				person.photoShape ||
+				data.photoShape ||
+				'oval',
+
+			photoScale: Number(
+				person.photoScale ?? 1
+			)
         };
     });
 
