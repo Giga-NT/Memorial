@@ -859,9 +859,10 @@ export function positionDecalsOnCustomStele(
 		const offsetX = Number(burial.textOffsetX ?? 0);
 		const offsetY = Number(burial.textOffsetY ?? 0);
 
+		// Keep main-stele drag offsets small and proportional to the actual model size.
 		textMesh.position.set(
-			offsetX * decalWidth * 2,
-			textCenterY + offsetY * decalHeight * 2
+			offsetX * dims.width * 0.2,
+			textCenterY + offsetY * dims.height * 0.2
 				- index * burialSpacing,
 			frontZ
 		);
