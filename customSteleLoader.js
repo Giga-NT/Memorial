@@ -802,7 +802,7 @@ export function positionDecalsOnCustomStele(
     const decalWidth = dims.width * scale * 1.2;
     const decalHeight = dims.height * scale * 1.2;
     // Смещение считаем от размера самой стелы, а не увеличенной декали.
-    const textCenterY = steleCenterY - dims.height * 0.08;
+    const textCenterY = steleCenterY - dims.height * 0.3;
     const steleDepth = Number(state.steleDepth ?? state.depth) || 0.07;
     const zShift = (steleDepth - 0.07) ;
     const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.629 + zShift;
@@ -861,8 +861,8 @@ export function positionDecalsOnCustomStele(
 
 		// Keep main-stele drag offsets small and proportional to the actual model size.
 		textMesh.position.set(
-			offsetX * dims.width * 0.2,
-			textCenterY + offsetY * dims.height * 0.2
+			offsetX * dims.width * 0.7,
+			textCenterY + offsetY * dims.height * 0.7
 				- index * burialSpacing,
 			frontZ
 		);
