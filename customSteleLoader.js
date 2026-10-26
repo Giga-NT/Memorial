@@ -1339,13 +1339,9 @@ function createFrontTexture(state) {
     ctx.shadowColor = 'rgba(0,0,0,0.9)';
     ctx.shadowBlur = isMobile ? 4 : 8;
     
-    // ⭐ СМЕЩЕНИЯ В ПИКСЕЛЯХ (МЕТРЫ → ПИКСЕЛИ)
-    // state.textOffsetX/Y хранятся в метрах, переводим в пиксели
-    const pixelsPerMeter = canvasSize / 1.2; // 1.2 метра - максимальная высота стелы
-    const offsetX = state.textOffsetX * pixelsPerMeter;
-    const offsetY = state.textOffsetY * pixelsPerMeter;
-    
-    let currentY = 80 + offsetY;
+    // Смещение задаётся только положением textMesh в 3D-сцене.
+    // Не смещаем содержимое текстуры повторно, иначе текст может выйти за её границы.
+    let currentY = 80;
     
     if (state.fullName.trim()) {
         let fontFamily = state.fontFamily;
@@ -1379,7 +1375,7 @@ function createFrontTexture(state) {
         });
         
         allLines.forEach(line => {
-            ctx.fillText(line, canvas.width/2 + offsetX, currentY);
+            ctx.fillText(line, canvas.width / 2, currentY);
             currentY += state.nameFontSize * (isMobile ? 0.9 : 1.8);
         });
         currentY += isMobile ? 12 : 25;
@@ -1390,7 +1386,7 @@ function createFrontTexture(state) {
         if (fontFamily.includes('Yermak')) fontFamily = 'Yermak';
         const fontSize = state.datesFontSize * (isMobile ? 0.8 : 1.3);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
-        ctx.fillText(state.dates, canvas.width/2 + offsetX, currentY);
+        ctx.fillText(state.dates, canvas.width / 2, currentY);
     }
     
     const texture = new THREE.CanvasTexture(canvas);
