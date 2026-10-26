@@ -799,7 +799,8 @@ export function positionDecalsOnCustomStele(
     const scale = state.decalScale ?? 1;
     const decalWidth = dims.width * scale;
     const decalHeight = dims.height * scale;
-    const textCenterY = steleCenterY;
+    // Опускаем текстовую декаль немного ниже относительно центра стелы.
+    const textCenterY = steleCenterY - decalHeight * 0.08;
     const steleDepth = Number(state.steleDepth ?? state.depth) || 0.07;
     const zShift = (steleDepth - 0.07) ;
     const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.629 + zShift;
@@ -1052,7 +1053,7 @@ export function positionDecalsOnCustomStele(
         const epitaphMeshes = createBackEpitaphMeshes(state, {
             decalWidth,
             decalHeight,
-            centerY: steleCenterY,
+            centerY: steleCenterY - decalHeight * 0.08,
             z: backZ
         });
 
