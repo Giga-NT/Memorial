@@ -4084,7 +4084,7 @@ createDecalsForDuplicator(steleGroup, data) {
 
             textMesh.position.set(
                 offsetX,
-                center.y + offsetY - index * burialSpacing,
+                center.y - height * 0.08 + offsetY - index * burialSpacing,
                 frontZ - 0.015
             );
 
@@ -4192,7 +4192,7 @@ if (photoDrag && decalsGroup) {
             const epitaphMeshes = createBackEpitaphMeshes(data, {
                 decalWidth: width * 0.85,
                 decalHeight: height * 0.85,
-                centerY: center.y,
+                centerY: center.y - height * 0.08,
                 z: backZ + 0.015
             });
 
