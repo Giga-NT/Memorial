@@ -4061,9 +4061,11 @@ createDecalsForDuplicator(steleGroup, data) {
                 'front'
             );
 
+            // Декаль ФИО и дат на 20% больше габаритов стелы,
+            // чтобы оставался запас для смещения текста.
             const textGeo = new THREE.PlaneGeometry(
-                width * 0.85,
-                height * 0.85
+                width * 1.2,
+                height * 1.2
             );
 
             const textMat = new THREE.MeshBasicMaterial({
@@ -4190,8 +4192,8 @@ if (photoDrag && decalsGroup) {
 
         if (hasBackEpitaphs(data)) {
             const epitaphMeshes = createBackEpitaphMeshes(data, {
-                decalWidth: width * 0.85,
-                decalHeight: height * 0.85,
+                decalWidth: width * 1.2,
+                decalHeight: height * 1.2,
                 centerY: center.y - height * 0.08,
                 z: backZ + 0.015
             });
