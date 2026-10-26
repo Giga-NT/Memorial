@@ -4002,8 +4002,10 @@ createDecalsForDuplicator(steleGroup, data) {
 		const backZ = boundingBox.min.z - 0.016;
 
         
-        const width = data.width || 0.6;
-        const height = data.height || 1.2;
+        // Используем фактические габариты модели в локальных координатах дублера.
+        const actualSize = boundingBox.getSize(new THREE.Vector3());
+        const width = actualSize.x || data.steleWidth || data.width || 0.6;
+        const height = actualSize.y || data.steleHeight || data.height || 1.2;
         
 
         // ⭐ ПЕРЕДНЯЯ СТОРОНА: ОТДЕЛЬНЫЙ ТЕКСТ ДЛЯ КАЖДОГО ПОГРЕБЁННОГО
@@ -4205,7 +4207,7 @@ if (photoDrag && decalsGroup) {
                 loader.load(eng.url, (tex) => {
                     tex.minFilter = THREE.LinearFilter;
                     tex.magFilter = THREE.LinearFilter;
-                    const sizeM = 0.22 * (eng.scale || 1.0);
+                    const sizeM = width * (0.22 / 0.6) * (eng.scale || 1.0);
                     const geometry = new THREE.PlaneGeometry(sizeM, sizeM);
                     const material = new THREE.MeshBasicMaterial({ 
                         map: tex, 
@@ -4229,7 +4231,7 @@ if (photoDrag && decalsGroup) {
                 loader.load(eng.url, (tex) => {
                     tex.minFilter = THREE.LinearFilter;
                     tex.magFilter = THREE.LinearFilter;
-                    const sizeM = 0.22 * (eng.scale || 1.0);
+                    const sizeM = width * (0.22 / 0.6) * (eng.scale || 1.0);
                     const geometry = new THREE.PlaneGeometry(sizeM, sizeM);
                     const material = new THREE.MeshBasicMaterial({ 
                         map: tex, 
