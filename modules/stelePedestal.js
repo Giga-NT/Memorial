@@ -31,6 +31,10 @@ export async function createStelePedestal(
         return null;
     }
 
+    if (params.pedestalEnabled === false) {
+        return null;
+    }
+
     const baseHeight =
         Number(params.baseHeight) || 0;
 

@@ -9,7 +9,7 @@
     <meta name="keywords" content="3D конструктор памятников, памятник, надгробие, гранит, мрамор, стела, цветник, оградка">
     <title>3D Конструктор Памятника | Giga-NT</title>
     <link rel="canonical" href="https://giga-nt.ru/">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261021-1">
     
 
 
@@ -107,6 +107,17 @@
                 🪦 2. Форма и размеры стелы
             </div>
             <div class="section-content">
+                <div class="stele-preview-panel" id="stelePreviewPanel">
+                    <div class="stele-preview-frame">
+                        <canvas id="stelePreviewCanvas" width="180" height="220" aria-label="Превью надгробия"></canvas>
+                        <img id="stelePreviewImage" alt="Превью выбранного надгробия">
+                    </div>
+                    <div class="stele-preview-info">
+                        <div class="stele-preview-title">Превью надгробия</div>
+                        <div id="stelePreviewCaption" class="stele-preview-caption">Загрузка…</div>
+                    </div>
+                </div>
+
                 <div class="subsection">
                     <div class="subsection-title">📦 Форма стелы</div>
                     <div class="control-group">
@@ -151,6 +162,9 @@
 							</optgroup>
 						</select>
 					</div>
+					<div class="price-note" style="text-align:left;">
+						Материал основания визуальный: в расчёте стоимости основания больше нет.
+					</div>
 				</div>
 
 				<div class="subsection">
@@ -170,6 +184,10 @@
 								<option value="gray_granite">🌫️ Серый Гранит</option>
 							</optgroup>
 						</select>
+					</div>
+					<div class="checkbox-group">
+						<input type="checkbox" id="pedestalEnabled" checked>
+						<label for="pedestalEnabled">🧱 Включить тумбу</label>
 					</div>
 				</div>
 
@@ -214,6 +232,31 @@
                             <span class="unit">м</span>
                         </div>
                         <span class="value-display" id="heightVal">1.2 м</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="depthRange">Толщина стелы</label>
+                        <select id="depthRange">
+                            <option value="0.07">7 см</option>
+                            <option value="0.08">8 см</option>
+                            <option value="0.1">10 см</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-title">🧱 Плитка (верхняя плоскость)</div>
+                    <div class="control-group">
+                        <label for="tileMaterialSelect">Материал плитки</label>
+                        <select id="tileMaterialSelect">
+                            <option value="">Не выбрано</option>
+                            <option value="marble">⚪ Мрамор</option>
+                            <option value="gabbro">⚫ Габбро</option>
+                            <option value="other">⬜ Другое</option>
+                        </select>
+                    </div>
+                    <div class="price-note" style="text-align:left;">
+                        Площадь плитки — верхняя плоскость цветника. Без вертикальных плоскостей.
                     </div>
                 </div>
             </div>
@@ -284,10 +327,24 @@
 					>
 						<label>Модель надгробной плиты</label>
 
+						<div id="graveSlabPreviewPanel" class="stele-preview-panel">
+							<div class="stele-preview-frame">
+								<img id="graveSlabPreviewImage" alt="Превью выбранной надгробной плиты">
+							</div>
+							<div class="stele-preview-info">
+								<div class="stele-preview-title">Превью плиты</div>
+								<div id="graveSlabPreviewCaption" class="stele-preview-caption">Загрузка…</div>
+							</div>
+						</div>
+
 						<div
 							id="graveSlabOptionsGrid"
 							class="stele-options-grid"
 						></div>
+
+						<div class="price-note" style="text-align:left;">
+							Сама плита показывается в 3D-сцене при выборе типа «Надгробная плита».
+						</div>
 					</div>
 
 					<!-- 🎨 Материалы надгробной плиты -->
@@ -435,7 +492,7 @@
                     </div>
                     <div class="checkbox-group" style="margin-bottom:15px;">
                         <input type="checkbox" id="pathEnabled" checked>
-                        <label for="pathEnabled">🛤️ Показать дорожку</label>
+                        <label for="pathEnabled">🛤️ Брусчатка по площади участка</label>
                     </div>
                     
                     <div class="control-group-with-input">
@@ -803,7 +860,21 @@
             <div class="section-content">
                 <div class="control-group">
                     <label for="epitaphText">Текст эпитафии</label>
-                    <textarea id="epitaphText" rows="3" maxlength="500">Светлая память</textarea>
+                    <textarea id="epitaphText" rows="3" maxlength="2000">Светлая память</textarea>
+                </div>
+
+                <div class="control-group">
+                    <label>Дополнительные эпитафии</label>
+                    <div id="extraEpitaphsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+                    <button type="button"
+                            id="addExtraEpitaphBtn"
+                            class="burial-panel__add-btn"
+                            style="width:100%;">
+                        ＋ Добавить эпитафию
+                    </button>
+                    <div style="font-size:11px; color:#888; margin-top:6px;">
+                        Каждый блок можно двигать на обратной стороне стелы отдельно
+                    </div>
                 </div>
                 
                 <div class="control-group-with-input">
@@ -824,6 +895,9 @@
              
                 <div class="control-group">
                     <label class="position-label" style="color: #e74c3c;">📍 Положение</label>
+                    <div id="activeEpitaphLabel" style="font-size:12px; color:#aaa; margin-bottom:8px;">
+                        основная эпитафия
+                    </div>
                     <div class="position-grid">
                         <div></div>
                         <button id="btnEpitaphUp" class="pos-btn">⬆️</button>
@@ -999,19 +1073,19 @@
                     <div class="modal-box">
                         <h3 id="editorModalTitle">✏️ Редактирование</h3>
                         <div class="control-group-with-input">
-                            <label for="editorX">Позиция X</label>
+                            <label for="editorX">Позиция X (от центра)</label>
                             <div class="input-with-range">
-                                <input type="range" id="editorX" min="-0.4" max="0.4" step="0.01" value="0">
-                                <input type="number" id="editorXInput" class="number-input" value="0" min="-0.4" max="0.4" step="0.01">
+                                <input type="range" id="editorX" min="-1" max="1" step="0.01" value="0">
+                                <input type="number" id="editorXInput" class="number-input" value="0" min="-1" max="1" step="0.01">
                                 <span class="unit">м</span>
                             </div>
                             <span class="value-display" id="editorXVal">0.00</span>
                         </div>
                         <div class="control-group-with-input">
-                            <label for="editorY">Позиция Y</label>
+                            <label for="editorY">Позиция Y (от низа стелы / верха тумбы)</label>
                             <div class="input-with-range">
-                                <input type="range" id="editorY" min="-0.5" max="0.8" step="0.01" value="0">
-                                <input type="number" id="editorYInput" class="number-input" value="0" min="-0.5" max="0.8" step="0.01">
+                                <input type="range" id="editorY" min="0" max="1.8" step="0.01" value="0">
+                                <input type="number" id="editorYInput" class="number-input" value="0" min="0" max="1.8" step="0.01">
                                 <span class="unit">м</span>
                             </div>
                             <span class="value-display" id="editorYVal">0.00</span>
@@ -1153,6 +1227,10 @@
                 💰 9. Итоги и заказ
             </div>
             <div class="section-content">
+                <div class="checkbox-group" style="margin-bottom:12px;">
+                    <input type="checkbox" id="includeInstall">
+                    <label for="includeInstall">🔧 Включить установку в расчёт</label>
+                </div>
                 <div class="price-block">
                     <div class="price-value" id="totalPriceDisplay">0 ₽</div>
                     <div class="price-note">*Цена уточняется</div>
@@ -1169,6 +1247,9 @@
                     <button id="printQuoteBtn" class="btn-secondary">🖨️ Печать</button>
                     <button id="saveProjectBtn" class="btn-save-project">💾 Сохранить</button>
                     <button id="loadProjectBtn" class="btn-secondary">📂 Загрузить</button>
+                </div>
+                <div class="action-buttons">
+                    <button id="exportGlbBtn" class="btn-export-glb" type="button" title="Скачать весь проект одним файлом GLB">Скачать 3D (GLB)</button>
                 </div>
                 
                 <hr>
@@ -1225,7 +1306,7 @@
 <!-- ============================================================
 ПОДКЛЮЧАЕМ СКРИПТЫ
 ============================================================ -->
-<script type="module" src="script.js"></script>
+<script type="module" src="script.js?v=20261021-1"></script>
 <script src="modules/menu.js" defer></script>
 <script src="modules/modeManager.js" defer></script>
 
@@ -1310,7 +1391,11 @@ document.addEventListener('contextmenu', event => event.preventDefault());
             if (display) {
                 display.textContent = rangeId.includes('FontSize') ? val : val.toFixed(2) + ' м';
             }
-            if (window.throttledUpdate) window.throttledUpdate();
+            // Масштаб фото пересобирает eventHandlers.js,
+            // чтобы не запускать updateScene несколько раз за один input.
+            if (rangeId !== 'photoScale' && window.throttledUpdate) {
+                window.throttledUpdate();
+            }
         });
         
         input.addEventListener('input', function() {
@@ -1320,7 +1405,9 @@ document.addEventListener('contextmenu', event => event.preventDefault());
                 if (display) {
                     display.textContent = rangeId.includes('FontSize') ? val : val.toFixed(2) + ' м';
                 }
-                if (window.throttledUpdate) window.throttledUpdate();
+                if (rangeId !== 'photoScale' && window.throttledUpdate) {
+                    window.throttledUpdate();
+                }
             }
         });
     });

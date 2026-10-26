@@ -17,6 +17,8 @@ import {
 import { createFlowerbedBorder } from './flowerbedBorder.js';
 import { createStelePedestal } from './stelePedestal.js';
 import { createGraveSlab } from './graveSlab.js';
+import { hasBackEpitaphs } from './epitaphUtils.js';
+import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 
 
 // ============================================================
@@ -168,47 +170,6 @@ function createFrontTexture(params) {
         const fontSize = (params.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
         ctx.fillText(safeDates, canvas.width/2 + offsetX, currentY);
-    }
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    return texture;
-}
-
-function createBackTexture(params) {
-    const isMobile = window.innerWidth < 768;
-    const canvasSize = isMobile ? 512 : 1024;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = params.textColor || '#FFFFFF';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = isMobile ? 3 : 6;
-    
-    const offsetX = (params.epitaphOffsetX || 0) * canvas.width * 0.4;
-    const offsetY = (params.epitaphOffsetY || 0) * canvas.height * 0.4;
-    
-    let currentY = 80 + offsetY;
-    const fontFamily = params.fontFamily || 'Arial, sans-serif';
-    
-    if (params.epitaph && params.epitaph.trim()) {
-        const safeEpitaph = sanitizeText(params.epitaph);
-        const lines = safeEpitaph.split(/\r?\n|\//);
-        const fontSize = (params.epitaphFontSize || 40) * (isMobile ? 0.8 : 1.2);
-        ctx.font = `bold ${fontSize}px ${fontFamily}`;
-        
-        lines.forEach(line => {
-            if (line.trim()) {
-                ctx.fillText(line.trim(), canvas.width/2 + offsetX, currentY);
-                currentY += (params.epitaphFontSize || 40) * (isMobile ? 0.9 : 1.5);
-            }
-        });
     }
     
     const texture = new THREE.CanvasTexture(canvas);
@@ -835,13 +796,14 @@ export function createDecals(params, steleObj) {
         const boundingBox = new THREE.Box3().setFromObject(steleObj);
         const center = boundingBox.getCenter(new THREE.Vector3());
         const size = boundingBox.getSize(new THREE.Vector3());
+        const engravingBaseY = boundingBox.min.y;
         
         const frontZ = boundingBox.max.z + 0.015;
         const backZ = boundingBox.min.z - 0.015;
         
         const width = params.width || 0.6;
         const height = params.height || 1.2;
-        const depth = params.depth || 0.08;
+        const depth = params.depth || 0.07;
         
         console.log(`📐 createDecals: ширина=${width}, высота=${height}, глубина=${depth}, center.y=${center.y.toFixed(3)}`);
         
@@ -983,7 +945,7 @@ export function createDecals(params, steleObj) {
                         const offsetY = eng.y || 0;
                         mesh.position.set(
                             offsetX,
-                            center.y + offsetY,
+                            engravingBaseY + offsetY,
                             frontZ - 0.014
                         );
                         mesh.renderOrder = 10;
@@ -1041,35 +1003,16 @@ export function createDecals(params, steleObj) {
         // ============================================================
         // 4. ТЕКСТ СЗАДИ (Эпитафия)
         // ============================================================
-        if (params.epitaph && params.epitaph.trim()) {
-            const texture = createBackTexture(params);
-            if (texture) {
-                const textWidth = width * 0.85;
-                const textHeight = height * 0.85;
-                const textGeo = new THREE.PlaneGeometry(textWidth, textHeight);
-                const textMat = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    side: THREE.DoubleSide,
-                    depthWrite: false,
-                    alphaTest: 0.05
-                });
-                const textMesh = new THREE.Mesh(textGeo, textMat);
-                
-                const epitaphOffsetX = (params.epitaphOffsetX || 0) * width * 0.5;
-                const epitaphOffsetY = (params.epitaphOffsetY || 0) * height * 0.5;
-                
-                textMesh.position.set(
-                    epitaphOffsetX,
-                    center.y + epitaphOffsetY,
-                    backZ + 0.014
-                );
-                textMesh.rotation.y = Math.PI;
-                textMesh.renderOrder = 9;
-                textMesh.userData.type = 'backText';
-                decalsGroup.add(textMesh);
-                console.log('✅ Текст сзади создан');
-            }
+        if (hasBackEpitaphs(params)) {
+            const epitaphMeshes = createBackEpitaphMeshes(params, {
+                decalWidth: width * 0.85,
+                decalHeight: height * 0.85,
+                centerY: center.y,
+                z: backZ + 0.014
+            });
+
+            epitaphMeshes.forEach(mesh => decalsGroup.add(mesh));
+            console.log('✅ Текст сзади создан');
         }
         
         // ============================================================
@@ -1112,7 +1055,7 @@ export function createDecals(params, steleObj) {
                         const offsetY = eng.y || 0;
                         mesh.position.set(
                             offsetX,
-                            center.y + offsetY,
+                            engravingBaseY + offsetY,
                             backZ + 0.014
                         );
                         mesh.rotation.y = Math.PI;
@@ -1176,7 +1119,9 @@ export function createDecals(params, steleObj) {
 export async function createStele(params, decalsGroup) {
 
     const pedestalHeight =
-        Number(params.stelePedestalHeight) || 0.12;
+        params.pedestalEnabled === false
+            ? 0
+            : (Number(params.stelePedestalHeight) || 0.12);
 
 
     const { 
@@ -1230,9 +1175,16 @@ export async function createStele(params, decalsGroup) {
         group.add(steleObj);
         console.log(`✅ Кастомная стела ${steleType} создана`);
         
-        // ⭐ ИСПРАВЛЕНИЕ: Всегда вызываем createPhotoDirect, если есть фото
-        // Она сама решит: обновить позицию существующего или создать новое
-        if (params.textureUrl) {
+        // Фото погребённых создаёт positionDecalsOnCustomStele.
+        // createPhotoDirect нужен только для старых проектов без burials,
+        // иначе при каждой пересборке добавляется лишнее "основное" фото.
+        const hasBurialPhotos =
+            Array.isArray(params.burials) &&
+            params.burials.some(
+                burial => burial?.textureUrl || burial?.photoUrl
+            );
+
+        if (params.textureUrl && !hasBurialPhotos) {
             createPhotoDirect(params, decalsGroup);
         }
 
@@ -1643,6 +1595,9 @@ export async function updateMainMonument(
 		pedestalMaterial:
 			state.pedestalMaterial || 'granite',
 
+		pedestalEnabled:
+			state.pedestalEnabled !== false,
+
 		// Материал бордюра
 		borderMaterial:
 			state.borderMaterial || 'granite',
@@ -1695,7 +1650,7 @@ export async function updateMainMonument(
         depth:
             state.depth !== undefined
                 ? Number(state.depth)
-                : 0.1,
+                : 0.07,
 
         fullName:
             state.fullName || '',
@@ -1766,6 +1721,9 @@ export async function updateMainMonument(
 
         photoOffsetY:
             state.photoOffsetY || 0,
+
+        burials:
+            Array.isArray(state.burials) ? state.burials : [],
 
 
 		// ========================================================
@@ -2367,7 +2325,9 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
             data.steleHeight || 1.2,
 
         depth:
-            data.steleDepth || 0.08,
+            data.steleDepth ||
+            data.depth ||
+            0.07,
 
         steleRotation:
             data.steleRotation || 0,
@@ -2400,6 +2360,9 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         // Материал тумбы
         pedestalMaterial:
             data.pedestalMaterial || 'granite',
+
+        pedestalEnabled:
+            data.pedestalEnabled !== false,
 
         // Материал бордюра
         borderMaterial:
@@ -2667,8 +2630,8 @@ export async function updateFullScene(state, monumentGroup, decalsGroup, manager
 // ⭐ ФУНКЦИИ ОЧИСТКИ
 // ============================================================
 export function clearMainMonument(monumentGroup) {
-    // ⭐ СОХРАНЯЕМ ФОТО ПЕРЕД ОЧИСТКОЙ
-    let savedPhoto = null;
+    // ⭐ СОХРАНЯЕМ ВСЕ ФОТО ПЕРЕД ОЧИСТКОЙ
+    const savedPhotos = [];
     let mainDecalsGroup = null;
     
     monumentGroup.children.forEach(child => {
@@ -2680,8 +2643,8 @@ export function clearMainMonument(monumentGroup) {
     if (mainDecalsGroup) {
         mainDecalsGroup.children.forEach(decal => {
             if (decal.userData && decal.userData.type === 'photo') {
-                savedPhoto = decal;
-                console.log('📸 Фото сохранено перед очисткой');
+                savedPhotos.push(decal);
+                console.log('📸 Фото сохранено перед очисткой:', decal.userData.burialId);
             }
         });
     }
@@ -2693,8 +2656,8 @@ export function clearMainMonument(monumentGroup) {
             const toRemove = [];
             child.children.forEach(decal => {
                 // ⭐ НЕ УДАЛЯЕМ ФОТО
-                if (decal === savedPhoto) {
-                    console.log('📸 Фото пропущено при очистке');
+                if (decal.userData && decal.userData.type === 'photo') {
+                    console.log('📸 Фото пропущено при очистке:', decal.userData.burialId);
                     return;
                 }
                 toRemove.push(decal);
@@ -2712,6 +2675,9 @@ export function clearMainMonument(monumentGroup) {
         disposeObject3D(obj);
         monumentGroup.remove(obj);
     });
+
+    // Возвращаем список сохраненных фото для повторного использования
+    return savedPhotos;
 }
 
 export function clearAllScene(monumentGroup) {

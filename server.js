@@ -241,7 +241,7 @@ app.use(express.static(__dirname, {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
         if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
         if (filePath.endsWith('.webp') || filePath.endsWith('.png') || filePath.endsWith('.jpg')) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
@@ -414,13 +414,48 @@ const ALLOWED_PRICE_KEYS = new Set([
     'stele_work',
     'engraving',
     'photo',
+    'photo_price',
+    'vase_base_price',
+    'background_price_per_m2',
 
     'table',
     'bench',
     'picnic_set',
 
     'delivery',
-    'install'
+    'install',
+
+    'fence_per_m',
+    'fence_base_height',
+    'path_work_per_m2',
+    'path_material_per_m2',
+    'install_full_set',
+    'install_flowerbed_base',
+    'install_pedestal_percent',
+    'tile_marble_per_m2',
+    'tile_gabbro_per_m2',
+    'tile_other_per_m2',
+    'tile_work_per_m2',
+    'bruschatka_per_m2',
+    'stele_base_price',
+    'stele_thickness_factor',
+    'pedestal_price',
+    'decoration_volume',
+    'decoration_engraving'
+]);
+
+
+const ALLOWED_PRICE_SETTINGS = new Set([
+    'include_install',
+    'install_split',
+    'tile_cladding_separate',
+    'include_delivery',
+    'tile_area_m2'
+]);
+
+
+const ALLOWED_PRICE_FLAGS = new Set([
+    'zero_means_included'
 ]);
 
 
@@ -457,13 +492,50 @@ const DEFAULT_PRICES = {
     stele_work: 5000,
     engraving: 1500,
     photo: 2000,
+    photo_price: 0,
+    vase_base_price: 0,
+    background_price_per_m2: 25000,
 
     table: 15000,
     bench: 12000,
     picnic_set: 25000,
 
     delivery: 3000,
-    install: 5000
+    install: 5000,
+
+    fence_per_m: 1500,
+    fence_base_height: 0.6,
+    path_work_per_m2: 1500,
+    path_material_per_m2: 0,
+    install_full_set: 35000,
+    install_flowerbed_base: 25000,
+    install_pedestal_percent: 10,
+    tile_marble_per_m2: 0,
+    tile_gabbro_per_m2: 0,
+    tile_other_per_m2: 0,
+    tile_work_per_m2: 1000,
+    bruschatka_per_m2: 0,
+    stele_base_price: 0,
+    stele_thickness_factor: 1,
+    pedestal_price: 0,
+    decoration_volume: 0,
+    decoration_engraving: 0
+};
+
+
+const DEFAULT_PRICE_SETTINGS = {
+    include_install: '1',
+    install_split: '0',
+    tile_cladding_separate: '1',
+    include_delivery: '0',
+    tile_area_m2: '0'
+};
+
+
+const DEFAULT_PRICE_FLAGS = {
+    tile_marble_per_m2: { zero_means_included: true },
+    tile_gabbro_per_m2: { zero_means_included: true },
+    tile_other_per_m2: { zero_means_included: true }
 };
 
 
@@ -665,6 +737,49 @@ async function getPrices() {
 }
 
 
+async function getPriceFlags() {
+    const rows = await dbAll(`
+        SELECT
+            key,
+            flag,
+            enabled
+        FROM price_flags
+        ORDER BY key, flag
+    `);
+
+    const result = {};
+
+    rows.forEach(row => {
+        if (!result[row.key]) {
+            result[row.key] = {};
+        }
+
+        result[row.key][row.flag] = Number(row.enabled) === 1;
+    });
+
+    return result;
+}
+
+
+async function getPriceSettings() {
+    const rows = await dbAll(`
+        SELECT
+            key,
+            value
+        FROM price_settings
+        ORDER BY key
+    `);
+
+    const result = {};
+
+    rows.forEach(row => {
+        result[row.key] = row.value;
+    });
+
+    return result;
+}
+
+
 async function ensurePrices() {
     let added = 0;
 
@@ -690,6 +805,68 @@ async function ensurePrices() {
         console.log(
             `💰 Добавлено недостающих цен: ${added}`
         );
+    }
+}
+
+
+async function ensurePriceConfig() {
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS price_flags (
+            key TEXT NOT NULL,
+            flag TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (key, flag)
+        )
+    `);
+
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS price_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    for (
+        const [key, value]
+        of Object.entries(DEFAULT_PRICE_SETTINGS)
+    ) {
+        await dbRun(`
+            INSERT OR IGNORE INTO price_settings (
+                key,
+                value
+            )
+            VALUES (?, ?)
+        `, [
+            key,
+            String(value)
+        ]);
+    }
+
+    for (
+        const [key, flags]
+        of Object.entries(DEFAULT_PRICE_FLAGS)
+    ) {
+        for (
+            const [flag, enabled]
+            of Object.entries(flags)
+        ) {
+            await dbRun(`
+                INSERT OR IGNORE INTO price_flags (
+                    key,
+                    flag,
+                    enabled
+                )
+                VALUES (?, ?, ?)
+            `, [
+                key,
+                flag,
+                enabled ? 1 : 0
+            ]);
+        }
     }
 }
 
@@ -746,7 +923,7 @@ async function migratePricesToSingleInstallation() {
             CREATE TABLE prices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key TEXT UNIQUE NOT NULL,
-                value INTEGER NOT NULL,
+                value REAL NOT NULL,
                 updated_at TIMESTAMP
                     DEFAULT CURRENT_TIMESTAMP
             )
@@ -803,7 +980,7 @@ async function migratePricesToSingleInstallation() {
         CREATE TABLE prices_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             key TEXT UNIQUE NOT NULL,
-            value INTEGER NOT NULL,
+            value REAL NOT NULL,
             updated_at TIMESTAMP
                 DEFAULT CURRENT_TIMESTAMP
         )
@@ -1080,6 +1257,13 @@ async function initDB() {
     // ========================================
 
     await ensurePrices();
+
+
+    // ========================================
+    // ФЛАГИ И ПАРАМЕТРЫ ПРАЙСА
+    // ========================================
+
+    await ensurePriceConfig();
 
 
     // ========================================
@@ -1832,11 +2016,23 @@ app.get(
 
         try {
 
-            const prices =
-                await getPrices();
+            const [
+                prices,
+                flags,
+                settings
+            ] = await Promise.all([
+                getPrices(),
+                getPriceFlags(),
+                getPriceSettings()
+            ]);
 
 
-            res.json(prices);
+            res.json({
+                success: true,
+                prices,
+                flags,
+                settings
+            });
 
 
         } catch (error) {
@@ -1865,6 +2061,12 @@ app.post(
 
             const incomingPrices =
                 req.body?.prices;
+
+            const incomingFlags =
+                req.body?.flags;
+
+            const incomingSettings =
+                req.body?.settings;
 
 
             if (
@@ -1922,7 +2124,7 @@ app.post(
                                 CURRENT_TIMESTAMP
                         WHERE key = ?
                     `, [
-                        Math.round(value),
+                        value,
                         key
                     ]);
 
@@ -1941,10 +2143,107 @@ app.post(
                         VALUES (?, ?)
                     `, [
                         key,
-                        Math.round(value)
+                        value
                     ]);
 
                     count++;
+                }
+            }
+
+
+            if (
+                incomingFlags &&
+                typeof incomingFlags === 'object' &&
+                !Array.isArray(incomingFlags)
+            ) {
+
+                for (
+                    const [key, flags]
+                    of Object.entries(incomingFlags)
+                ) {
+
+                    if (
+                        !ALLOWED_PRICE_KEYS.has(key) ||
+                        !flags ||
+                        typeof flags !== 'object'
+                    ) {
+                        continue;
+                    }
+
+                    for (
+                        const [flag, rawEnabled]
+                        of Object.entries(flags)
+                    ) {
+
+                        if (
+                            !ALLOWED_PRICE_FLAGS.has(flag)
+                        ) {
+                            continue;
+                        }
+
+                        const enabled =
+                            rawEnabled === true ||
+                            rawEnabled === 1 ||
+                            rawEnabled === '1' ||
+                            rawEnabled === 'true';
+
+                        await dbRun(`
+                            INSERT INTO price_flags (
+                                key,
+                                flag,
+                                enabled
+                            )
+                            VALUES (?, ?, ?)
+                            ON CONFLICT(key, flag)
+                            DO UPDATE SET
+                                enabled = excluded.enabled,
+                                updated_at =
+                                    CURRENT_TIMESTAMP
+                        `, [
+                            key,
+                            flag,
+                            enabled ? 1 : 0
+                        ]);
+                    }
+                }
+            }
+
+
+            if (
+                incomingSettings &&
+                typeof incomingSettings === 'object' &&
+                !Array.isArray(incomingSettings)
+            ) {
+
+                for (
+                    const [key, rawValue]
+                    of Object.entries(incomingSettings)
+                ) {
+
+                    if (
+                        !ALLOWED_PRICE_SETTINGS.has(key)
+                    ) {
+                        continue;
+                    }
+
+                    const value =
+                        String(rawValue);
+
+                    await dbRun(`
+                        INSERT INTO price_settings (
+                            key,
+                            value
+                        )
+                        VALUES (?, ?)
+                        ON CONFLICT(key)
+                        DO UPDATE SET
+                            value = excluded.value,
+                            updated_at =
+                                CURRENT_TIMESTAMP
+                    `, [
+                        key,
+                        value
+                    ]);
                 }
             }
 
@@ -1953,10 +2252,24 @@ app.post(
             pricesCacheTime = 0;
 
 
+            const [
+                prices,
+                flags,
+                settings
+            ] = await Promise.all([
+                getPrices(),
+                getPriceFlags(),
+                getPriceSettings()
+            ]);
+
+
             res.json({
                 success: true,
                 message:
-                    `Обновлено ${count} цен`
+                    `Обновлено ${count} цен`,
+                prices,
+                flags,
+                settings
             });
 
 
@@ -1988,6 +2301,46 @@ app.post(
 //
 // Никакого admin_id здесь нет.
 //
+
+app.get(
+    '/api/price-config',
+    async (req, res) => {
+
+        try {
+
+            const [
+                prices,
+                flags,
+                settings
+            ] = await Promise.all([
+                getPrices(),
+                getPriceFlags(),
+                getPriceSettings()
+            ]);
+
+
+            res.json({
+                prices,
+                flags,
+                settings
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                '❌ Ошибка получения конфигурации цен:',
+                error
+            );
+
+
+            res.status(500).json({
+                error: 'Ошибка сервера'
+            });
+        }
+    }
+);
+
 
 app.get(
     '/api/prices',

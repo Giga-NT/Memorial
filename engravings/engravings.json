@@ -35,20 +35,7 @@
             "defaultScale": 0.9,
             "defaultOffsetY": 0.35
         },
-        {
-            "id": "fon2",
-            "name": "Фон2",
-            "file": "./engravings/fon2.jpg",
-            "defaultScale": 0.9,
-            "defaultOffsetY": 0.35
-        },
-        {
-            "id": "sea",
-            "name": "Море",
-            "file": "./engravings/sea.jpg",
-            "defaultScale": 0.9,
-            "defaultOffsetY": 0.35
-        },
+
         {
             "id": "orthodox_cross",
             "name": "☦️ Православный крест",

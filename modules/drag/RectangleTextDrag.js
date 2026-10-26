@@ -106,16 +106,27 @@ export class RectangleTextDrag extends DragManager {
         const backZ = center.z - depth / 2 - 0.015;
         const centerY = center.y;
         
-        // ⭐ ОЧИЩАЕМ СТАРЫЕ ДЕКАЛИ (КАК В КАСТОМНЫХ)
-        while(this.decalsGroup.children.length > 0) {
-            const child = this.decalsGroup.children[0];
+        const oldTextMeshes = this.decalsGroup.children.filter(child => {
+            if (child.renderOrder !== 9) return false;
+
+            const type = child.userData?.type;
+            if (child.userData?.isEpitaph) return false;
+            if (type === 'epitaphBlock') return false;
+            if (type === 'backText') return false;
+            if (type === 'burialEpitaph') return false;
+            if (child.userData?.isSteleBackground) return false;
+
+            return true;
+        });
+
+        oldTextMeshes.forEach(child => {
             if (child.geometry) child.geometry.dispose();
             if (child.material) {
                 if (child.material.map) child.material.map.dispose();
                 child.material.dispose();
             }
             this.decalsGroup.remove(child);
-        }
+        });
         
         // ⭐ СОЗДАЁМ ТЕКСТ (КАК В КАСТОМНЫХ)
         if (this.state.fullName.trim() || this.state.dates.trim()) {
@@ -145,6 +156,9 @@ export class RectangleTextDrag extends DragManager {
             // ⭐ ПОЗИЦИЯ ПО ЦЕНТРУ СТЕЛЫ (как у кастомных)
             textMesh.position.set(0, centerY, frontZ - 0.015);
             textMesh.renderOrder = 9;
+            textMesh.userData.type = 'frontText';
+            textMesh.userData.isFrontText = true;
+            textMesh.userData.isDraggable = true;
             
             this.decalsGroup.add(textMesh);
             console.log('✅ Создана декаль текста');

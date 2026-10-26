@@ -104,6 +104,10 @@ export function selectGraveSlabModelGrid(modelId) {
     if (typeof window.updateScene === 'function') {
         window.updateScene();
     }
+
+    if (typeof window.updateGraveSlabPreview === 'function') {
+        window.updateGraveSlabPreview();
+    }
 }
 
 export function updateGraveSlabGridSelection(modelId) {

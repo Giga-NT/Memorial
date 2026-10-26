@@ -650,8 +650,16 @@ onPointerUp() {
 					personSelect.appendChild(option);
 				});
 
-			if (photoIds.has(previous)) {
+			const activeId = state?.activeBurialId != null
+				? String(state.activeBurialId)
+				: null;
+
+			if (activeId && photoIds.has(activeId)) {
+				personSelect.value = activeId;
+			} else if (previous && photoIds.has(previous)) {
 				personSelect.value = previous;
+			} else {
+				personSelect.value = '';
 			}
 
 			syncInputs();
@@ -694,7 +702,15 @@ onPointerUp() {
 		};
 
 		// События интерфейса.
-		personSelect.addEventListener('change', syncInputs);
+		personSelect.addEventListener('change', () => {
+			const id = personSelect.value;
+
+			if (id && typeof window.selectBurialRecordById === 'function') {
+				window.selectBurialRecordById(id);
+			}
+
+			syncInputs();
+		});
 
 		xInput.addEventListener('change', applyCoordinates);
 		yInput.addEventListener('change', applyCoordinates);

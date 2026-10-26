@@ -4,10 +4,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createSteleMaterial } from './uvUtils.js';
 import { loadPBRMaterial } from './textures.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import { hasBackEpitaphs } from './modules/epitaphUtils.js';
+import { createBackEpitaphMeshes } from './modules/epitaphMeshes.js';
 
 export const customModels = {};
 let modelCache = new Map();
 let currentModelId = null;
+const photoRenderVersions = new WeakMap();
 
 export async function loadModelList() {
     // =====================================================
@@ -699,6 +702,11 @@ export function positionDecalsOnCustomStele(
 ) {
     if (!steleGroup || !decalsGroup) return;
 
+    // Новый вызов отменяет асинхронные добавления фото из предыдущего.
+    const renderVersion =
+        (photoRenderVersions.get(decalsGroup) || 0) + 1;
+    photoRenderVersions.set(decalsGroup, renderVersion);
+
     // ============================================================
     // 🧹 ОЧИСТКА ДЕКАЛЕЙ
     // 🎨 ФОН СТЕЛЫ И ФОТО НЕ УДАЛЯЕМ
@@ -779,13 +787,23 @@ export function positionDecalsOnCustomStele(
         console.warn('⚠️ Не удалось получить размеры модели');
         return;
     }
-    
-    const scale = state.decalScale ?? 1.2;
+
+    model.updateWorldMatrix(true, true);
+    decalsGroup.updateWorldMatrix(true, false);
+    const steleBox = new THREE.Box3().setFromObject(model);
+    const decalsWorldInverse = new THREE.Matrix4().copy(decalsGroup.matrixWorld).invert();
+    steleBox.applyMatrix4(decalsWorldInverse);
+    const engravingBaseY = steleBox.min.y;
+    const steleCenterY = steleBox.getCenter(new THREE.Vector3()).y;
+
+    const scale = state.decalScale ?? 1;
     const decalWidth = dims.width * scale;
     const decalHeight = dims.height * scale;
-    const textCenterY = - 0.1;
-    const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.619;
-    const backZ = (state.decalBackZ !== undefined) ? state.decalBackZ : -0.702;
+    const textCenterY = steleCenterY;
+    const steleDepth = Number(state.steleDepth ?? state.depth) || 0.07;
+    const zShift = (steleDepth - 0.07) ;
+    const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.629 + zShift;
+    const backZ = (state.decalBackZ !== undefined) ? state.decalBackZ : -0.702 ;
 
     // ============================================================
     // === 1. ФИО И ДАТЫ ВСЕХ ПОГРЕБЁННЫХ ===
@@ -870,6 +888,12 @@ export function positionDecalsOnCustomStele(
         const loader = new THREE.TextureLoader();
 
         loader.load(photoUrl, (tex) => {
+            // Пока грузилась текстура, декали уже пересобрали заново.
+            if (photoRenderVersions.get(decalsGroup) !== renderVersion) {
+                tex.dispose();
+                return;
+            }
+
             // Запись могла быть удалена до завершения загрузки
             if (
                 !decalsGroup.parent ||
@@ -901,9 +925,7 @@ export function positionDecalsOnCustomStele(
                 h = size.h;
             }
 
-            const photoScale = Number(
-                burial.photoScale ?? state.photoScale ?? 1
-            );
+            const photoScale = Number(burial.photoScale ?? 1);
 
             const finalW = w * photoScale;
             const finalH = h * photoScale;
@@ -951,7 +973,7 @@ export function positionDecalsOnCustomStele(
 			const photoY = Number(
 				burial.photoPositionY ??
 				burial.photoAbsoluteY ??
-				(photoBurials.length > 1 ? 0.6 : (state.photoAbsoluteY ?? 0.6))
+				(photoBurials.length > 1 ? steleCenterY : (state.photoAbsoluteY ?? steleCenterY))
 			);
 
             photoMesh.position.set(photoX, photoY, frontZ);
@@ -960,6 +982,21 @@ export function positionDecalsOnCustomStele(
             photoMesh.userData.isDraggable = true;
             photoMesh.userData.type = 'photo';
             photoMesh.userData.burialId = burial.id;
+
+            // Защита от повторного добавления фото того же человека.
+            const alreadyAdded = decalsGroup.children.some(
+                child =>
+                    child.isMesh &&
+                    child.userData?.type === 'photo' &&
+                    String(child.userData.burialId) === String(burial.id)
+            );
+
+            if (alreadyAdded) {
+                photoMesh.geometry?.dispose();
+                photoMesh.material?.map?.dispose();
+                photoMesh.material?.dispose();
+                return;
+            }
 
             decalsGroup.add(photoMesh);
         });
@@ -973,6 +1010,11 @@ export function positionDecalsOnCustomStele(
         const loader = new THREE.TextureLoader();
 
         loader.load(state.textureUrl, (tex) => {
+            if (photoRenderVersions.get(decalsGroup) !== renderVersion) {
+                tex.dispose();
+                return;
+            }
+
             tex.minFilter = THREE.LinearFilter;
             tex.magFilter = THREE.LinearFilter;
 
@@ -989,7 +1031,7 @@ export function positionDecalsOnCustomStele(
 
             photoMesh.position.set(
                 state.photoAbsoluteX ?? 0,
-                state.photoAbsoluteY ?? 0.6,
+                state.photoAbsoluteY ?? steleCenterY,
                 frontZ
             );
 
@@ -1006,30 +1048,16 @@ export function positionDecalsOnCustomStele(
     // ============================================================
     // === 4. ЭПИТАФИЯ ===
     // ============================================================
-    if (state.epitaph && state.epitaph.trim()) {
-        let texture;
-        if (state.backTextureNeedsUpdate || !state.backTextureCache) {
-            texture = createBackTexture(state);
-            state.backTextureCache = texture;
-            state.backTextureNeedsUpdate = false;
-        } else {
-            texture = state.backTextureCache;
-        }
-        
-        const textGeo = new THREE.PlaneGeometry(decalWidth, decalHeight);
-        const textMat = new THREE.MeshBasicMaterial({ 
-            map: texture, 
-            transparent: true, 
-            side: THREE.DoubleSide, 
-            depthWrite: false, 
-            alphaTest: 0.05 
+    if (hasBackEpitaphs(state)) {
+        const epitaphMeshes = createBackEpitaphMeshes(state, {
+            decalWidth,
+            decalHeight,
+            centerY: steleCenterY,
+            z: backZ
         });
-        const textMesh = new THREE.Mesh(textGeo, textMat);
-        textMesh.position.set(0, textCenterY, backZ);
-        textMesh.rotation.y = Math.PI;
-        textMesh.renderOrder = 9;
-		textMesh.userData.isEpitaph = true;
-        decalsGroup.add(textMesh);
+
+        epitaphMeshes.forEach(mesh => decalsGroup.add(mesh));
+        state.backTextureNeedsUpdate = false;
     }
     
     // ============================================================
@@ -1102,7 +1130,7 @@ export function positionDecalsOnCustomStele(
                 const mesh = new THREE.Mesh(geometry, material);
                 const offsetX = eng.x || 0;
                 const offsetY = eng.y || 0;
-                mesh.position.set(offsetX, textCenterY + offsetY, frontZ);
+                mesh.position.set(offsetX, engravingBaseY + offsetY, frontZ);
                 mesh.renderOrder = 10;
                 
 				mesh.userData.text = eng.text;  
@@ -1149,7 +1177,7 @@ export function positionDecalsOnCustomStele(
                 const mesh = new THREE.Mesh(geometry, material);
                 const offsetX = eng.x || 0;
                 const offsetY = eng.y || 0;
-                mesh.position.set(offsetX, textCenterY + offsetY, frontZ);
+                mesh.position.set(offsetX, engravingBaseY + offsetY, frontZ);
                 mesh.renderOrder = 10;
                 
                 mesh.userData.isEngraving = true;
@@ -1225,7 +1253,7 @@ export function positionDecalsOnCustomStele(
                 const mesh = new THREE.Mesh(geometry, material);
                 const offsetX = eng.x || 0;
                 const offsetY = eng.y || 0;
-                mesh.position.set(offsetX, textCenterY + offsetY, backZ);
+                mesh.position.set(offsetX, engravingBaseY + offsetY, backZ);
                 mesh.rotation.y = Math.PI;
                 mesh.renderOrder = 10;
                 
@@ -1273,7 +1301,7 @@ export function positionDecalsOnCustomStele(
                 const mesh = new THREE.Mesh(geometry, material);
                 const offsetX = eng.x || 0;
                 const offsetY = eng.y || 0;
-                mesh.position.set(offsetX, textCenterY + offsetY, backZ);
+                mesh.position.set(offsetX, engravingBaseY + offsetY, backZ);
                 mesh.rotation.y = Math.PI;
                 mesh.renderOrder = 10;
                 
@@ -1363,61 +1391,6 @@ function createFrontTexture(state) {
         const fontSize = state.datesFontSize * (isMobile ? 0.8 : 1.3);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
         ctx.fillText(state.dates, canvas.width/2 + offsetX, currentY);
-    }
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    return texture;
-}
-
-function createBackTexture(state) {
-    const canvas = document.createElement('canvas');
-    const isMobile = window.innerWidth < 768;
-    const canvasSize = isMobile ? 512 : 1024;
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = state.textColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = isMobile ? 3 : 6;
-    
-    // ⭐ СМЕЩЕНИЯ В ПИКСЕЛЯХ (МЕТРЫ → ПИКСЕЛИ)
-    const pixelsPerMeter = canvasSize / 1.2;
-    const offsetX = state.epitaphOffsetX * pixelsPerMeter;
-    const offsetY = state.epitaphOffsetY * pixelsPerMeter;
-    
-    let currentY = 80 + offsetY;
-    
-    if (state.epitaph.trim()) {
-        const lines = state.epitaph.split(/\r?\n|\//);
-        let fontFamily = state.fontFamily;
-        if (fontFamily.includes('Yermak')) fontFamily = 'Yermak';
-        else if (fontFamily.includes('Bodega Script')) fontFamily = 'Bodega Script';
-        else if (fontFamily.includes('Brusher')) fontFamily = 'Brusher';
-        else if (fontFamily.includes('Drevnerusskij')) fontFamily = 'Drevnerusskij';
-        else if (fontFamily.includes('Drina')) fontFamily = 'Drina';
-        else if (fontFamily.includes('DS-BroadBrush')) fontFamily = 'DS-BroadBrush';
-        else if (fontFamily.includes('Federico')) fontFamily = 'Federico';
-        else if (fontFamily.includes('Feofan')) fontFamily = 'Feofan';
-        else if (fontFamily.includes('Figurny')) fontFamily = 'Figurny';
-        else if (fontFamily.includes('Pochaevsk')) fontFamily = 'Pochaevsk';
-        else if (fontFamily.includes('Remeslo')) fontFamily = 'Remeslo';
-        else if (fontFamily.includes('Tsarevich')) fontFamily = 'Tsarevich';
-        
-        const fontSize = state.epitaphFontSize * (isMobile ? 0.8 : 1.2);
-        ctx.font = `bold ${fontSize}px ${fontFamily}`;
-        
-        lines.forEach(line => {
-            if (line.trim()) {
-                ctx.fillText(line.trim(), canvas.width/2 + offsetX, currentY);
-                currentY += state.epitaphFontSize * (isMobile ? 0.9 : 1.5);
-            }
-        });
     }
     
     const texture = new THREE.CanvasTexture(canvas);

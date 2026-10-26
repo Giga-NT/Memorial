@@ -287,6 +287,83 @@
             font-weight: 600;
         }
 
+        .price-input.warning,
+        .setting-input.warning {
+            border-color: #e67e22;
+            background: #fff8ef;
+        }
+
+        .setting-input {
+            width: 100%;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .price-warnings {
+            margin: 0 0 16px;
+            padding: 10px 14px;
+
+            color: #8a4b08;
+            background: #fff8ef;
+            border: 1px solid #f0c38a;
+            border-radius: 8px;
+
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .price-warnings:empty {
+            display: none;
+        }
+
+        .setting-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .setting-toggle input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .flag-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 9px 18px;
+            border-bottom: 1px solid #eee;
+
+            font-size: 13px;
+        }
+
+        .flag-row:last-child {
+            border-bottom: 0;
+        }
+
+        .flag-row input {
+            width: 16px;
+            height: 16px;
+        }
+
+        .flag-key {
+            color: #777;
+            font-family: Consolas, monospace;
+            font-size: 12px;
+        }
+
+        .flag-hint {
+            color: #999;
+            font-size: 12px;
+        }
+
         /* =========================================
            FOOTER ACTIONS
         ========================================= */
@@ -338,7 +415,8 @@
                 display: none;
             }
 
-            .price-input {
+            .price-input,
+            .setting-input {
                 grid-column: 2;
                 grid-row: 1;
             }
@@ -347,6 +425,12 @@
                 grid-column: 1;
                 grid-row: 1;
                 padding-right: 5px;
+            }
+
+            .setting-toggle {
+                grid-column: 2;
+                grid-row: 1;
+                justify-content: flex-end;
             }
 
             .actions {
@@ -442,6 +526,8 @@
             Выбери нужную категорию, чтобы открыть её цены.
             Изменяй только необходимые позиции и нажми «Сохранить».
         </div>
+
+        <div id="price-warnings" class="price-warnings"></div>
 
 
         <!-- =====================================
@@ -591,7 +677,7 @@
 
 
         <!-- =====================================
-             НАДГРОБИЯ
+             СТЕЛЫ, ТУМБЫ И ПЛИТКА
         ====================================== -->
 
         <div class="price-category">
@@ -603,11 +689,11 @@
             >
                 <span class="category-title">
                     <span class="category-arrow">▶</span>
-                    🧱 Надгробия
+                    🪦 Стелы, тумбы и плитка
                 </span>
 
                 <span class="category-count">
-                    4 позиции
+                    9 позиций
                 </span>
             </button>
 
@@ -615,46 +701,107 @@
 
                 <div class="price-row">
                     <div class="price-name">
-                        Гранит
-                        <div class="price-key">base_granite</div>
+                        Стела 7 см, базовая цена (не используется)
+                        <div class="price-key">stele_base_price</div>
                     </div>
 
-                    <div class="price-unit">₽/м²</div>
+                    <div class="price-unit">₽/шт</div>
 
-                    <input class="price-input" type="number" data-key="base_granite" min="0">
+                    <input class="price-input" type="number" data-key="stele_base_price" min="0">
                 </div>
 
                 <div class="price-row">
                     <div class="price-name">
-                        Мрамор
-                        <div class="price-key">base_marble</div>
+                        Коэффициент толщины
+                        <div class="price-key">stele_thickness_factor</div>
                     </div>
 
-                    <div class="price-unit">₽/м²</div>
+                    <div class="price-unit">коэф.</div>
 
-                    <input class="price-input" type="number" data-key="base_marble" min="0">
+                    <input class="price-input" type="number" data-key="stele_thickness_factor" min="0" step="0.01">
                 </div>
 
                 <div class="price-row">
                     <div class="price-name">
-                        Красный гранит
-                        <div class="price-key">base_red_granite</div>
+                        Тумба
+                        <div class="price-key">pedestal_price</div>
                     </div>
 
-                    <div class="price-unit">₽/м²</div>
+                    <div class="price-unit">₽/шт</div>
 
-                    <input class="price-input" type="number" data-key="base_red_granite" min="0">
+                    <input class="price-input" type="number" data-key="pedestal_price" min="0">
                 </div>
 
                 <div class="price-row">
                     <div class="price-name">
-                        Другой материал
-                        <div class="price-key">base_other</div>
+                        Плитка: мрамор
+                        <div class="price-key">tile_marble_per_m2</div>
                     </div>
 
                     <div class="price-unit">₽/м²</div>
 
-                    <input class="price-input" type="number" data-key="base_other" min="0">
+                    <input class="price-input" type="number" data-key="tile_marble_per_m2" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Плитка: габбро
+                        <div class="price-key">tile_gabbro_per_m2</div>
+                    </div>
+
+                    <div class="price-unit">₽/м²</div>
+
+                    <input class="price-input" type="number" data-key="tile_gabbro_per_m2" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Плитка: другое
+                        <div class="price-key">tile_other_per_m2</div>
+                    </div>
+
+                    <div class="price-unit">₽/м²</div>
+
+                    <input class="price-input" type="number" data-key="tile_other_per_m2" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Работа по плитке
+                        <div class="price-key">tile_work_per_m2</div>
+                    </div>
+
+                    <div class="price-unit">₽/м²</div>
+
+                    <input class="price-input" type="number" data-key="tile_work_per_m2" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Брусчатка: материал + укладка
+                        <div class="price-key">bruschatka_per_m2</div>
+                    </div>
+
+                    <div class="price-unit">₽/м²</div>
+
+                    <input class="price-input" type="number" data-key="bruschatka_per_m2" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Фон стелы
+                        <div class="price-key">background_price_per_m2</div>
+                    </div>
+
+                    <div class="price-unit">₽/м²</div>
+
+                    <input class="price-input" type="number" data-key="background_price_per_m2" min="0">
+                </div>
+
+                <div class="price-note">
+                    Стела считается по площади (ширина × высота) × цена материала за м² × (толщина / 0.07).
+                    Цены stele_base_price и stele_thickness_factor больше не участвуют в расчёте.
+                    Старые цены основания и дорожки тоже не участвуют.
                 </div>
 
             </div>
@@ -755,32 +902,32 @@
             >
                 <span class="category-title">
                     <span class="category-arrow">▶</span>
-                    🏗️ Оградки
+                    🏗️ Оградка
                 </span>
 
                 <span class="category-count">
-                    5 позиций
+                    4 позиции
                 </span>
             </button>
 
             <div class="category-content">
 
                 <div class="price-row">
-                    <div class="price-name">Труба</div>
+                    <div class="price-name">
+                        Оградка за погонный метр (с монтажом)
+                        <div class="price-key">fence_per_m</div>
+                    </div>
                     <div class="price-unit">₽/п.м.</div>
-                    <input class="price-input" type="number" data-key="pipe" min="0">
+                    <input class="price-input" type="number" data-key="fence_per_m" min="0" step="1">
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">Цепь</div>
-                    <div class="price-unit">₽/п.м.</div>
-                    <input class="price-input" type="number" data-key="chain" min="0">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">Литая оградка</div>
-                    <div class="price-unit">₽/п.м.</div>
-                    <input class="price-input" type="number" data-key="casting" min="0">
+                    <div class="price-name">
+                        Типовая высота оградки
+                        <div class="price-key">fence_base_height</div>
+                    </div>
+                    <div class="price-unit">м</div>
+                    <input class="price-input" type="number" data-key="fence_base_height" min="0" step="0.01">
                 </div>
 
                 <div class="price-row">
@@ -793,6 +940,10 @@
                     <div class="price-name">Вензель</div>
                     <div class="price-unit">₽/шт.</div>
                     <input class="price-input" type="number" data-key="venzel" min="0">
+                </div>
+
+                <div class="intro" style="padding: 12px 18px 16px;">
+                    Тип оградки влияет только на 3D-модель. Цена считается по fence_per_m и высоте.
                 </div>
 
             </div>
@@ -861,7 +1012,7 @@
                 </span>
 
                 <span class="category-count">
-                    3 позиции
+                    5 позиций
                 </span>
             </button>
 
@@ -880,13 +1031,37 @@
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">Фотография</div>
+                    <div class="price-name">
+                        Фотография: старое значение
+                        <div class="price-key">photo</div>
+                    </div>
                     <div class="price-unit">₽/шт.</div>
                     <input class="price-input" type="number" data-key="photo" min="0">
                 </div>
 
+                <div class="price-row">
+                    <div class="price-name">
+                        Фото: типовое 30×15 см
+                        <div class="price-key">photo_price</div>
+                    </div>
+                    <div class="price-unit">₽/шт.</div>
+                    <input class="price-input" type="number" data-key="photo_price" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Ваза: типовая 15×15×25 см
+                        <div class="price-key">vase_base_price</div>
+                    </div>
+                    <div class="price-unit">₽/шт.</div>
+                    <input class="price-input" type="number" data-key="vase_base_price" min="0">
+                </div>
+
             </div>
         </div>
+
+
+
 
 
         <!-- =====================================
@@ -906,7 +1081,7 @@
                 </span>
 
                 <span class="category-count">
-                    2 позиции
+                    7 позиций
                 </span>
             </button>
 
@@ -919,10 +1094,107 @@
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">Установка</div>
-                    <div class="price-unit">₽/заказ</div>
-                    <input class="price-input" type="number" data-key="install" min="0">
+                    <div class="price-name">
+                        Включать доставку в смету
+                        <div class="price-key">include_delivery</div>
+                    </div>
+                    <div class="price-unit"></div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" class="setting-checkbox" data-setting="include_delivery">
+                        <span>включать</span>
+                    </label>
                 </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Установка: цветник + стела + тумба
+                        <div class="price-key">install_full_set</div>
+                    </div>
+                    <div class="price-unit">₽/заказ</div>
+                    <input class="price-input" type="number" data-key="install_full_set" min="0" step="1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Установка: цветник + основание
+                        <div class="price-key">install_flowerbed_base</div>
+                    </div>
+                    <div class="price-unit">₽/заказ</div>
+                    <input class="price-input" type="number" data-key="install_flowerbed_base" min="0" step="1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Наценка на установку тумб
+                        <div class="price-key">install_pedestal_percent</div>
+                    </div>
+                    <div class="price-unit">%</div>
+                    <input class="price-input" type="number" data-key="install_pedestal_percent" min="0" step="0.1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Включать установку в смету
+                        <div class="price-key">include_install</div>
+                    </div>
+                    <div class="price-unit"></div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" class="setting-checkbox" data-setting="include_install">
+                        <span>включать</span>
+                    </label>
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">
+                        Разбивать установку на две строки
+                        <div class="price-key">install_split</div>
+                    </div>
+                    <div class="price-unit"></div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" class="setting-checkbox" data-setting="install_split">
+                        <span>разбивать</span>
+                    </label>
+                </div>
+
+                <div class="intro" style="padding: 12px 18px 16px;">
+                    При разбивке вторая строка считается как
+                    install_full_set − install_flowerbed_base плюс наценка
+                    на установку тумб. Наценка считается от суммы всех тумб.
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- =====================================
+             ФЛАГИ НУЛЕВОЙ ЦЕНЫ
+        ====================================== -->
+
+        <div class="price-category">
+
+            <button
+                type="button"
+                class="category-header"
+                onclick="toggleCategory(this)"
+            >
+                <span class="category-title">
+                    <span class="category-arrow">▶</span>
+                    ⚙️ Флаги нулевой цены
+                </span>
+
+                <span class="category-count">
+                    zero_means_included
+                </span>
+            </button>
+
+            <div class="category-content">
+
+                <div class="intro" style="padding: 12px 18px;">
+                    Отметьте ключи, для которых 0 означает «включено в комплект».
+                    Для остальных ключей 0 означает «не задано».
+                </div>
+
+                <div id="zero-flags-list"></div>
 
             </div>
         </div>
@@ -963,6 +1235,17 @@
     // =========================================
 
     let currentPrices = {};
+    let currentFlags = {};
+    let currentSettings = {};
+
+    const OBSOLETE_PRICE_KEYS = new Set([
+        'base_granite',
+        'base_marble',
+        'base_red_granite',
+        'base_other',
+        'path_work_per_m2',
+        'path_material_per_m2'
+    ]);
 
 
     // =========================================
@@ -980,6 +1263,7 @@
 
     const loginMessage = document.getElementById('login-message');
     const mainMessage = document.getElementById('main-message');
+    const priceWarnings = document.getElementById('price-warnings');
 
     const adminName = document.getElementById('admin-name');
 
@@ -1168,6 +1452,8 @@
         }
 
         currentPrices = {};
+        currentFlags = {};
+        currentSettings = {};
 
         loginForm.reset();
 
@@ -1214,8 +1500,13 @@
             }
 
             currentPrices = result.prices || {};
+            currentFlags = result.flags || {};
+            currentSettings = result.settings || {};
 
             fillPriceInputs();
+            fillSettingInputs();
+            renderZeroFlags();
+            updatePriceWarnings();
 
             showMainMessage(
                 'Цены загружены',
@@ -1245,21 +1536,147 @@
         inputs.forEach(input => {
 
             const key = input.dataset.key;
-
-            if (
+            const hasValue =
                 Object.prototype.hasOwnProperty.call(
                     currentPrices,
                     key
-                )
+                );
+
+            const zeroIncluded =
+                currentFlags?.[key]?.zero_means_included === true;
+
+            const value =
+                hasValue
+                    ? Number(currentPrices[key])
+                    : null;
+
+            if (
+                value === null ||
+                (value === 0 && !zeroIncluded)
             ) {
 
-                input.value = currentPrices[key];
+                input.value = '';
+                input.placeholder = 'не задано';
             } else {
 
-                input.value = '';
+                input.value = value;
+                input.placeholder = '';
             }
 
         });
+    }
+
+
+    function fillSettingInputs() {
+
+        const inputs = document.querySelectorAll('[data-setting]');
+
+        inputs.forEach(input => {
+
+            const key = input.dataset.setting;
+            const value = currentSettings?.[key];
+
+            if (input.type === 'checkbox') {
+
+                input.checked =
+                    value === true ||
+                    value === 1 ||
+                    value === '1' ||
+                    value === 'true';
+
+            } else {
+
+                const numeric = Number(value);
+
+                input.value =
+                    value === undefined ||
+                    value === null ||
+                    !Number.isFinite(numeric) ||
+                    numeric === 0
+                        ? ''
+                        : value;
+            }
+        });
+    }
+
+
+    function renderZeroFlags() {
+
+        const container = document.getElementById('zero-flags-list');
+
+        if (!container) {
+            return;
+        }
+
+        const keys = Object.keys(currentPrices)
+            .filter(key => !OBSOLETE_PRICE_KEYS.has(key))
+            .sort();
+
+        container.innerHTML = '';
+
+        keys.forEach(key => {
+
+            const row = document.createElement('label');
+            row.className = 'flag-row';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.dataset.zeroFlag = key;
+            checkbox.checked =
+                currentFlags?.[key]?.zero_means_included === true;
+            checkbox.addEventListener('change', updatePriceWarnings);
+
+            const name = document.createElement('span');
+            name.className = 'flag-key';
+            name.textContent = key;
+
+            const hint = document.createElement('span');
+            hint.className = 'flag-hint';
+            hint.textContent = '0 = включено';
+
+            row.appendChild(checkbox);
+            row.appendChild(name);
+            row.appendChild(hint);
+
+            container.appendChild(row);
+        });
+    }
+
+
+    function updatePriceWarnings() {
+
+        let missing = 0;
+
+        document.querySelectorAll('.price-input').forEach(input => {
+
+            const key = input.dataset.key;
+            const flagInput = document.querySelector(
+                `[data-zero-flag="${key}"]`
+            );
+            const zeroIncluded = flagInput
+                ? flagInput.checked
+                : currentFlags?.[key]?.zero_means_included === true;
+
+            const value = Number(input.value);
+            const isEmpty =
+                input.value.trim() === '' ||
+                (Number.isFinite(value) && value === 0);
+
+            const warning = isEmpty && !zeroIncluded;
+
+            input.classList.toggle('warning', warning);
+
+            if (warning) {
+                missing++;
+            }
+        });
+
+        if (priceWarnings) {
+            priceWarnings.textContent =
+                missing > 0
+                    ? `Не задано позиций: ${missing}. Для них расчёт не подставляет цены из кода — проверьте прайс и флаги.`
+                    : '';
+        }
     }
 
 
@@ -1290,6 +1707,45 @@
     }
 
 
+    function readFlags() {
+
+        const flags = {};
+
+        document.querySelectorAll('[data-zero-flag]').forEach(input => {
+
+            flags[input.dataset.zeroFlag] = {
+                zero_means_included: input.checked
+            };
+        });
+
+        return flags;
+    }
+
+
+    function readSettings() {
+
+        const settings = {};
+
+        document.querySelectorAll('[data-setting]').forEach(input => {
+
+            const key = input.dataset.setting;
+
+            if (input.type === 'checkbox') {
+
+                settings[key] = input.checked ? '1' : '0';
+
+            } else {
+
+                const value = input.value.trim();
+
+                settings[key] = value === '' ? '0' : value;
+            }
+        });
+
+        return settings;
+    }
+
+
     // =========================================
     // СОХРАНЕНИЕ
     // =========================================
@@ -1297,6 +1753,8 @@
     saveButton.addEventListener('click', async () => {
 
         const prices = readPriceInputs();
+        const flags = readFlags();
+        const settings = readSettings();
 
         saveButton.disabled = true;
         saveButton.textContent = 'Сохранение...';
@@ -1314,7 +1772,9 @@
                 credentials: 'include',
 
                 body: JSON.stringify({
-                    prices
+                    prices,
+                    flags,
+                    settings
                 })
 
             });
@@ -1341,8 +1801,13 @@
             }
 
             currentPrices = result.prices || prices;
+            currentFlags = result.flags || flags;
+            currentSettings = result.settings || settings;
 
             fillPriceInputs();
+            fillSettingInputs();
+            renderZeroFlags();
+            updatePriceWarnings();
 
             showMainMessage(
                 'Цены успешно сохранены',
@@ -1392,6 +1857,21 @@
     // =========================================
     // СТАРТ
     // =========================================
+
+    document.addEventListener('input', event => {
+        if (
+            event.target.classList.contains('price-input') ||
+            event.target.classList.contains('setting-input')
+        ) {
+            updatePriceWarnings();
+        }
+    });
+
+    document.addEventListener('change', event => {
+        if (event.target.classList.contains('setting-checkbox')) {
+            updatePriceWarnings();
+        }
+    });
 
     checkSession();
 

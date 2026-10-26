@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hasBackEpitaphs } from './epitaphUtils.js';
 
 // Модуль управления эпитафией (задняя сторона)
 export class EpitaphManager {
@@ -203,7 +204,7 @@ export class EpitaphManager {
     }
 
     getEpitaphAtPosition(screenX, screenY) {
-        if (!this.state.epitaph || !this.state.epitaph.trim()) return false;
+        if (!hasBackEpitaphs(this.state)) return false;
         
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();

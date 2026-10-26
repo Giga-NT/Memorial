@@ -1,3 +1,9 @@
+import {
+    getActiveEpitaphSelection,
+    selectEpitaphBlock,
+    updateEpitaphSelectionLabel
+} from './epitaphUtils.js';
+
 let state;
 let textureCache;
 let throttledUpdate;
@@ -11,6 +17,7 @@ const makePerson = () => ({
     fullName: "",
     dates: "",
     epitaph: "",
+    epitaphs: [],
     textureUrl: null,
     photoUrl: null,
     photos: [],
@@ -65,10 +72,25 @@ function ensureRecords() {
 				}]
 				: [];
 
+		const epitaphs = Array.isArray(person.epitaphs)
+			? person.epitaphs.map(item => {
+				if (typeof item === "string") {
+					return { text: item, offsetX: 0, offsetY: 0 };
+				}
+
+				return {
+					text: typeof item?.text === "string" ? item.text : "",
+					offsetX: Number(item?.offsetX) || 0,
+					offsetY: Number(item?.offsetY) || 0
+				};
+			})
+			: [];
+
 		return {
 			...makePerson(),
 			...person,
 			id: person.id || makePerson().id,
+			epitaphs,
 			photos
 		};
 	});
@@ -208,6 +230,202 @@ function renderList() {
     });
 }
 
+function renderExtraEpitaphs() {
+    const container = document.getElementById("extraEpitaphsList");
+    const person = getActive();
+
+    if (!container) return;
+
+    if (!person) {
+        container.innerHTML = "";
+        return;
+    }
+
+    if (!Array.isArray(person.epitaphs)) {
+        person.epitaphs = [];
+    }
+
+    const selection = getActiveEpitaphSelection();
+
+    container.innerHTML = person.epitaphs.map((item, index) => {
+        const text = typeof item === "string" ? item : item?.text || "";
+        const selected = selection.burialId === person.id &&
+            selection.epitaphIndex === index + 1;
+
+        return `
+            <div
+                class="extra-epitaph-row ${selected ? "is-selected" : ""}"
+                data-extra-epitaph-row="${index}"
+                style="display:flex; gap:6px; align-items:flex-start;"
+            >
+                <textarea
+                    data-extra-epitaph="${index}"
+                    rows="2"
+                    maxlength="2000"
+                    placeholder="Дополнительная эпитафия ${index + 1}"
+                    style="flex:1; resize:vertical;"
+                >${escapeHtml(text)}</textarea>
+                <button
+                    type="button"
+                    data-select-extra-epitaph="${index}"
+                    title="Выбрать этот блок на стеле"
+                    style="width:auto; min-width:34px; padding:6px;"
+                >◎</button>
+                <button
+                    type="button"
+                    data-remove-extra-epitaph="${index}"
+                    title="Удалить эпитафию"
+                    style="width:auto; min-width:34px; padding:6px;"
+                >✕</button>
+            </div>
+        `;
+    }).join("");
+
+    const addButton = document.getElementById("addExtraEpitaphBtn");
+    if (addButton) addButton.disabled = person.epitaphs.length >= 10;
+}
+
+function refreshEpitaphSelectionHighlight() {
+    const container = document.getElementById("extraEpitaphsList");
+    const person = getActive();
+
+    if (!container || !person) return;
+
+    const selection = getActiveEpitaphSelection();
+
+    container.querySelectorAll("[data-extra-epitaph-row]").forEach(row => {
+        const index = Number(row.dataset.extraEpitaphRow);
+        row.classList.toggle(
+            "is-selected",
+            selection.burialId === person.id &&
+            selection.epitaphIndex === index + 1
+        );
+    });
+}
+
+function selectActiveEpitaph(epitaphIndex) {
+    const person = getActive();
+    if (!person) return;
+
+    selectEpitaphBlock(person.id, epitaphIndex);
+    refreshEpitaphSelectionHighlight();
+}
+
+function syncDuplicatorEpitaphData() {
+    const manager = window.multiMonumentManager;
+
+    if (
+        !manager ||
+        manager.currentMode !== "duplicator" ||
+        manager.activeIndex < 0
+    ) {
+        return;
+    }
+
+    const monument = manager.monuments?.[manager.activeIndex];
+    if (!monument?.data) return;
+
+    const burials = state.burials.map(person => ({
+        ...person,
+        epitaphs: Array.isArray(person.epitaphs)
+            ? person.epitaphs.map(item => (
+                typeof item === "string" ? item : { ...item }
+            ))
+            : []
+    }));
+
+    monument.data.burials = burials;
+    monument.data.activeBurialId = state.activeBurialId;
+
+    manager._duplicatorDataCache ??= {};
+    manager._duplicatorDataCache[manager.activeIndex] = {
+        ...(manager._duplicatorDataCache[manager.activeIndex] || monument.data),
+        burials,
+        activeBurialId: state.activeBurialId
+    };
+
+    const uiData = typeof manager.collectUIData === "function"
+        ? manager.collectUIData()
+        : (manager.pendingChanges || {});
+
+    manager.pendingChanges = {
+        ...uiData,
+        burials,
+        activeBurialId: state.activeBurialId,
+        epitaphOffsetX: Number(monument.data.epitaphOffsetX) || 0,
+        epitaphOffsetY: Number(monument.data.epitaphOffsetY) || 0
+    };
+    manager.pendingIndex = manager.activeIndex;
+}
+
+function markBackTextureDirty() {
+    if (!state) return;
+    state.backTextureNeedsUpdate = true;
+    syncDuplicatorEpitaphData();
+    invalidateTextures();
+    updatePreview();
+}
+
+function handleExtraEpitaphInput(event) {
+    const textarea = event.target.closest("[data-extra-epitaph]");
+    if (!textarea) return;
+
+    const person = getActive();
+    const index = Number(textarea.dataset.extraEpitaph);
+
+    if (!person || !Array.isArray(person.epitaphs)) return;
+    if (!Number.isInteger(index) || index < 0) return;
+
+    const value = textarea.value.slice(0, 2000);
+    if (textarea.value.length > 2000) textarea.value = value;
+
+    person.epitaphs[index] = {
+        text: value,
+        offsetX: Number(person.epitaphs[index]?.offsetX) || 0,
+        offsetY: Number(person.epitaphs[index]?.offsetY) || 0
+    };
+
+    markBackTextureDirty();
+    renderList();
+}
+
+function handleExtraEpitaphClick(event) {
+    const person = getActive();
+    const selectButton = event.target.closest("[data-select-extra-epitaph]");
+
+    if (selectButton) {
+        if (!person) return;
+
+        const index = Number(selectButton.dataset.selectExtraEpitaph);
+        if (Number.isInteger(index) && index >= 0) {
+            selectActiveEpitaph(index + 1);
+        }
+        return;
+    }
+
+    const button = event.target.closest("[data-remove-extra-epitaph]");
+    if (!button) return;
+
+    const index = Number(button.dataset.removeExtraEpitaph);
+
+    if (!person || !Array.isArray(person.epitaphs)) return;
+    if (!Number.isInteger(index) || index < 0) return;
+
+    person.epitaphs.splice(index, 1);
+
+    const selection = getActiveEpitaphSelection();
+    if (selection.burialId === person.id) {
+        if (selection.epitaphIndex === index + 1) {
+            selectActiveEpitaph(0);
+        } else if (selection.epitaphIndex > index + 1) {
+            selectActiveEpitaph(selection.epitaphIndex - 1);
+        }
+    }
+
+    renderExtraEpitaphs();
+    markBackTextureDirty();
+}
+
 function showActive() {
     if (!state) return;
 
@@ -224,6 +442,11 @@ function showActive() {
         state.fullName = person.fullName || "";
         state.dates = person.dates || "";
         state.epitaph = person.epitaph || "";
+        state.epitaphs = Array.isArray(person.epitaphs)
+            ? person.epitaphs.slice()
+            : [];
+        state.epitaphOffsetX = Number(person.epitaphOffsetX) || 0;
+        state.epitaphOffsetY = Number(person.epitaphOffsetY) || 0;
 
         state.textureUrl = person.textureUrl || person.photoUrl || null;
         state.photoUrl = state.textureUrl;
@@ -242,8 +465,14 @@ function showActive() {
     }
 
 	invalidateTextures();
+	selectEpitaphBlock(person.id, 0);
 	renderList();
+	renderExtraEpitaphs();
 	renderPersonPhotos();
+
+	// Обновляем список людей в настройках положения фото.
+	window._customPhotoDrag?.refreshPhotoPositionControls?.();
+
 	updatePreview();
 }
 
@@ -476,6 +705,10 @@ export function initBurialRecords(
             });
         });
 
+        epitaph.addEventListener("focus", () => {
+            selectActiveEpitaph(0);
+        });
+
         document.getElementById("textureUpload")?.addEventListener(
             "change",
             handlePhotoUpload
@@ -515,10 +748,85 @@ export function initBurialRecords(
             event => saveActiveBurialFontSize("datesFontSize", event.target.value)
         );
 
+        document.getElementById("addExtraEpitaphBtn")?.addEventListener(
+            "click",
+            () => {
+                const person = getActive();
+                if (!person) return;
+
+                if (!Array.isArray(person.epitaphs)) {
+                    person.epitaphs = [];
+                }
+
+                if (person.epitaphs.length >= 10) return;
+
+                person.epitaphs.push({
+                    text: "",
+                    offsetX: 0,
+                    offsetY: 0
+                });
+
+                markBackTextureDirty();
+                selectActiveEpitaph(person.epitaphs.length);
+                renderExtraEpitaphs();
+
+                const textarea = document.querySelector(
+                    `[data-extra-epitaph="${person.epitaphs.length - 1}"]`
+                );
+                textarea?.focus();
+            }
+        );
+
+        document.getElementById("extraEpitaphsList")?.addEventListener(
+            "input",
+            handleExtraEpitaphInput
+        );
+
+        document.getElementById("extraEpitaphsList")?.addEventListener(
+            "click",
+            handleExtraEpitaphClick
+        );
+
+        document.getElementById("extraEpitaphsList")?.addEventListener(
+            "focusin",
+            event => {
+                const textarea = event.target.closest("[data-extra-epitaph]");
+                if (!textarea) return;
+
+                const index = Number(textarea.dataset.extraEpitaph);
+                if (Number.isInteger(index) && index >= 0) {
+                    selectActiveEpitaph(index + 1);
+                }
+            }
+        );
+
+        window.addEventListener(
+            "epitaph-selection-changed",
+            refreshEpitaphSelectionHighlight
+        );
+
         initialized = true;
     }
 
     window.captureActiveBurialRecord = saveFields;
+	// Активировать запись человека по ID из селектора фотографий.
+	window.selectBurialRecordById = (id) => {
+		ensureRecords();
+
+		const person = state?.burials?.find(
+			item => String(item.id) === String(id)
+		);
+
+		if (!person) return false;
+
+		saveFields();
+
+		activeId = person.id;
+		state.activeBurialId = person.id;
+
+		showActive();
+		return true;
+	};
 
     window.refreshBurialRecordsUI = () => {
         ensureRecords();
@@ -529,4 +837,6 @@ export function initBurialRecords(
     };
 
     renderList();
+    renderExtraEpitaphs();
+    updateEpitaphSelectionLabel();
 }

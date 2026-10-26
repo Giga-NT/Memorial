@@ -4,6 +4,7 @@
 // ============================================================
 
 import * as THREE from 'three';
+import { drawBackEpitaphs } from '../epitaphUtils.js';
 
 /**
  * Получить позицию события (мышь или тач)
@@ -336,44 +337,14 @@ export function createBackTextureWithOffset(state, offsetX, offsetY) {
     const ctx = canvas.getContext('2d');
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = state.textColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = isMobile ? 3 : 6;
-    
-    const pixelsPerMeter = canvasSize / 1.2;
-    const pixelOffsetX = offsetX * pixelsPerMeter;
-    const pixelOffsetY = offsetY * pixelsPerMeter;
-    
-    let currentY = 80 + pixelOffsetY;
-    
-    if (state.epitaph.trim()) {
-        const lines = state.epitaph.split(/\r?\n|\//);
-        let fontFamily = state.fontFamily;
-        if (fontFamily.includes('Yermak')) fontFamily = 'Yermak';
-        else if (fontFamily.includes('Bodega Script')) fontFamily = 'Bodega Script';
-        else if (fontFamily.includes('Brusher')) fontFamily = 'Brusher';
-        else if (fontFamily.includes('Drevnerusskij')) fontFamily = 'Drevnerusskij';
-        else if (fontFamily.includes('Drina')) fontFamily = 'Drina';
-        else if (fontFamily.includes('DS-BroadBrush')) fontFamily = 'DS-BroadBrush';
-        else if (fontFamily.includes('Federico')) fontFamily = 'Federico';
-        else if (fontFamily.includes('Feofan')) fontFamily = 'Feofan';
-        else if (fontFamily.includes('Figurny')) fontFamily = 'Figurny';
-        else if (fontFamily.includes('Pochaevsk')) fontFamily = 'Pochaevsk';
-        else if (fontFamily.includes('Remeslo')) fontFamily = 'Remeslo';
-        else if (fontFamily.includes('Tsarevich')) fontFamily = 'Tsarevich';
-        
-        const fontSize = state.epitaphFontSize * (isMobile ? 0.8 : 1.2);
-        ctx.font = `bold ${fontSize}px ${fontFamily}`;
-        
-        lines.forEach(line => {
-            if (line.trim()) {
-                ctx.fillText(line.trim(), canvas.width/2 + pixelOffsetX, currentY);
-                currentY += state.epitaphFontSize * (isMobile ? 0.9 : 1.5);
-            }
-        });
-    }
+
+    const drawState = {
+        ...state,
+        epitaphOffsetX: offsetX,
+        epitaphOffsetY: offsetY
+    };
+
+    drawBackEpitaphs(ctx, canvas, drawState, { isMobile });
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;

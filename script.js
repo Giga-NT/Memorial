@@ -25,7 +25,6 @@ import { TileManager } from './modules/tileManager.min.js';
 // ⭐ МОДУЛИ (обфусцированные .min.js)
 import { EngravingsManager } from './modules/engravings.min.js';
 import { PhotoManager } from './modules/photo.min.js';
-import { EpitaphManager } from './modules/epitaph.min.js';
 import {
     initBackgroundsUI,
     initBackgroundControls
@@ -36,6 +35,7 @@ import { MobileImprovements } from './modules/mobile-improvements.min.js';
 import { initDragManagers } from './modules/drag/index.js';
 import { VasesManager } from './modules/VasesManager.js';
 import { ProjectIO } from './modules/ProjectIO.js';
+import { downloadProjectAsGLB, formatFileSize } from './modules/GLBExporter.js';
 import { MultiMonumentManager } from './modules/multiMonumentManager.js';
 import { MonumentController } from './modules/Monument/MonumentController.js';
 import { renderSteleGrid, getPreviewUrl, selectSteleModelGrid } from './modules/previews/stelePreview.js';
@@ -50,7 +50,9 @@ import {
 
 
 import {
-    loadGraveSlabModelList
+    loadGraveSlabModelList,
+    getGraveSlabModelList,
+    getGraveSlabPreviewUrl
 } from './modules/graveSlabLoader.js';
 
 import {
@@ -76,12 +78,15 @@ import {
     initPathHandlers,
     initFenceOptionsHandlers,
     initTextPositionHandlers,
-    initEpitaphPositionHandlers
+    initEpitaphPositionHandlers,
+    initPhotoScaleHandler
 } from './modules/eventHandlers.js';
 
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAllHandlers);
+    document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+} else {
+    initPhotoScaleHandler();
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -754,7 +759,7 @@ let frontDecalPosition = new THREE.Vector3(-0.05, 0.74, -0.76),
 const state = {
     width: 0.6,
     height: 1.2,
-    depth: 0.08,
+    depth: 0.07,
     textureUrl: null,
 
     // Материал стелы — старое поле, сохраняем для совместимости
@@ -763,7 +768,11 @@ const state = {
     // Независимые материалы
     baseMaterial: 'granite',
     pedestalMaterial: 'granite',
+    pedestalEnabled: true,
     borderMaterial: 'granite',
+    tileMaterial: '',
+    decorations: [],
+    includeInstall: null,
     fullName: "Иванов Иван Иванович", dates: "01.01.1950 — 01.01.2026",
     epitaph: "Светлая память\nо дорогих людях", textColor: '#FFFFFF',
     flowerbedType: 'grass', photoScale: 1.0, photoOffsetX: 0, photoOffsetY: 0,
@@ -991,44 +1000,140 @@ function removeEngravingFromBack(id) {
     }
 }
 
+const EDITOR_MAX_Y = 1.8;
+
+function getEditorSteleMetrics() {
+    const width = parseFloat(state.width);
+    const height = parseFloat(state.height);
+    return {
+        width: Number.isFinite(width) && width > 0 ? width : 0.6,
+        height: Number.isFinite(height) && height > 0 ? height : 1.2
+    };
+}
+
+function getEditorXLimit(width) {
+    return Math.max(width / 2, 1.0);
+}
+
+function getEditorYLimit(height) {
+    return Math.min(EDITOR_MAX_Y, Math.max(0, height));
+}
+
+function normalizeEditorY(value, height) {
+    const max = getEditorYLimit(height);
+    return Math.min(max, Math.max(0, Number(value) || 0));
+}
+
+function configureEngravingEditorRanges() {
+    const { width, height } = getEditorSteleMetrics();
+    const xLimit = getEditorXLimit(width);
+    const yLimit = getEditorYLimit(height);
+    const controls = [
+        [document.getElementById('editorX'), -xLimit, xLimit],
+        [document.getElementById('editorXInput'), -xLimit, xLimit],
+        [document.getElementById('editorY'), 0, yLimit],
+        [document.getElementById('editorYInput'), 0, yLimit]
+    ];
+
+    controls.forEach(([input, min, max]) => {
+        if (!input) return;
+        input.min = String(min);
+        input.max = String(max);
+    });
+
+    return { width, height, xLimit, yLimit };
+}
+
+function setEngravingEditorPairValue(rangeId, inputId, value) {
+    const range = document.getElementById(rangeId);
+    const input = document.getElementById(inputId);
+    if (!range || !input) return null;
+
+    const min = parseFloat(range.min);
+    const max = parseFloat(range.max);
+    const numeric = Number(value);
+    const clamped = Math.min(max, Math.max(min, Number.isFinite(numeric) ? numeric : min));
+
+    range.value = String(clamped);
+    input.value = String(clamped);
+    return clamped;
+}
+
+function prepareEngravingEditor(eng, side) {
+    currentEditingEngraving = eng;
+    currentEditingSide = side;
+    eng._backupX = eng.x;
+    eng._backupY = eng.y;
+    eng._backupScale = eng.scale;
+
+    const { height } = configureEngravingEditorRanges();
+    const editorX = Number(eng.x) || 0;
+    const editorY = normalizeEditorY(eng.y, height);
+    const editorScale = Number(eng.scale) || 1.0;
+
+    const preparedX = setEngravingEditorPairValue('editorX', 'editorXInput', editorX);
+    const preparedY = setEngravingEditorPairValue('editorY', 'editorYInput', editorY);
+    const preparedScale = setEngravingEditorPairValue('editorScale', 'editorScaleInput', editorScale);
+
+    document.getElementById('editorXVal').textContent = preparedX.toFixed(2);
+    document.getElementById('editorYVal').textContent = preparedY.toFixed(2);
+    document.getElementById('editorScaleVal').textContent = preparedScale.toFixed(2);
+    document.getElementById('editorModalTitle').textContent = `✏️ Редактирование: ${engravingsConfig[eng.type]?.name || eng.type}`;
+    document.getElementById('engravingEditorModal').style.display = 'flex';
+}
+
 function openEngravingEditorFront(id) {
     const eng = state.engravingsFront.find(e => e.id === id);
     if (!eng) return;
-    currentEditingEngraving = eng;
-    currentEditingSide = 'front';
-    currentEditingEngraving._backupX = eng.x;
-    currentEditingEngraving._backupY = eng.y;
-    currentEditingEngraving._backupScale = eng.scale;
-    document.getElementById('editorX').value = eng.x;
-    document.getElementById('editorY').value = eng.y;
-    document.getElementById('editorScale').value = eng.scale;
-    document.getElementById('editorXVal').textContent = eng.x.toFixed(2);
-    document.getElementById('editorYVal').textContent = eng.y.toFixed(2);
-    document.getElementById('editorScaleVal').textContent = eng.scale.toFixed(2);
-    document.getElementById('editorModalTitle').textContent = `✏️ Редактирование: ${engravingsConfig[eng.type]?.name || eng.type}`;
-    document.getElementById('engravingEditorModal').style.display = 'flex';
+    prepareEngravingEditor(eng, 'front');
 }
 
 function openEngravingEditorBack(id) {
     const eng = state.engravingsBack.find(e => e.id === id);
     if (!eng) return;
-    currentEditingEngraving = eng;
-    currentEditingSide = 'back';
-    currentEditingEngraving._backupX = eng.x;
-    currentEditingEngraving._backupY = eng.y;
-    currentEditingEngraving._backupScale = eng.scale;
-    document.getElementById('editorX').value = eng.x;
-    document.getElementById('editorY').value = eng.y;
-    document.getElementById('editorScale').value = eng.scale;
-    document.getElementById('editorXVal').textContent = eng.x.toFixed(2);
-    document.getElementById('editorYVal').textContent = eng.y.toFixed(2);
-    document.getElementById('editorScaleVal').textContent = eng.scale.toFixed(2);
-    document.getElementById('editorModalTitle').textContent = `✏️ Редактирование: ${engravingsConfig[eng.type]?.name || eng.type}`;
-    document.getElementById('engravingEditorModal').style.display = 'flex';
+    prepareEngravingEditor(eng, 'back');
+}
+
+function readEngravingEditorValues() {
+    const editorX = parseFloat(document.getElementById('editorX').value);
+    const editorY = parseFloat(document.getElementById('editorY').value);
+    const editorScale = parseFloat(document.getElementById('editorScale').value);
+
+    if (!Number.isFinite(editorX) || !Number.isFinite(editorY) || !Number.isFinite(editorScale)) {
+        return null;
+    }
+
+    return {
+        editorX,
+        editorY,
+        editorScale,
+        x: editorX,
+        y: editorY,
+        scale: editorScale
+    };
+}
+
+function applyEngravingEditorValues() {
+    if (!currentEditingEngraving) return null;
+    const values = readEngravingEditorValues();
+    if (!values) return null;
+
+    currentEditingEngraving.x = values.x;
+    currentEditingEngraving.y = values.y;
+    currentEditingEngraving.scale = values.scale;
+    return values;
 }
 
 function saveEngravingEditor() {
     if (!currentEditingEngraving) return;
+
+    const values = applyEngravingEditorValues();
+    if (values) {
+        document.getElementById('editorXVal').textContent = values.editorX.toFixed(2);
+        document.getElementById('editorYVal').textContent = values.editorY.toFixed(2);
+        document.getElementById('editorScaleVal').textContent = values.editorScale.toFixed(2);
+    }
+
     delete currentEditingEngraving._backupX;
     delete currentEditingEngraving._backupY;
     delete currentEditingEngraving._backupScale;
@@ -1043,13 +1148,13 @@ function saveEngravingEditor() {
 }
 
 function previewEngravingChange() {
-    if (!currentEditingEngraving) return;
-    currentEditingEngraving.x = parseFloat(document.getElementById('editorX').value);
-    currentEditingEngraving.y = parseFloat(document.getElementById('editorY').value);
-    currentEditingEngraving.scale = parseFloat(document.getElementById('editorScale').value);
-    document.getElementById('editorXVal').textContent = currentEditingEngraving.x.toFixed(2);
-    document.getElementById('editorYVal').textContent = currentEditingEngraving.y.toFixed(2);
-    document.getElementById('editorScaleVal').textContent = currentEditingEngraving.scale.toFixed(2);
+    const values = applyEngravingEditorValues();
+    if (!values) return;
+
+    document.getElementById('editorXVal').textContent = values.editorX.toFixed(2);
+    document.getElementById('editorYVal').textContent = values.editorY.toFixed(2);
+    document.getElementById('editorScaleVal').textContent = values.editorScale.toFixed(2);
+
     if (currentEditingSide === 'front') {
         updateEngravingsFrontList();
     } else {
@@ -1088,14 +1193,16 @@ function updateEngravingsFrontList() {
         return;
     }
     container.innerHTML = '';
+    const { height: frontSteleHeight } = getEditorSteleMetrics();
     state.engravingsFront.forEach(eng => {
         const item = document.createElement('div');
+        const displayY = normalizeEditorY(eng.y, frontSteleHeight);
         item.style.cssText = 'background: rgba(0,168,150,0.2); border-radius: 6px; padding: 8px; margin-bottom: 6px;';
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <strong>${escapeHTML(engravingsConfig[eng.type]?.name || eng.type)}</strong>
-                    <div style="font-size: 10px; color: #aaa;">X: ${eng.x.toFixed(2)} | Y: ${eng.y.toFixed(2)} | Масштаб: ${eng.scale.toFixed(1)}</div>
+                    <div style="font-size: 10px; color: #aaa;">X: ${eng.x.toFixed(2)} | Y: ${displayY.toFixed(2)} | Масштаб: ${eng.scale.toFixed(1)}</div>
                 </div>
                 <div style="display: flex; gap: 5px;">
                     <button class="edit-engraving-front" data-id="${eng.id}" style="background: #3498db; width: auto; padding: 4px 8px; margin: 0; border-radius: 4px; cursor: pointer;">✏️</button>
@@ -1127,14 +1234,16 @@ function updateEngravingsBackList() {
         return;
     }
     container.innerHTML = '';
+    const { height: backSteleHeight } = getEditorSteleMetrics();
     state.engravingsBack.forEach(eng => {
         const item = document.createElement('div');
+        const displayY = normalizeEditorY(eng.y, backSteleHeight);
         item.style.cssText = 'background: rgba(231,76,60,0.2); border-radius: 6px; padding: 8px; margin-bottom: 6px;';
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <strong>${escapeHTML(engravingsConfig[eng.type]?.name || eng.type)}</strong>
-                    <div style="font-size: 10px; color: #aaa;">X: ${eng.x.toFixed(2)} | Y: ${eng.y.toFixed(2)} | Масштаб: ${eng.scale.toFixed(1)}</div>
+                    <div style="font-size: 10px; color: #aaa;">X: ${eng.x.toFixed(2)} | Y: ${displayY.toFixed(2)} | Масштаб: ${eng.scale.toFixed(1)}</div>
                 </div>
                 <div style="display: flex; gap: 5px;">
                     <button class="edit-engraving-back" data-id="${eng.id}" style="background: #3498db; width: auto; padding: 4px 8px; margin: 0; border-radius: 4px; cursor: pointer;">✏️</button>
@@ -1187,33 +1296,50 @@ if (addEngravingBackBtn && addEngravingBackSelect) {
 }
 
 const editorModal = document.getElementById('engravingEditorModal');
-const editorX = document.getElementById('editorX');
-const editorY = document.getElementById('editorY');
-const editorScale = document.getElementById('editorScale');
-const editorXVal = document.getElementById('editorXVal');
-const editorYVal = document.getElementById('editorYVal');
-const editorScaleVal = document.getElementById('editorScaleVal');
 const editorSaveBtn = document.getElementById('editorSaveBtn');
 const editorCancelBtn = document.getElementById('editorCancelBtn');
 
-if (editorX) {
-    editorX.addEventListener('input', () => {
-        editorXVal.textContent = parseFloat(editorX.value).toFixed(2);
+function bindEngravingEditorControl(rangeId, inputId, displayId) {
+    const range = document.getElementById(rangeId);
+    const input = document.getElementById(inputId);
+    const display = document.getElementById(displayId);
+    if (!range || !input) return;
+
+    const sync = (source) => {
+        const sourceElement = source === 'range' ? range : input;
+        const numeric = parseFloat(sourceElement.value);
+        if (!Number.isFinite(numeric)) return;
+
+        const min = parseFloat(range.min);
+        const max = parseFloat(range.max);
+        const clamped = Math.min(max, Math.max(min, numeric));
+
+        if (source === 'range') {
+            input.value = String(clamped);
+        } else {
+            range.value = String(clamped);
+            if (numeric < min || numeric > max) {
+                input.value = String(clamped);
+            }
+        }
+
+        if (display) display.textContent = clamped.toFixed(2);
         previewEngravingChange();
+    };
+
+    range.addEventListener('input', () => sync('range'));
+    input.addEventListener('input', () => sync('input'));
+    input.addEventListener('change', () => {
+        sync('input');
+        const normalized = parseFloat(range.value);
+        if (Number.isFinite(normalized)) input.value = String(normalized);
     });
 }
-if (editorY) {
-    editorY.addEventListener('input', () => {
-        editorYVal.textContent = parseFloat(editorY.value).toFixed(2);
-        previewEngravingChange();
-    });
-}
-if (editorScale) {
-    editorScale.addEventListener('input', () => {
-        editorScaleVal.textContent = parseFloat(editorScale.value).toFixed(2);
-        previewEngravingChange();
-    });
-}
+
+bindEngravingEditorControl('editorX', 'editorXInput', 'editorXVal');
+bindEngravingEditorControl('editorY', 'editorYInput', 'editorYVal');
+bindEngravingEditorControl('editorScale', 'editorScaleInput', 'editorScaleVal');
+
 if (editorSaveBtn) {
     editorSaveBtn.addEventListener('click', saveEngravingEditor);
 }
@@ -3632,6 +3758,18 @@ async function updateSceneReal() {
         monumentGroup,
         decalsGroup
     );
+
+    if (typeof updateStelePreview === 'function') {
+        updateStelePreview();
+    }
+
+    if (typeof updateGraveSlabPreview === 'function') {
+        updateGraveSlabPreview();
+    }
+
+    if (typeof window.calculatePrice === 'function') {
+        window.calculatePrice();
+    }
 }
 // ============================================================
 // ⭐ ПЕРЕОПРЕДЕЛЯЕМ ЗАГЛУШКИ
@@ -3809,6 +3947,7 @@ document.getElementById('rotateModeBtn')?.addEventListener('click', function() {
 document.getElementById('deleteSelectedBtn')?.addEventListener('click', function() {
     if (window.furniture3DManager) {
         if (window.furniture3DManager.deleteSelected()) {
+            calculatePrice();
             showToast('🗑️ Объект удалён', 'success');
         } else {
             showToast('❌ Сначала выбери объект', 'error');
@@ -3852,6 +3991,7 @@ document.getElementById('rotateResetBtn')?.addEventListener('click', function() 
 document.getElementById('clearFurnitureBtn')?.addEventListener('click', function() {
     if (window.furniture3DManager) {
         window.furniture3DManager.clearAll();
+        calculatePrice();
         showToast('🗑️ Вся мебель убрана', 'success');
     }
 });
@@ -3880,6 +4020,7 @@ document.getElementById('addTableBtn')?.addEventListener('click', async function
     this.disabled = true;
     try {
         await manager.placeTable(x, z, 0, furnitureScale);
+        calculatePrice();
         showToast('🪵 Стол добавлен! Выделен автоматически', 'success');
     } catch (error) {
         showToast('❌ Ошибка', 'error');
@@ -3932,6 +4073,7 @@ document.getElementById('addVaseBtn')?.addEventListener('click', async function(
     const vase = await manager.addVase(vaseId);
 
     if (vase) {
+        calculatePrice();
         showToast('🏺 Ваза добавлена!', 'success');
     } else {
         showToast('❌ Не удалось добавить вазу', 'error');
@@ -3941,6 +4083,7 @@ document.getElementById('addVaseBtn')?.addEventListener('click', async function(
 document.getElementById('removeSelectedVaseBtn')?.addEventListener('click', function() {
     const manager = initVasesManager();
     if (manager.removeSelected()) {
+        calculatePrice();
         showToast('🗑️ Ваза удалена', 'success');
     } else {
         showToast('❌ Сначала выберите вазу', 'error');
@@ -3950,6 +4093,7 @@ document.getElementById('removeSelectedVaseBtn')?.addEventListener('click', func
 document.getElementById('clearVasesBtn')?.addEventListener('click', function() {
     const manager = initVasesManager();
     manager.clearAll();
+    calculatePrice();
     showToast('🗑️ Все вазы удалены', 'success');
 });
 
@@ -3958,6 +4102,7 @@ document.getElementById('vaseScale')?.addEventListener('input', function(e) {
     document.getElementById('vaseScaleVal').textContent = scale.toFixed(2);
     const manager = initVasesManager();
     manager.setScale(scale);
+    calculatePrice();
 });
 
 document.getElementById('showVases')?.addEventListener('change', function(e) {
@@ -3969,7 +4114,14 @@ document.getElementById('showVases')?.addEventListener('change', function(e) {
 document.getElementById('vaseMaterialSelect')?.addEventListener('change', async function(e) {
     const manager = initVasesManager();
     await manager.setMaterial(e.target.value);
+    calculatePrice();
     showToast(`🎨 Материал ваз изменён на: ${e.target.options[e.target.selectedIndex].text}`, 'success');
+});
+
+document.getElementById('vasesList')?.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-vase-btn')) {
+        setTimeout(calculatePrice, 0);
+    }
 });
 
 // ============================================================
@@ -3987,6 +4139,7 @@ document.getElementById('addTableGardenBtn')?.addEventListener('click', async fu
     
     try {
         await manager.placeTableGarden(x, z, 0, furnitureScale);
+        calculatePrice();
         showToast('🌳 Садовый стол добавлен!', 'success');
     } catch (error) {
         console.error(error);
@@ -4047,6 +4200,7 @@ document.getElementById('addBenchBtn')?.addEventListener('click', async function
     this.disabled = true;
     try {
         await manager.placeBench(x, z, 0, furnitureScale);
+        calculatePrice();
         showToast('🪑 Скамейка добавлена! Выделена автоматически', 'success');
     } catch (error) {
         showToast('❌ Ошибка', 'error');
@@ -4066,6 +4220,7 @@ document.getElementById('addPicnicSetBtn')?.addEventListener('click', async func
     this.disabled = true;
     try {
         await manager.placePicnicSet(x, z, 0, furnitureScale);
+        calculatePrice();
         showToast('🧺 Набор добавлен! Стол выделен', 'success');
     } catch (error) {
         showToast('❌ Ошибка', 'error');
@@ -4452,62 +4607,55 @@ function addDecalsToCustomStele(center, frontZ, backZ, modelType = 'custom_stl')
 // ⭐ ЗАГРУЗКА ЦЕН
 // ============================================================
 let prices = {};
+let priceFlags = {};
+let priceSettings = {};
 
 async function loadPrices() {
     try {
-        console.log('📡 Запрос цен с сервера...');
-        const response = await fetch('/api/prices');
+        console.log('📡 Запрос конфигурации цен с сервера...');
+        const response = await fetch('/api/price-config');
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        if (data && typeof data === 'object') {
-            // ⭐ ВАЛИДАЦИЯ ЦЕН
-            const validated = {};
-            const allowedKeys = ['granite', 'black_galaxy', 'ninimyaki', 'marble', 'red_granite', 'beige_granite', 'gray_granite', 'base_granite', 'base_marble', 'base_red_granite', 'base_other', 'grass', 'gravel', 'marble_chips', 'red_gravel', 'blue_gravel', 'black_gravel', 'sand', 'flowers', 'moss', 'pipe', 'chain', 'casting', 'model_3d', 'venzel', 'stele_work', 'engraving', 'photo', 'delivery', 'install', 'table', 'bench', 'picnic_set'];
-            
-            for (const [key, value] of Object.entries(data)) {
-                if (allowedKeys.includes(key) && typeof value === 'number' && value > 0 && value < 1000000) {
-                    validated[key] = value;
-                }
+        const validated = {};
+        const sourcePrices =
+            data?.prices && typeof data.prices === 'object'
+                ? data.prices
+                : {};
+
+        for (const [key, rawValue] of Object.entries(sourcePrices)) {
+            const value = Number(rawValue);
+            if (Number.isFinite(value) && value >= 0 && value < 1000000000) {
+                validated[key] = value;
             }
-            
-            if (Object.keys(validated).length > 0) {
-                prices = validated;
-                console.log('✅ Цены загружены и проверены:', Object.keys(prices).length);
-            } else {
-                console.warn('⚠️ Сервер вернул пустые или невалидные цены');
-                setDefaultPrices();
-            }
-        } else {
-            console.warn('⚠️ Сервер вернул пустые цены, используем локальные');
-            setDefaultPrices();
         }
+
+        prices = validated;
+        priceFlags =
+            data?.flags && typeof data.flags === 'object'
+                ? data.flags
+                : {};
+        priceSettings =
+            data?.settings && typeof data.settings === 'object'
+                ? data.settings
+                : {};
+
+        const installCheckbox = document.getElementById('includeInstall');
+        if (installCheckbox && state.includeInstall === null) {
+            installCheckbox.checked = isPriceSettingEnabled('include_install');
+            state.includeInstall = installCheckbox.checked;
+        }
+
+        console.log('✅ Прайс загружен:', Object.keys(prices).length);
     } catch (error) {
-        console.warn('⚠️ Ошибка загрузки цен с сервера:', error.message);
-        console.log('📦 Используются локальные цены (фолбэк)');
-        setDefaultPrices();
+        console.warn('⚠️ Ошибка загрузки прайса с сервера:', error.message);
+        prices = {};
+        priceFlags = {};
+        priceSettings = {};
     }
     calculatePrice();
     updateAdminPrices();
-}
-
-function setDefaultPrices() {
-    prices = {
-        granite: 5000, black_galaxy: 5500, ninimyaki: 4500,
-        marble: 8000, red_granite: 7000, beige_granite: 6500, gray_granite: 6000,
-        base_granite: 4000, base_marble: 6000, base_red_granite: 5500, base_other: 3500,
-        grass: 500, gravel: 800, marble_chips: 1500,
-        red_gravel: 1200, blue_gravel: 1200, black_gravel: 1400,
-        sand: 600, flowers: 1800, moss: 900,
-        pipe: 800, chain: 600, casting: 2000, model_3d: 2500, venzel: 2200,
-        stele_work: 5000, engraving: 1500, photo: 2000,
-        delivery: 3000, install: 5000,
-        table: 15000,
-        bench: 12000,
-        picnic_set: 25000
-    };
-    console.log('📦 Установлены локальные цены (дефолтные)');
 }
 
 function updateAdminPrices() {
@@ -4515,8 +4663,10 @@ function updateAdminPrices() {
         const adminFrame = document.getElementById('adminFrame');
         if (adminFrame && adminFrame.contentWindow) {
             adminFrame.contentWindow.postMessage({
-                type: 'pricesUpdated',
-                prices: prices
+                type: 'priceConfigUpdated',
+                prices,
+                flags: priceFlags,
+                settings: priceSettings
             }, '*');
         }
     } catch(e) {}
@@ -4525,133 +4675,443 @@ function updateAdminPrices() {
 // ============================================================
 // ⭐ РАСЧЕТ СТОИМОСТИ
 // ============================================================
-function calculatePrice() {
-    const p = prices || {};
+const materialPriceLabels = {
+    granite: 'Габбро-Диабаз',
+    black_galaxy: 'Галактика черный',
+    ninimyaki: 'Нинимяки',
+    marble: 'Белый Мрамор',
+    red_granite: 'Красный Гранит',
+    beige_granite: 'Бежевый Гранит',
+    gray_granite: 'Серый Гранит'
+};
+
+const flowerbedPriceLabels = {
+    grass: 'Газон',
+    gravel: 'Гравий',
+    marble_chips: 'Мраморная крошка',
+    red_gravel: 'Красный гравий',
+    blue_gravel: 'Синий гравий',
+    black_gravel: 'Чёрная галька',
+    sand: 'Песок',
+    flowers: 'Цветущий газон',
+    moss: 'Мох'
+};
+
+const fencePriceLabels = {
+    pipe: 'Труба',
+    chain: 'Цепь',
+    casting: 'Литье',
+    model_3d: '3D Модель',
+    venzel: 'Вензель'
+};
+
+function getPriceValue(key) {
+    const value = Number(prices?.[key]);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function isPriceSettingEnabled(key) {
+    const value = priceSettings?.[key];
+    return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+function getPriceSettingNumber(key) {
+    const value = Number(priceSettings?.[key]);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+const tileMaterialLabels = {
+    marble: 'Мрамор',
+    gabbro: 'Габбро',
+    other: 'Другое'
+};
+
+function getTilePriceKey(material) {
+    if (material === 'marble') return 'tile_marble_per_m2';
+    if (material === 'gabbro') return 'tile_gabbro_per_m2';
+    if (material === 'other') return 'tile_other_per_m2';
+    return '';
+}
+
+function getPricingMonuments() {
+    const manager = window.multiMonumentManager;
+    const duplicates = Array.isArray(manager?.monuments)
+        ? manager.monuments.map((monument, index) => {
+            const pending = manager.pendingIndex === index ? manager.pendingChanges : null;
+            return pending
+                ? { ...(monument.data || {}), ...pending }
+                : (monument.data || {});
+        })
+        : [];
+    return [state, ...duplicates];
+}
+
+function getActivePricingMonument() {
+    const manager = window.multiMonumentManager;
+    if (
+        manager?.currentMode === 'duplicator' &&
+        manager.activeIndex >= 0 &&
+        manager.monuments?.[manager.activeIndex]
+    ) {
+        const monument = manager.monuments[manager.activeIndex];
+        return manager.pendingIndex === manager.activeIndex && manager.pendingChanges
+            ? { ...(monument.data || {}), ...manager.pendingChanges }
+            : (monument.data || state);
+    }
+    return state;
+}
+
+function buildPriceBreakdown() {
+    const rows = [];
     let total = 0;
-    let details = [];
-    const steleArea = state.width * state.height;
-    const materialPrice = p[state.material] || p.granite || 5000;
-    const stelePrice = steleArea * materialPrice;
-    total += stelePrice;
-    details.push(`🪦 Памятник: ${steleArea.toFixed(2)} м² × ${materialPrice} ₽/м² = ${stelePrice.toFixed(0)} ₽`);
-    const graveArea = state.graveWidth * state.graveLength;
-    let baseKey = 'base_other';
-    if (['granite', 'black_galaxy', 'ninimyaki'].includes(state.material)) baseKey = 'base_granite';
-    else if (state.material === 'marble') baseKey = 'base_marble';
-    else if (state.material === 'red_granite') baseKey = 'base_red_granite';
-    const basePrice = p[baseKey] || 4000;
-    const basePriceTotal = graveArea * basePrice;
-    total += basePriceTotal;
-    details.push(`🪨 Основание: ${graveArea.toFixed(2)} м² × ${basePrice} ₽/м² = ${basePriceTotal.toFixed(0)} ₽`);
-    const workPrice = p.stele_work || 5000;
-    total += workPrice;
-    details.push(`🔧 Изготовление стелы: ${workPrice} ₽`);
+    const addRow = (name, desc, price) => {
+        const amount = Number(price);
+        if (!(amount > 0)) return;
+        total += amount;
+        rows.push({ name, desc, price: amount });
+    };
+
+    const addStoneLikeCharges = (name, workName, material, area, scale) => {
+        const safeScale = Number(scale) > 0 ? Number(scale) : 1;
+        const materialPrice = getPriceValue(material);
+        const materialTotal = area * materialPrice * safeScale * safeScale;
+        const workTotal = getPriceValue('stele_work') * safeScale;
+        addRow(
+            name,
+            `${materialPriceLabels[material] || material}, ${area.toFixed(2)} м² × ${materialPrice} ₽/м² × ${safeScale.toFixed(2)}²`,
+            materialTotal
+        );
+        addRow(
+            workName,
+            safeScale === 1 ? 'Фиксированная цена' : `Фиксированная цена × ${safeScale.toFixed(2)}`,
+            workTotal
+        );
+    };
+
+    const monuments = getPricingMonuments();
+    const pedestalPrice = getPriceValue('pedestal_price');
+    const steleParts = [];
+    const pedestalParts = [];
+    let steleTotal = 0;
+    let pedestalCount = 0;
+    let pedestalTotal = 0;
+
+    monuments.forEach((monument, index) => {
+        const material = monument.material || 'granite';
+        const materialPrice = getPriceValue(material);
+        const width = Number(monument.width) || 0.6;
+        const height = Number(monument.height) || 1.2;
+        const steleArea = width * height;
+        const depth = Math.max(0.07, Number(monument.depth) || 0.07);
+        const thicknessFactor = depth / 0.07;
+        const stelePrice = steleArea * materialPrice * thicknessFactor;
+        const label = `№${index + 1}: ${Math.round(width * 100)}×` +
+            `${Math.round(height * 100)} см (${steleArea.toFixed(2)} м²), ` +
+            `${materialPriceLabels[material] || material} ${materialPrice} ₽/м², ` +
+            `толщина ×${thicknessFactor.toFixed(2)}`;
+
+        steleTotal += stelePrice;
+        steleParts.push(label);
+
+        if (monument.pedestalEnabled !== false) {
+            pedestalCount++;
+            pedestalTotal += pedestalPrice;
+            pedestalParts.push(
+                `№${index + 1}: ${materialPriceLabels[monument.pedestalMaterial] || monument.pedestalMaterial || '—'}`
+            );
+        }
+    });
+
+    addRow(
+        monuments.length === 1 ? '🪦 Стела' : `🪦 Стелы (${monuments.length} шт)`,
+        steleParts.join('; '),
+        steleTotal
+    );
+
+    addRow(
+        pedestalCount === 1 ? '🧱 Тумба' : `🧱 Тумбы (${pedestalCount} шт)`,
+        pedestalParts.join('; '),
+        pedestalTotal
+    );
+
+    const backgroundPricePerM2 = getPriceValue('background_price_per_m2');
+    let backgroundAreaTotal = 0;
+    const backgroundParts = [];
+
+    monuments.forEach((monument, index) => {
+        if (!monument.backgroundId || monument.backgroundId === 'none') return;
+
+        const width = Number(monument.width) || 0.6;
+        const height = Number(monument.height) || 1.2;
+        const area = width * height;
+        backgroundAreaTotal += area;
+        backgroundParts.push(`№${index + 1}: ${area.toFixed(2)} м²`);
+    });
+
+    addRow(
+        '🖼️ Фон стелы',
+        `Площадь: ${backgroundAreaTotal.toFixed(2)} м² × ${backgroundPricePerM2} ₽/м²; ${backgroundParts.join('; ')}`,
+        backgroundAreaTotal * backgroundPricePerM2
+    );
+
+    const tileWorkPrice = getPriceValue('tile_work_per_m2');
+    let tileAreaTotal = 0;
+    let tileTotal = 0;
+    const tileParts = [];
+
+    monuments.forEach((monument, index) => {
+        const area = monument.flowerEnabled !== false
+            ? (Number(monument.flowerWidth) || 0) * (Number(monument.flowerLength) || 0)
+            : 0;
+        const tileKey = getTilePriceKey(monument.tileMaterial);
+        if (!tileKey || area <= 0) return;
+
+        const tilePrice = getPriceValue(tileKey);
+        tileAreaTotal += area;
+        tileTotal += area * (tilePrice + tileWorkPrice);
+        tileParts.push(
+            `№${index + 1}: ${tileMaterialLabels[monument.tileMaterial] || monument.tileMaterial}, ` +
+            `${area.toFixed(2)} м² × (${tilePrice} материал + ${tileWorkPrice} работа)`
+        );
+    });
+
+    addRow(
+        '🧱 Плитка облицовки (верхняя плоскость)',
+        `Площадь: ${tileAreaTotal.toFixed(2)} м²; ${tileParts.join('; ')}`,
+        tileTotal
+    );
+
     let engravingPriceTotal = 0;
     let engravingCount = 0;
-    let engravingLines = [];
-    if (state.engravingsFront && state.engravingsFront.length > 0) {
-        state.engravingsFront.forEach(eng => {
-            const basePrice = p.engraving || 1500;
-            const scale = eng.scale || 1.0;
-            const price = basePrice * scale;
+    const engravingDescParts = [];
+    const addEngravings = (list, sideLabel) => {
+        if (!Array.isArray(list)) return;
+        list.forEach(eng => {
+            const scale = Number(eng.scale) > 0 ? Number(eng.scale) : 1;
+            const price = getPriceValue('engraving') * scale;
             engravingPriceTotal += price;
             engravingCount++;
             const name = engravingsConfig[eng.type]?.name || eng.type;
-            engravingLines.push(`  • ${name} (перед) ×${scale.toFixed(1)} = ${price.toFixed(0)} ₽`);
+            engravingDescParts.push(`${name} (${sideLabel}) ×${scale.toFixed(1)}`);
         });
-    }
-    if (state.engravingsBack && state.engravingsBack.length > 0) {
-        state.engravingsBack.forEach(eng => {
-            const basePrice = p.engraving || 1500;
-            const scale = eng.scale || 1.0;
-            const price = basePrice * scale;
-            engravingPriceTotal += price;
-            engravingCount++;
-            const name = engravingsConfig[eng.type]?.name || eng.type;
-            engravingLines.push(`  • ${name} (зад) ×${scale.toFixed(1)} = ${price.toFixed(0)} ₽`);
-        });
-    }
+    };
+    monuments.forEach((monument, index) => {
+        addEngravings(monument.engravingsFront, `№${index + 1} перед`);
+        addEngravings(monument.engravingsBack, `№${index + 1} зад`);
+    });
     if (engravingPriceTotal > 0) {
-        total += engravingPriceTotal;
-        details.push(`🎨 Гравировки (${engravingCount} шт):`);
-        details.push(...engravingLines);
-        details.push(`  Итого гравировки: ${engravingPriceTotal.toFixed(0)} ₽`);
+        addRow(
+            `🎨 Гравировки (${engravingCount} шт)`,
+            engravingDescParts.join('; '),
+            engravingPriceTotal
+        );
     }
-    let photoPrice = 0;
-    if (state.textureUrl) {
-        photoPrice = p.photo || 2000;
-        total += photoPrice;
-        details.push(`🖼️ Фото: ${photoPrice} ₽`);
+
+    const photoBasePrice = getPriceValue('photo_price') || getPriceValue('photo');
+    const photoTypicalWidthMm = 300;
+    const photoTypicalHeightMm = 150;
+    let photoTotal = 0;
+    let photoCount = 0;
+    const photoParts = [];
+
+    monuments.forEach((monument, index) => {
+        if (!monument.textureUrl) return;
+
+        const widthMm = Number(monument.photoWidthMm) || 100;
+        const heightMm = Number(monument.photoHeightMm) || 140;
+        const areaRatio = (widthMm * heightMm) /
+            (photoTypicalWidthMm * photoTypicalHeightMm);
+        const photoScale = Math.max(1, areaRatio);
+        const price = photoBasePrice * photoScale;
+
+        photoCount++;
+        photoTotal += price;
+        photoParts.push(
+            `№${index + 1}: ${widthMm}×${heightMm} мм ×${photoScale.toFixed(2)}`
+        );
+    });
+
+    addRow(
+        photoCount === 1 ? '🖼️ Фото на памятник' : `🖼️ Фото (${photoCount} шт)`,
+        `${photoParts.join('; ')}; типовое ${photoTypicalWidthMm / 10}×${photoTypicalHeightMm / 10} см`,
+        photoTotal
+    );
+
+    const decorations = Array.isArray(state.decorations) ? state.decorations : [];
+    if (decorations.length) {
+        /* расчёт добавим позже */
     }
-    let flowerTotal = 0;
+
     if (state.flowerEnabled) {
         const flowerArea = state.flowerWidth * state.flowerLength;
-        const flowerPrice = p[state.flowerbedType] || 500;
-        flowerTotal = flowerArea * flowerPrice;
-        total += flowerTotal;
-        details.push(`🌿 Цветник (${state.flowerbedType}): ${flowerArea.toFixed(2)} м² × ${flowerPrice} ₽/м² = ${flowerTotal.toFixed(0)} ₽`);
-    }
-    let fenceTotal = 0;
-    let fenceLength = (state.graveWidth + state.graveLength) * 2;
-    if (state.fenceGateSide !== 'none') fenceLength -= parseFloat(state.gateWidth || 0.8);
-    const fencePrice = p[state.fenceType] || 0;
-    if (fencePrice > 0 && state.fenceType !== 'none') {
-        fenceTotal = fenceLength * fencePrice;
-        total += fenceTotal;
-        details.push(`🚧 Оградка (${state.fenceType}): ${fenceLength.toFixed(2)} м × ${fencePrice} ₽/м = ${fenceTotal.toFixed(0)} ₽`);
-    }
-    let tableCount = 0;
-    let benchCount = 0;
-    let picnicCount = 0;
-    const furnitureScaleInput = document.getElementById('furnitureScale');
-    const currentFurnitureScale = furnitureScaleInput ? parseFloat(furnitureScaleInput.value) : 1.0;
-    if (window.furniture3DManager && window.furniture3DManager.furniture) {
-        const furnitureList = window.furniture3DManager.furniture;
-        for (let i = 0; i < furnitureList.length; i++) {
-            const item = furnitureList[i];
-            if (item.type === 'table') tableCount++;
-            else if (item.type === 'bench') benchCount++;
-            else if (item.type === 'picnic_set') picnicCount++;
+        if (state.flowerbedMode === 'slab') {
+            const slabMaterial = state.graveSlabMaterial || 'granite';
+            const slabScale = Number(state.graveSlabScale) > 0 ? Number(state.graveSlabScale) : 1;
+            addStoneLikeCharges(
+                '🪦 Надгробная плита',
+                '🔧 Изготовление плиты',
+                slabMaterial,
+                flowerArea,
+                slabScale
+            );
+        } else {
+            const flowerPrice = getPriceValue(state.flowerbedType);
+            addRow(
+                '🌿 Цветник',
+                `${flowerbedPriceLabels[state.flowerbedType] || state.flowerbedType}, ${flowerArea.toFixed(2)} м² × ${flowerPrice} ₽/м²`,
+                flowerArea * flowerPrice
+            );
         }
     }
-    const tablePrice = (p.table || 15000) * currentFurnitureScale;
-    const benchPrice = (p.bench || 12000) * currentFurnitureScale;
-    const picnicPrice = (p.picnic_set || 25000) * currentFurnitureScale;
-    if (tableCount > 0) {
-        const tableTotal = tableCount * tablePrice;
-        total += tableTotal;
-        details.push(`🪵 Столы (${tableCount} шт × масштаб ${currentFurnitureScale.toFixed(1)}): ${tableCount} × ${tablePrice.toFixed(0)} ₽ = ${tableTotal.toFixed(0)} ₽`);
+
+    if (state.fenceEnabled && state.fenceType !== 'none') {
+        const fenceWidth = Number(state.fenceWidth) || 0;
+        const fenceLength = Number(state.fenceLength) || 0;
+        let fencePerimeter = (fenceWidth + fenceLength) * 2;
+        if (state.fenceGateSide !== 'none') {
+            const gateWidth = Number(state.gateWidth) || 0;
+            fencePerimeter = Math.max(0, fencePerimeter - gateWidth);
+        }
+        const fenceHeight = Number(state.fenceHeight) || 0;
+        const fenceBaseHeight = getPriceValue('fence_base_height');
+        const fenceHeightFactor = fenceBaseHeight > 0 ? fenceHeight / fenceBaseHeight : 0;
+        const fencePrice = getPriceValue('fence_per_m');
+        addRow(
+            '🚧 Оградка',
+            `${fencePriceLabels[state.fenceType] || state.fenceType}, ${fencePerimeter.toFixed(2)} м × ${fencePrice} ₽/м × ${fenceHeightFactor.toFixed(2)} (высота ${fenceHeight.toFixed(2)} м)`,
+            fencePerimeter * fencePrice * fenceHeightFactor
+        );
     }
-    if (benchCount > 0) {
-        const benchTotal = benchCount * benchPrice;
-        total += benchTotal;
-        details.push(`🪑 Скамейки (${benchCount} шт × масштаб ${currentFurnitureScale.toFixed(1)}): ${benchCount} × ${benchPrice.toFixed(0)} ₽ = ${benchTotal.toFixed(0)} ₽`);
+
+    if (state.pathEnabled && state.fenceEnabled && state.fenceType !== 'none') {
+        const fenceArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
+        const monumentsArea = monuments.reduce((sum, monument) => {
+            const baseWidth = Number(monument.graveWidth) || 0.9;
+            const baseLength = Number(monument.graveLength) || 1.5;
+            return sum + baseWidth * baseLength;
+        }, 0);
+        const bruschatkaArea = Math.max(0, fenceArea - monumentsArea);
+        const bruschatkaPrice = getPriceValue('bruschatka_per_m2');
+        addRow(
+            '🛤️ Брусчатка',
+            `${fenceArea.toFixed(2)} м² оградки − ${monumentsArea.toFixed(2)} м² оснований = ${bruschatkaArea.toFixed(2)} м² × ${bruschatkaPrice} ₽/м² (материал + укладка)`,
+            bruschatkaArea * bruschatkaPrice
+        );
     }
-    if (picnicCount > 0) {
-        const picnicTotal = picnicCount * picnicPrice;
-        total += picnicTotal;
-        details.push(`🧺 Наборы (${picnicCount} шт × масштаб ${currentFurnitureScale.toFixed(1)}): ${picnicCount} × ${picnicPrice.toFixed(0)} ₽ = ${picnicTotal.toFixed(0)} ₽`);
+
+    const furnitureList = window.furniture3DManager?.furniture || [];
+    const furnitureTotals = {
+        table: { count: 0, total: 0, price: getPriceValue('table') },
+        bench: { count: 0, total: 0, price: getPriceValue('bench') },
+        picnic_set: { count: 0, total: 0, price: getPriceValue('picnic_set') }
+    };
+    furnitureList.forEach(item => {
+        const group = furnitureTotals[item.type];
+        if (!group) return;
+        const scale = Number(item.scale) > 0 ? Number(item.scale) : 1;
+        group.count++;
+        group.total += group.price * scale;
+    });
+    addRow(
+        '🪵 Столы',
+        `${furnitureTotals.table.count} шт, с учётом масштаба каждого предмета`,
+        furnitureTotals.table.total
+    );
+    addRow(
+        '🪑 Скамейки',
+        `${furnitureTotals.bench.count} шт, с учётом масштаба каждого предмета`,
+        furnitureTotals.bench.total
+    );
+    addRow(
+        '🧺 Наборы',
+        `${furnitureTotals.picnic_set.count} шт, с учётом масштаба каждого предмета`,
+        furnitureTotals.picnic_set.total
+    );
+
+    const vases = window.vasesManager?.vases || [];
+    const vaseBasePrice = getPriceValue('vase_base_price');
+    const vaseGroups = new Map();
+    vases.forEach(vase => {
+        const material = vase.material || 'marble';
+        const scale = Number(vase.scale) > 0 ? Number(vase.scale) : 1;
+        const unitPrice = vaseBasePrice * scale;
+        const key = `${material}|${scale}`;
+        const group = vaseGroups.get(key) || {
+            material,
+            scale,
+            count: 0,
+            unitPrice,
+            total: 0
+        };
+        group.count++;
+        group.total += unitPrice;
+        vaseGroups.set(key, group);
+    });
+    const vaseSummaryParts = [];
+    vaseGroups.forEach(group => {
+        const materialName = materialPriceLabels[group.material] || group.material;
+        addRow(
+            '🏺 Вазы',
+            `${group.count} шт × ${group.unitPrice.toFixed(0)} ₽ (типовая 15×15×25 см, ${materialName}, масштаб ${group.scale.toFixed(1)})`,
+            group.total
+        );
+        vaseSummaryParts.push(`${group.count} шт. (${materialName}, масштаб ${group.scale.toFixed(1)})`);
+    });
+
+    if (isPriceSettingEnabled('include_delivery')) {
+        addRow('🚚 Доставка', 'По городу', getPriceValue('delivery'));
     }
-    const includeDelivery = document.getElementById('includeDelivery')?.checked || false;
-    const includeInstall = document.getElementById('includeInstall')?.checked || false;
-    let deliveryPrice = 0;
-    let installPrice = 0;
-    if (includeDelivery) {
-        deliveryPrice = p.delivery || 3000;
-        total += deliveryPrice;
-        details.push(`🚚 Доставка: ${deliveryPrice} ₽`);
-    }
+
+    const includeInstall =
+        typeof state.includeInstall === 'boolean'
+            ? state.includeInstall
+            : isPriceSettingEnabled('include_install');
+
     if (includeInstall) {
-        installPrice = p.install || 5000;
-        total += installPrice;
-        details.push(`🔧 Установка: ${installPrice} ₽`);
+        const installFull = getPriceValue('install_full_set');
+        const installFlowerbedBase = getPriceValue('install_flowerbed_base');
+        const installPedestalPercent = getPriceValue('install_pedestal_percent');
+        const pedestalCommission = pedestalTotal * installPedestalPercent / 100;
+
+        if (isPriceSettingEnabled('install_split') && installFlowerbedBase > 0) {
+            addRow(
+                '🔧 Установка: цветник + основание',
+                'Бетон и облицовка в составе установки',
+                installFlowerbedBase
+            );
+            addRow(
+                '🔧 Установка: стела + тумба',
+                `Остаток полной установки + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
+                Math.max(0, installFull - installFlowerbedBase) + pedestalCommission
+            );
+        } else {
+            addRow(
+                '🔧 Установка',
+                `Полная установка + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
+                installFull + pedestalCommission
+            );
+        }
     }
+
+    return {
+        total,
+        rows,
+        details: rows.map(row => `${row.name}: ${row.price.toFixed(0)} ₽`),
+        vaseCount: vases.length,
+        vaseSummary: vaseSummaryParts.join('; ')
+    };
+}
+
+function calculatePrice() {
+    const { total } = buildPriceBreakdown();
     const totalDisplay = document.getElementById('totalPriceDisplay');
     if (totalDisplay) {
         totalDisplay.innerText = total.toLocaleString('ru-RU') + ' ₽';
     }
     return total;
 }
+
+window.calculatePrice = calculatePrice;
 
 // ============================================================
 // ⭐ ЗАГРУЗКА ИЗ URL
@@ -4826,7 +5286,6 @@ function loadFromURL() {
 // ============================================================
 let engravingsManager = null;
 let photoManager = null;
-let epitaphManager = null;
 
 const initDelay = isMobile ? 1500 : 500;
 
@@ -4926,37 +5385,20 @@ setTimeout(() => {
             throttledUpdate();
         });
         window.photoManager = photoManager;  // ⭐
+        // ⭐ БЛОКИРУЕМ глобальную запись state.photoScale из PhotoManager (photo.min.js).
+        // Масштаб фото теперь индивидуальный (burial.photoScale) и управляется
+        // исключительно через modules/eventHandlers.js (#photoScale).
+        photoManager.setScale = function () {
+            const scaleVal = document.getElementById('photoScaleVal');
+            if (scaleVal) {
+                const input = document.getElementById('photoScale');
+                if (input) scaleVal.textContent = parseFloat(input.value).toFixed(1);
+            }
+        };
         console.log('✅ PhotoManager инициализирован');
     } catch (e) {
         console.error('❌ Ошибка инициализации PhotoManager:', e);
     }
-    const getSteleMesh = () => {
-        let steleMesh = null;
-        monumentGroup.children.forEach(child => {
-            if (child !== decalsGroup && child.geometry && (child.geometry.type === 'BoxGeometry' || child.type === 'Group')) {
-                steleMesh = child;
-            }
-        });
-        return steleMesh;
-    };
-    try {
-        epitaphManager = new EpitaphManager(
-            state, 
-            () => {
-                textureCache.invalidateBack();
-                throttledUpdate();
-            },
-            renderer,
-            camera,
-            monumentGroup,
-            getSteleMesh
-        );
-        console.log('✅ EpitaphManager инициализирован');
-    } catch (e) {
-        console.error('❌ Ошибка инициализации EpitaphManager:', e);
-    }
-
-
     // ============================================================
     // ⭐ ИНИЦИАЛИЗАЦИЯ ФОНОВ СТЕЛЫ
     // ============================================================
@@ -5018,6 +5460,46 @@ setTimeout(() => {
 			}
 		};
 		input.click();
+	});
+
+	document.getElementById('exportGlbBtn')?.addEventListener('click', async (event) => {
+		const button = event.currentTarget;
+		if (button.disabled) return;
+
+		const originalText = button.textContent;
+
+		button.disabled = true;
+		button.setAttribute('aria-busy', 'true');
+		button.textContent = 'Собираем GLB...';
+
+		try {
+			projectIO.syncStateFromUI();
+
+			const result = await downloadProjectAsGLB({
+				scene,
+				state,
+				includeEnvironment: true
+			});
+
+			console.log('GLB export:', {
+				fileName: result.fileName,
+				byteLength: result.byteLength,
+				meshCount: result.meshCount,
+				textureCount: result.textureCount
+			});
+
+			showToast(
+				`GLB готов: ${result.fileName} (${formatFileSize(result.byteLength)})`,
+				'success'
+			);
+		} catch (error) {
+			console.error('GLB export failed:', error);
+			showToast('Не удалось экспортировать GLB. Подробности в консоли.', 'error');
+		} finally {
+			button.disabled = false;
+			button.removeAttribute('aria-busy');
+			button.textContent = originalText;
+		}
 	});
 
 }, initDelay);
@@ -5087,40 +5569,6 @@ document.getElementById('btnTextReset')?.addEventListener('click', () => {
     state.textOffsetX = 0;
     state.textOffsetY = 0;
     updateTextOffsetDisplay();
-    markTexturesDirty();
-});
-
-const stepEpitaph = 0.02;
-function updateEpitaphOffsetDisplay() {
-    const xVal = document.getElementById('epitaphOffsetXVal');
-    const yVal = document.getElementById('epitaphOffsetYVal');
-    if (xVal) xVal.textContent = state.epitaphOffsetX.toFixed(2);
-    if (yVal) yVal.textContent = state.epitaphOffsetY.toFixed(2);
-}
-document.getElementById('btnEpitaphUp')?.addEventListener('click', () => {
-    state.epitaphOffsetY -= stepEpitaph;
-    updateEpitaphOffsetDisplay();
-    markTexturesDirty();
-});
-document.getElementById('btnEpitaphDown')?.addEventListener('click', () => {
-    state.epitaphOffsetY += stepEpitaph;
-    updateEpitaphOffsetDisplay();
-    markTexturesDirty();
-});
-document.getElementById('btnEpitaphLeft')?.addEventListener('click', () => {
-    state.epitaphOffsetX -= stepEpitaph;
-    updateEpitaphOffsetDisplay();
-    markTexturesDirty();
-});
-document.getElementById('btnEpitaphRight')?.addEventListener('click', () => {
-    state.epitaphOffsetX += stepEpitaph;
-    updateEpitaphOffsetDisplay();
-    markTexturesDirty();
-});
-document.getElementById('btnEpitaphReset')?.addEventListener('click', () => {
-    state.epitaphOffsetX = 0;
-    state.epitaphOffsetY = 0;
-    updateEpitaphOffsetDisplay();
     markTexturesDirty();
 });
 
@@ -5434,11 +5882,11 @@ async function initModelList() {
     );
 
     renderGraveSlabGrid();
+    updateGraveSlabPreview();
 }
 
 initModelList();
 
-initModelList();
 window.monumentGroup = monumentGroup;
 
 const materialSelect = document.getElementById('materialSelect');
@@ -5450,6 +5898,52 @@ if (materialSelect) {
         updateCurrentCustomSteleMaterial(state.material);
         resetTileManager();
         throttledUpdate();
+        calculatePrice();
+    });
+}
+
+const isDuplicatorMode = () =>
+    window.multiMonumentManager?.currentMode === 'duplicator';
+
+const depthSelect = document.getElementById('depthRange');
+if (depthSelect) {
+    depthSelect.addEventListener('change', (e) => {
+        if (!isDuplicatorMode()) {
+            state.depth = parseFloat(e.target.value) || 0.07;
+            throttledUpdate();
+        }
+        calculatePrice();
+        updateStelePreview();
+    });
+}
+
+const tileMaterialSelect = document.getElementById('tileMaterialSelect');
+if (tileMaterialSelect) {
+    tileMaterialSelect.addEventListener('change', (e) => {
+        if (!isDuplicatorMode()) {
+            state.tileMaterial = e.target.value;
+        }
+        calculatePrice();
+        updateStelePreview();
+    });
+}
+
+const pedestalEnabledCheckbox = document.getElementById('pedestalEnabled');
+if (pedestalEnabledCheckbox) {
+    pedestalEnabledCheckbox.addEventListener('change', (e) => {
+        if (!isDuplicatorMode()) {
+            state.pedestalEnabled = e.target.checked;
+            throttledUpdate();
+        }
+        calculatePrice();
+        updateStelePreview();
+    });
+}
+
+const includeInstallCheckbox = document.getElementById('includeInstall');
+if (includeInstallCheckbox) {
+    includeInstallCheckbox.addEventListener('change', (e) => {
+        state.includeInstall = e.target.checked;
         calculatePrice();
     });
 }
@@ -5524,6 +6018,7 @@ if (graveSlabMaterialSelect) {
         );
 
         throttledUpdate();
+        updateGraveSlabPreview();
     });
 }
 
@@ -5540,6 +6035,7 @@ if (graveSlabDecorMaterialSelect) {
         );
 
         throttledUpdate();
+        updateGraveSlabPreview();
     });
 }
 
@@ -5593,6 +6089,220 @@ function updateLayoutPreview() {
     preview.innerHTML = html;
 }
 
+const stelePreviewColors = {
+    granite: '#2f2f31',
+    black_galaxy: '#111113',
+    ninimyaki: '#26302a',
+    marble: '#e8e8e2',
+    red_granite: '#6f2a2a',
+    beige_granite: '#b9a88e',
+    gray_granite: '#767676'
+};
+
+function drawStelePreview(data) {
+    const canvas = document.getElementById('stelePreviewCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = Math.max(0.1, Number(data.width) || 0.6);
+    const height = Math.max(0.2, Number(data.height) || 1.2);
+    const depth = Math.max(0.07, Number(data.depth) || 0.07);
+    const material = data.material || 'granite';
+    const color = stelePreviewColors[material] || '#777777';
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(0, 0, w, h);
+
+    const scale = Math.min((w * 0.52) / width, (h * 0.58) / height);
+    const steleWidth = width * scale;
+    const steleHeight = height * scale;
+    const centerX = w / 2;
+    const baseY = h * 0.79;
+    const topY = baseY - steleHeight;
+    const left = centerX - steleWidth / 2;
+    const side = Math.min(steleWidth * 0.22, depth * scale * 1.6);
+
+    if (data.pedestalEnabled !== false) {
+        const pedestalWidth = steleWidth + side + 18;
+        const pedestalHeight = Math.max(12, Math.min(26, steleHeight * 0.12));
+        ctx.fillStyle = '#55575a';
+        ctx.fillRect(centerX - pedestalWidth / 2, baseY, pedestalWidth, pedestalHeight);
+        ctx.fillStyle = '#707377';
+        ctx.beginPath();
+        ctx.moveTo(centerX + pedestalWidth / 2, baseY);
+        ctx.lineTo(centerX + pedestalWidth / 2 + 7, baseY - 5);
+        ctx.lineTo(centerX + pedestalWidth / 2 + 7, baseY + pedestalHeight - 5);
+        ctx.lineTo(centerX + pedestalWidth / 2, baseY + pedestalHeight);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(left, topY + 8);
+    ctx.quadraticCurveTo(left, topY, left + 8, topY);
+    ctx.lineTo(left + steleWidth - 8, topY);
+    ctx.quadraticCurveTo(left + steleWidth, topY, left + steleWidth, topY + 8);
+    ctx.lineTo(left + steleWidth, baseY);
+    ctx.lineTo(left, baseY);
+    ctx.closePath();
+    ctx.fill();
+
+    if (side > 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.13)';
+        ctx.beginPath();
+        ctx.moveTo(left + steleWidth, topY + 6);
+        ctx.lineTo(left + steleWidth + side, topY - 4);
+        ctx.lineTo(left + steleWidth + side, baseY - 4);
+        ctx.lineTo(left + steleWidth, baseY);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(left, baseY - 2, steleWidth + side, 2);
+}
+
+let stelePreviewRequest = 0;
+
+async function updateStelePreview() {
+    const canvas = document.getElementById('stelePreviewCanvas');
+    const image = document.getElementById('stelePreviewImage');
+    const caption = document.getElementById('stelePreviewCaption');
+    if (!canvas) return;
+
+    const data = getActivePricingMonument();
+    const width = Math.max(0.1, Number(data.width) || 0.6);
+    const height = Math.max(0.2, Number(data.height) || 1.2);
+    const depth = Math.max(0.07, Number(data.depth) || 0.07);
+    const material = data.material || 'granite';
+    const modelId = String(data.steleModel || data.steleType || '');
+    const isCustom = modelId.startsWith('custom_');
+    const requestId = ++stelePreviewRequest;
+
+    if (isCustom) {
+        const url = await getPreviewUrl(modelId);
+        if (requestId !== stelePreviewRequest) return;
+        if (url && image) {
+            image.src = url;
+            image.style.display = 'block';
+            canvas.style.display = 'none';
+        } else {
+            if (image) image.style.display = 'none';
+            canvas.style.display = 'block';
+            drawStelePreview(data);
+        }
+    } else {
+        if (image) image.style.display = 'none';
+        canvas.style.display = 'block';
+        drawStelePreview(data);
+    }
+
+    if (caption) {
+        const pedestal = data.pedestalEnabled !== false ? 'тумба есть' : 'без тумбы';
+        caption.textContent =
+            `${Math.round(width * 100)} × ${Math.round(height * 100)} × ${Math.round(depth * 100)} см · ` +
+            `${materialPriceLabels[material] || material} · ${pedestal}`;
+    }
+}
+
+window.updateStelePreview = updateStelePreview;
+
+function updateGraveSlabPreview() {
+    const panel = document.getElementById('graveSlabPreviewPanel');
+    const image = document.getElementById('graveSlabPreviewImage');
+    const caption = document.getElementById('graveSlabPreviewCaption');
+    if (!panel) return;
+
+    const data = getActivePricingMonument();
+    const isSlab = data.flowerbedMode === 'slab';
+    panel.style.display = isSlab ? 'flex' : 'none';
+    if (!isSlab) return;
+
+    const modelId = data.graveSlabModel || 'slab1';
+    const model = getGraveSlabModelList().find(item => item.id === modelId);
+    const previewUrl = getGraveSlabPreviewUrl(modelId);
+
+    if (image) {
+        image.style.display = previewUrl ? 'block' : 'none';
+        if (previewUrl) image.src = previewUrl;
+    }
+
+    if (caption) {
+        const material = data.graveSlabMaterial || 'granite';
+        const width = Number(data.graveWidth) || 0;
+        const length = Number(data.graveLength) || 0;
+        caption.textContent =
+            `${model?.name || modelId} · ` +
+            `${width.toFixed(2)} × ${length.toFixed(2)} м · ` +
+            `${materialPriceLabels[material] || material}`;
+    }
+}
+
+window.updateGraveSlabPreview = updateGraveSlabPreview;
+
+document.addEventListener('graveSlabModelSelected', updateGraveSlabPreview);
+
+function applyFlowerbedMode(mode, options = {}) {
+    const modeSelect = document.getElementById('flowerbedMode');
+    const nextMode = mode || modeSelect?.value || 'flowerbed';
+    const isSlab = nextMode === 'slab';
+
+    if (window.state) window.state.flowerbedMode = nextMode;
+    if (modeSelect && modeSelect.value !== nextMode) modeSelect.value = nextMode;
+
+    const slabModelControls = document.getElementById('graveSlabModelControls');
+    if (slabModelControls) slabModelControls.style.display = isSlab ? 'block' : 'none';
+
+    const slabMaterialControls = document.getElementById('graveSlabMaterialControls');
+    if (slabMaterialControls) slabMaterialControls.style.display = isSlab ? 'block' : 'none';
+
+    const flowerControls = document.getElementById('flowerControls');
+    if (flowerControls) flowerControls.style.display = isSlab ? 'none' : 'block';
+
+    if (typeof updateGraveSlabPreview === 'function') {
+        updateGraveSlabPreview();
+    }
+
+    if (options.soft) return;
+
+    if (typeof resetTileManager === 'function') resetTileManager();
+    if (typeof updateLayoutPreview === 'function') updateLayoutPreview();
+
+    const manager = window.multiMonumentManager;
+    if (manager && manager.currentMode === 'duplicator') {
+        manager.pendingChanges = manager.collectUIData();
+        manager.pendingIndex = manager.activeIndex;
+        manager.renderMonumentList();
+    } else if (typeof throttledUpdate === 'function') {
+        throttledUpdate();
+    }
+
+    if (typeof calculatePrice === 'function') calculatePrice();
+}
+
+window.applyFlowerbedMode = applyFlowerbedMode;
+
+document.getElementById('flowerbedMode')?.addEventListener('change', (e) => {
+    applyFlowerbedMode(e.target.value);
+});
+
+applyFlowerbedMode(
+    (window.state && window.state.flowerbedMode) ||
+    document.getElementById('flowerbedMode')?.value ||
+    'flowerbed',
+    { soft: true }
+);
+
+['graveWidth', 'graveWidthInput', 'graveLength', 'graveLengthInput']
+    .forEach(id => {
+        document.getElementById(id)?.addEventListener('input', updateGraveSlabPreview);
+    });
+
 document.getElementById('tileLayout')?.addEventListener('change', () => {
     updateLayoutPreview();
     resetTileManager();
@@ -5609,6 +6319,8 @@ document.getElementById('flowerEnabled')?.addEventListener('change', () => {
     setTimeout(updateLayoutPreview, 100);
 });
 setTimeout(updateLayoutPreview, 500);
+setTimeout(updateStelePreview, 700);
+setTimeout(updateGraveSlabPreview, 700);
 
 // ============================================================
 // ⭐ ОБНОВЛЕНИЕ UI ВЫБРАННОГО ОБЪЕКТА
@@ -5627,28 +6339,15 @@ function updateSelectionUI(selected) {
     `;
 }
 
-// ⭐ СИНХРОНИЗАЦИЯ ФОТО
-document.getElementById('photoScale')?.addEventListener('input', function() {
-    const val = parseFloat(this.value);
-    document.getElementById('photoScaleVal').textContent = val.toFixed(1);
-    if (window.state) window.state.photoScale = val;
-    if (window.multiMonumentManager && window.multiMonumentManager.currentMode === 'duplicator') {
-        const manager = window.multiMonumentManager;
-        const uiData = manager.collectUIData();
-        manager.pendingChanges = uiData;
-        manager.pendingIndex = manager.activeIndex;
-        manager.renderMonumentList();
-    } else {
-        throttledUpdate();
-    }
-});
+
 
 // ⭐ СИНХРОНИЗАЦИЯ ЦВЕТНИКА
 document.getElementById('flowerEnabled')?.addEventListener('change', function() {
     const val = this.checked;
     if (window.state) window.state.flowerEnabled = val;
     const controls = document.getElementById('flowerControls');
-    if (controls) controls.style.display = val ? 'block' : 'none';
+    const isSlab = window.state?.flowerbedMode === 'slab';
+    if (controls) controls.style.display = val && !isSlab ? 'block' : 'none';
     if (window.multiMonumentManager && window.multiMonumentManager.currentMode === 'duplicator') {
         const manager = window.multiMonumentManager;
         const uiData = manager.collectUIData();
@@ -5763,7 +6462,7 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         // --- 3. РАЗМЕРЫ ---
         const width = parseFloat(document.getElementById('widthRange')?.value) || 0.6;
         const height = parseFloat(document.getElementById('heightRange')?.value) || 1.2;
-        const depth = 0.08;
+        const depth = parseFloat(document.getElementById('depthRange')?.value) || 0.07;
         const graveWidth = parseFloat(document.getElementById('graveWidth')?.value) || 0.9;
         const graveLength = parseFloat(document.getElementById('graveLength')?.value) || 1.5;
         const baseHeight = parseFloat(document.getElementById('baseHeight')?.value) || 0.15;
@@ -6109,249 +6808,12 @@ function makeScreenshot(angle, height = 2.5, distance = 6.0, targetY = 0.6) {
 }
 
 function generateEstimatePDF() {
-    const p = prices || {};
-    let total = 0;
-    const tableRows = [];
-    
-    // ========== 1. СТЕЛА ==========
-    const steleArea = state.width * state.height;
-    const materialPrice = p[state.material] || p.granite || 5000;
-    const stelePrice = steleArea * materialPrice;
-    total += stelePrice;
-    const safeMaterial = escapeHTML(state.material || 'Гранит');
-    tableRows.push({ 
-        name: '🪦 Памятник (стела)', 
-        desc: `${safeMaterial}, ${steleArea.toFixed(2)} м² × ${materialPrice} ₽/м²`, 
-        price: stelePrice 
-    });
-    
-    // ========== 2. ОСНОВАНИЕ ==========
-    const graveArea = state.graveWidth * state.graveLength;
-    let baseKey = 'base_other';
-    if (['granite', 'black_galaxy', 'ninimyaki'].includes(state.material)) baseKey = 'base_granite';
-    else if (state.material === 'marble') baseKey = 'base_marble';
-    else if (state.material === 'red_granite') baseKey = 'base_red_granite';
-    const basePrice = p[baseKey] || 4000;
-    const basePriceTotal = graveArea * basePrice;
-    total += basePriceTotal;
-    tableRows.push({ 
-        name: '🪨 Основание', 
-        desc: `${graveArea.toFixed(2)} м² × ${basePrice} ₽/м²`, 
-        price: basePriceTotal 
-    });
-    
-    // ========== 3. ИЗГОТОВЛЕНИЕ СТЕЛЫ ==========
-    const workPrice = p.stele_work || 5000;
-    total += workPrice;
-    tableRows.push({ 
-        name: '🔧 Изготовление стелы', 
-        desc: 'Фиксированная цена', 
-        price: workPrice 
-    });
-    
-    // ========== 4. ГРАВИРОВКИ ==========
-    let engravingPriceTotal = 0;
-    let engravingCount = 0;
-    const engravingDescParts = [];
-    
-    if (state.engravingsFront && state.engravingsFront.length > 0) {
-        for (let i = 0; i < state.engravingsFront.length; i++) {
-            const eng = state.engravingsFront[i];
-            const basePrice = p.engraving || 1500;
-            const scale = eng.scale || 1.0;
-            const price = basePrice * scale;
-            engravingPriceTotal += price;
-            engravingCount++;
-            const name = engravingsConfig[eng.type]?.name || eng.type;
-            engravingDescParts.push(`${name} (перед) ×${scale.toFixed(1)}`);
-        }
-    }
-    
-    if (state.engravingsBack && state.engravingsBack.length > 0) {
-        for (let i = 0; i < state.engravingsBack.length; i++) {
-            const eng = state.engravingsBack[i];
-            const basePrice = p.engraving || 1500;
-            const scale = eng.scale || 1.0;
-            const price = basePrice * scale;
-            engravingPriceTotal += price;
-            engravingCount++;
-            const name = engravingsConfig[eng.type]?.name || eng.type;
-            engravingDescParts.push(`${name} (зад) ×${scale.toFixed(1)}`);
-        }
-    }
-    
-    if (engravingPriceTotal > 0) {
-        total += engravingPriceTotal;
-        tableRows.push({ 
-            name: `🎨 Гравировки (${engravingCount} шт)`, 
-            desc: engravingDescParts.join('; '), 
-            price: engravingPriceTotal 
-        });
-    }
-    
-    // ========== 5. ФОТО ==========
-    let photoPrice = 0;
-    if (state.textureUrl) {
-        photoPrice = p.photo || 2000;
-        total += photoPrice;
-        tableRows.push({ 
-            name: '🖼️ Фото на памятник', 
-            desc: 'Керамика', 
-            price: photoPrice 
-        });
-    }
-    
-    // ========== 6. ЦВЕТНИК ==========
-    let flowerTotal = 0;
-    if (state.flowerEnabled) {
-        const flowerArea = state.flowerWidth * state.flowerLength;
-        const flowerPrice = p[state.flowerbedType] || 500;
-        flowerTotal = flowerArea * flowerPrice;
-        total += flowerTotal;
-        const flowerName = {
-            grass: 'Газон',
-            gravel: 'Гравий',
-            marble_chips: 'Мраморная крошка',
-            red_gravel: 'Красный гравий',
-            blue_gravel: 'Синий гравий',
-            black_gravel: 'Чёрная галька',
-            sand: 'Песок',
-            flowers: 'Цветущий газон',
-            moss: 'Мох'
-        }[state.flowerbedType] || state.flowerbedType;
-        tableRows.push({ 
-            name: '🌿 Цветник', 
-            desc: `${flowerName}, ${flowerArea.toFixed(2)} м² × ${flowerPrice} ₽/м²`, 
-            price: flowerTotal 
-        });
-    }
-    
-    // ========== 7. ОГРАДКА ==========
-    let fenceTotal = 0;
-    let fenceLength = (state.graveWidth + state.graveLength) * 2;
-    if (state.fenceGateSide !== 'none') fenceLength -= parseFloat(state.gateWidth || 0.8);
-    const fencePrice = p[state.fenceType] || 0;
-    if (fencePrice > 0 && state.fenceType !== 'none') {
-        fenceTotal = fenceLength * fencePrice;
-        total += fenceTotal;
-        const fenceName = {
-            pipe: 'Труба',
-            chain: 'Цепь',
-            casting: 'Литье',
-            model_3d: '3D Модель',
-            venzel: 'Вензель'
-        }[state.fenceType] || state.fenceType;
-        tableRows.push({ 
-            name: '🚧 Оградка', 
-            desc: `${fenceName}, ${fenceLength.toFixed(2)} м × ${fencePrice} ₽/м`, 
-            price: fenceTotal 
-        });
-    }
-    
-    // ========== 8. МЕБЕЛЬ ==========
-    let tableCount = 0, benchCount = 0, picnicCount = 0;
-    const furnitureScaleInput = document.getElementById('furnitureScale');
-    const currentFurnitureScale = furnitureScaleInput ? parseFloat(furnitureScaleInput.value) : 1.0;
-    
-    if (window.furniture3DManager && window.furniture3DManager.furniture) {
-        const furnitureList = window.furniture3DManager.furniture;
-        for (let i = 0; i < furnitureList.length; i++) {
-            const item = furnitureList[i];
-            if (item.type === 'table') tableCount++;
-            else if (item.type === 'bench') benchCount++;
-            else if (item.type === 'picnic_set') picnicCount++;
-        }
-    }
-    
-    const tablePrice = (p.table || 15000) * currentFurnitureScale;
-    const benchPrice = (p.bench || 12000) * currentFurnitureScale;
-    const picnicPrice = (p.picnic_set || 25000) * currentFurnitureScale;
-    
-    if (tableCount > 0) {
-        const tableTotal = tableCount * tablePrice;
-        total += tableTotal;
-        tableRows.push({ 
-            name: '🪵 Столы', 
-            desc: `${tableCount} шт × ${tablePrice.toFixed(0)} ₽ (масштаб ${currentFurnitureScale.toFixed(1)})`, 
-            price: tableTotal 
-        });
-    }
-    
-    if (benchCount > 0) {
-        const benchTotal = benchCount * benchPrice;
-        total += benchTotal;
-        tableRows.push({ 
-            name: '🪑 Скамейки', 
-            desc: `${benchCount} шт × ${benchPrice.toFixed(0)} ₽ (масштаб ${currentFurnitureScale.toFixed(1)})`, 
-            price: benchTotal 
-        });
-    }
-    
-    if (picnicCount > 0) {
-        const picnicTotal = picnicCount * picnicPrice;
-        total += picnicTotal;
-        tableRows.push({ 
-            name: '🧺 Наборы', 
-            desc: `${picnicCount} шт × ${picnicPrice.toFixed(0)} ₽ (масштаб ${currentFurnitureScale.toFixed(1)})`, 
-            price: picnicTotal 
-        });
-    }
-    
-    // ========== 9. ВАЗЫ (ДОБАВЛЕНО!) ==========
-    let vaseCount = 0;
-    if (window.vasesManager && window.vasesManager.vases) {
-        vaseCount = window.vasesManager.vases.length;
-    }
-    const vaseScale = state.vaseScale || 1.0;
-    // Используем цену материала ваз из prices
-    const vaseMaterialPrice = p[state.vaseMaterial] || p.marble || 5000;
-    const vasePrice = vaseMaterialPrice * vaseScale;
-    const vaseTotal = vaseCount * vasePrice;
-    
-    if (vaseCount > 0) {
-        total += vaseTotal;
-        const materialNames = {
-            'granite': 'Габбро-Диабаз',
-            'black_galaxy': 'Галактика черный',
-            'ninimyaki': 'Нинимяки',
-            'marble': 'Белый Мрамор',
-            'red_granite': 'Красный Гранит',
-            'beige_granite': 'Бежевый Гранит',
-            'gray_granite': 'Серый Гранит'
-        };
-        const vaseMatName = materialNames[state.vaseMaterial] || state.vaseMaterial || 'Мрамор';
-        tableRows.push({ 
-            name: '🏺 Вазы', 
-            desc: `${vaseCount} шт × ${vasePrice.toFixed(0)} ₽ (${vaseMatName}, масштаб ${vaseScale.toFixed(1)})`, 
-            price: vaseTotal 
-        });
-    }
-    
-    // ========== 10. ДОСТАВКА ==========
-    const includeDelivery = document.getElementById('includeDelivery')?.checked || false;
-    const includeInstall = document.getElementById('includeInstall')?.checked || false;
-    let deliveryPrice = 0;
-    let installPrice = 0;
-    
-    if (includeDelivery) {
-        deliveryPrice = p.delivery || 3000;
-        total += deliveryPrice;
-        tableRows.push({ 
-            name: '🚚 Доставка', 
-            desc: 'По городу', 
-            price: deliveryPrice 
-        });
-    }
-    
-    if (includeInstall) {
-        installPrice = p.install || 5000;
-        total += installPrice;
-        tableRows.push({ 
-            name: '🔧 Установка', 
-            desc: 'Монтаж', 
-            price: installPrice 
-        });
-    }
+    const {
+        total,
+        rows: tableRows,
+        vaseCount,
+        vaseSummary
+    } = buildPriceBreakdown();
     
     // ========== 11. ДЕЛАЕМ СКРИНШОТЫ ==========
     let screenshotFront = '', screenshotBack = '', screenshotSide = '', screenshotTop = '', screenshotSteleFront = '', screenshotSteleBack = '';
@@ -6387,12 +6849,13 @@ function generateEstimatePDF() {
     // ========== 12. ДАННЫЕ ДЛЯ HTML ==========
     const date = new Date().toLocaleDateString('ru-RU');
     const orderNumber = '№ ' + String(Math.floor(100000 + Math.random() * 900000));
+    const safeMaterial = escapeHTML(materialPriceLabels[state.material] || state.material || 'Гранит');
     const safeFullName = escapeHTML(state.fullName || 'Не указано');
     const safeDates = escapeHTML(state.dates || 'Не указаны');
     const safeEpitaph = escapeHTML(state.epitaph || 'Не указана');
     const safeFlowerbed = escapeHTML(state.flowerbedType || 'Нет');
     const safeFenceType = escapeHTML(state.fenceType !== 'none' ? state.fenceType : 'Нет');
-    const safeVaseMat = escapeHTML(state.vaseMaterial || 'Мрамор');
+    const safeVaseSummary = escapeHTML(vaseSummary);
     const clientPhone = document.getElementById('clientPhone')?.value || 'Не указан';
     const clientEmail = document.getElementById('clientEmail')?.value || 'Не указан';
     
@@ -6487,7 +6950,7 @@ function generateEstimatePDF() {
             <div class="item"><span class="label">Цветник:</span><span class="value">${state.flowerEnabled ? state.flowerWidth.toFixed(1)+'×'+state.flowerLength.toFixed(1)+' м ('+safeFlowerbed+')' : 'Нет'}</span></div>
             <div class="item"><span class="label">Оградка:</span><span class="value">${safeFenceType} (высота ${state.fenceHeight.toFixed(1)} м)</span></div>
             <div class="item"><span class="label">Вход:</span><span class="value">${state.fenceGateSide !== 'none' ? state.fenceGateSide : 'Нет'}</span></div>
-            <div class="item"><span class="label">Вазы:</span><span class="value">${vaseCount > 0 ? vaseCount + ' шт. (' + safeVaseMat + ', масштаб ' + vaseScale.toFixed(1) + ')' : 'Нет'}</span></div>
+            <div class="item"><span class="label">Вазы:</span><span class="value">${vaseCount > 0 ? safeVaseSummary : 'Нет'}</span></div>
         </div>
     </div>
     <div class="section">

@@ -56,7 +56,7 @@ export function initSteleTypeHandlers() {
                 if (selectedOption.dataset.defaultWidth) {
                     window.state.width = parseFloat(selectedOption.dataset.defaultWidth);
                     window.state.height = parseFloat(selectedOption.dataset.defaultHeight);
-                    window.state.depth = parseFloat(selectedOption.dataset.defaultDepth || 0.08);
+                    window.state.depth = parseFloat(selectedOption.dataset.defaultDepth || 0.07);
                     const widthRange = document.getElementById('widthRange');
                     const heightRange = document.getElementById('heightRange');
                     if (widthRange) widthRange.value = window.state.width;
@@ -103,35 +103,21 @@ export function initSteleSizeHandlers() {
 // ⭐ ОБРАБОТЧИКИ ДЛЯ ФОТО
 // ============================================================
 
-export function initPhotoHandlers() {
-    // Загрузка фото
-    const textureUpload = document.getElementById('textureUpload');
-    if (textureUpload) {
-        textureUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                if (!isValidFile(file)) {
-                    window.showToast('❌ Недопустимый файл', 'error');
-                    textureUpload.value = '';
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    window.state.textureUrl = evt.target.result;
-                    window.state.modelPhotoUrl = evt.target.result;
-                    window.textureCache.invalidateFront();
-                    window.throttledUpdate();
-                    window.calculatePrice();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
+let photoScaleHandlersInitialized = false;
 
+export function initPhotoScaleHandler() {
+    if (photoScaleHandlersInitialized) return;
 
     // Масштаб фото: меняем только выбранную фотографию
-    document.getElementById('photoScale')?.addEventListener('input', function () {
-        const val = Number.parseFloat(this.value);
+    const photoScaleRange = document.getElementById('photoScale');
+    const photoScaleNumber = document.getElementById('photoScaleInput');
+
+    if (!photoScaleRange && !photoScaleNumber) return;
+
+    photoScaleHandlersInitialized = true;
+
+    const applyPhotoScale = function (rawValue) {
+        const val = Number.parseFloat(rawValue);
 
         if (!Number.isFinite(val) || val <= 0) return;
 
@@ -160,26 +146,38 @@ export function initPhotoHandlers() {
             );
         } else {
             state = window.state;
-            decalsGroup = window._customPhotoDrag?.decalsGroup;
+            decalsGroup = window.decalsGroup ||
+                window.monumentGroup?.children.find(
+                    child => child.name === 'mainDecalsGroup'
+                );
         }
 
         if (!state || !decalsGroup) return;
 
-        const select = document.getElementById('photoPositionPerson');
-        const selectedId = select?.value;
+        const burials = Array.isArray(state.burials)
+            ? state.burials
+            : [];
+
+        // Берём человека, выбранного в основной панели «Люди на стеле»
+        const selectedId = state.activeBurialId;
+        const isLegacyPhoto = burials.length === 0;
+
+        if (!isLegacyPhoto && selectedId == null) {
+            console.warn('Сначала выберите человека в панели «Люди на стеле»');
+            return;
+        }
 
         let photoMesh = null;
 
         decalsGroup.traverse(child => {
-            if (
-                child.isMesh &&
-                child.userData?.type === 'photo' &&
-                (
-                    selectedId
-                        ? String(child.userData.burialId) === String(selectedId)
-                        : child.userData.burialId === 'legacy-photo'
-                )
-            ) {
+            if (!child.isMesh || child.userData?.type !== 'photo') return;
+
+            if (isLegacyPhoto) {
+                photoMesh ??= child;
+                return;
+            }
+
+            if (String(child.userData.burialId) === String(selectedId)) {
                 photoMesh = child;
             }
         });
@@ -189,31 +187,24 @@ export function initPhotoHandlers() {
             return;
         }
 
-        const previousScale = Number(photoMesh.userData.photoScale ?? 1);
-        if (!Number.isFinite(previousScale) || previousScale <= 0) return;
-
-		photoMesh.scale.set(val, val, 1);
-		photoMesh.userData.photoScale = val;
-
-        const burials = Array.isArray(state.burials)
-            ? state.burials
-            : [];
-
         const person = burials.find(
             item => String(item.id) === String(photoMesh.userData.burialId)
         );
 
         if (person) {
             person.photoScale = val;
-        } else {
+        }
+
+        if (!isDuplicator || burials.length === 0) {
             state.photoScale = val;
         }
 
-        photoMesh.scale.set(val, val, 1);
-        photoMesh.userData.photoScale = val;
-        photoMesh.updateMatrixWorld(true);
-
         if (isDuplicator) {
+            // В дублере перестройки нет — обновляем только выбранный mesh.
+            photoMesh.scale.set(val, val, 1);
+            photoMesh.userData.photoScale = val;
+            photoMesh.updateMatrixWorld(true);
+
             const index = manager.activeIndex;
             const monument = manager.monuments[index];
 
@@ -235,10 +226,49 @@ export function initPhotoHandlers() {
                     ...item
                 }));
             }
+        } else if (typeof window.throttledUpdate === 'function') {
+            // Основная стела: пересобираем только MAIN.
+            // Масштабы остальных фото берутся из их burial.photoScale.
+            window.throttledUpdate();
         }
+    };
 
-        photoMesh.updateMatrixWorld(true);
+    photoScaleRange?.addEventListener('input', function () {
+        applyPhotoScale(this.value);
     });
+
+    photoScaleNumber?.addEventListener('input', function () {
+        applyPhotoScale(this.value);
+    });
+}
+
+export function initPhotoHandlers() {
+    // Загрузка фото
+    const textureUpload = document.getElementById('textureUpload');
+    if (textureUpload) {
+        textureUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (!isValidFile(file)) {
+                    window.showToast('❌ Недопустимый файл', 'error');
+                    textureUpload.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    window.state.textureUrl = evt.target.result;
+                    window.state.modelPhotoUrl = evt.target.result;
+                    window.textureCache.invalidateFront();
+                    window.throttledUpdate();
+                    window.calculatePrice();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+
+    initPhotoScaleHandler();
 
 
     // Форма фото
@@ -316,12 +346,13 @@ export function initTextHandlers() {
     if (epitaphTextarea) {
         epitaphTextarea.addEventListener('input', (e) => {
             const value = e.target.value;
-            if (value.length > 1000) {
-                window.showToast('⚠️ Слишком длинная эпитафия (максимум 1000 символов)', 'warning');
-                e.target.value = value.substring(0, 1000);
+            if (value.length > 2000) {
+                window.showToast('⚠️ Слишком длинная эпитафия (максимум 2000 символов)', 'warning');
+                e.target.value = value.substring(0, 2000);
                 return;
             }
             window.state.epitaph = e.target.value;
+            window.state.backTextureNeedsUpdate = true;
             window.textureCache.invalidateBack();
             window.throttledUpdate();
         });
@@ -442,8 +473,10 @@ export function initFlowerbedHandlers() {
     document.getElementById('flowerEnabled')?.addEventListener('change', (e) => {
         window.state.flowerEnabled = e.target.checked;
         const flowerControls = document.getElementById('flowerControls');
+        const isSlab = window.state.flowerbedMode === 'slab';
         if (flowerControls) {
-            flowerControls.style.display = window.state.flowerEnabled ? 'block' : 'none';
+            flowerControls.style.display =
+                window.state.flowerEnabled && !isSlab ? 'block' : 'none';
         }
         window.resetTileManager();
         window.throttledUpdate();
@@ -485,16 +518,21 @@ export function initFlowerbedHandlers() {
 
 	document.getElementById('flowerbedMode')?.addEventListener('change', (e) => {
 		console.log('🔥 flowerbedMode CHANGE:', e.target.value);
+
+		if (typeof window.applyFlowerbedMode === 'function') {
+			window.applyFlowerbedMode(e.target.value);
+			return;
+		}
+
 		window.state.flowerbedMode = e.target.value;
 
-		const flowerTypeControls =
-			document.getElementById('flowerbedType')?.closest('.control-group');
+		const isSlab = e.target.value === 'slab';
 
-		if (flowerTypeControls) {
-			flowerTypeControls.style.display =
-				window.state.flowerbedMode === 'flowerbed'
-					? 'block'
-					: 'none';
+		const flowerControls =
+			document.getElementById('flowerControls');
+
+		if (flowerControls) {
+			flowerControls.style.display = isSlab ? 'none' : 'block';
 		}
 
 		const graveSlabModelControls =
@@ -502,9 +540,7 @@ export function initFlowerbedHandlers() {
 
 		if (graveSlabModelControls) {
 			graveSlabModelControls.style.display =
-				window.state.flowerbedMode === 'slab'
-					? 'block'
-					: 'none';
+				isSlab ? 'block' : 'none';
 		}
 
 		// 🎨 Материалы надгробной плиты
@@ -513,9 +549,7 @@ export function initFlowerbedHandlers() {
 
 		if (graveSlabMaterialControls) {
 			graveSlabMaterialControls.style.display =
-				window.state.flowerbedMode === 'slab'
-					? 'block'
-					: 'none';
+				isSlab ? 'block' : 'none';
 		}
 
         window.throttledUpdate();

@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D-памятник из JSON</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #111315;
+  color: #eee;
+  font: 14px Arial, sans-serif;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  min-height: 100vh;
+}
+
+.viewer {
+  height: 100vh;
+  min-height: 500px;
+  position: sticky;
+  top: 0;
+  background: radial-gradient(ellipse, #42464b, #111315 75%);
+}
+
+#canvas {
+  position: absolute;
+  inset: 0;
+}
+
+#canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hint {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  padding: 10px;
+  color: #ccc;
+  background: #111b;
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+.panel {
+  padding: 22px;
+  background: #1c1f23;
+  border-left: 1px solid #393d42;
+}
+
+h1 { font-size: 22px; margin-top: 0; }
+
+h2 {
+  font-size: 12px;
+  color: #c6b18a;
+  margin-top: 24px;
+}
+
+input[type="file"] {
+  width: 100%;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 7px;
+  background: #c9b58e;
+  color: #171717;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button.secondary {
+  color: white;
+  background: #34383e;
+}
+
+button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+#status {
+  margin-top: 15px;
+  color: #aaa;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+#jsonInfo {
+  margin-top: 10px;
+  padding: 10px;
+  background: #111;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #8fd18f;
+  display: none;
+  overflow-wrap: anywhere;
+}
+
+@media(max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  .viewer {
+    position: relative;
+    height: 58vh;
+    min-height: 380px;
+  }
+  .panel { border-left: 0; }
+}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+</head>
+
+<body>
+<div class="app">
+  <main class="viewer">
+    <div id="canvas"></div>
+    <div class="hint">Мышь — вращение · Колесо — масштаб</div>
+  </main>
+
+  <aside class="panel">
+    <h1>Модель памятника</h1>
+    <div style="color:#999">Построение из JSON</div>
+
+    <h2>JSON-ФАЙЛ</h2>
+    <input id="jsonFile" type="file" accept=".json,application/json">
+    <div id="jsonInfo"></div>
+
+    <h2>ДЕЙСТВИЯ</h2>
+    <button id="export">Скачать 3D-модель GLB</button>
+    <button class="secondary" id="reset">Сбросить вид</button>
+    <div id="status">Инициализация...</div>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+
+const host = document.getElementById("canvas");
+const status = document.getElementById("status");
+const jsonInfo = document.getElementById("jsonInfo");
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#202328");
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 200);
+const startCamera = new THREE.Vector3(3.8, 2.8, 5.5);
+camera.position.copy(startCamera);
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: false
+});
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+host.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1;
+controls.maxDistance = 30;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x36323a, 2));
+
+const keyLight = new THREE.DirectionalLight(0xfff3df, 3.2);
+keyLight.position.set(4, 7, 5);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.left = -6;
+keyLight.shadow.camera.right = 6;
+keyLight.shadow.camera.top = 6;
+keyLight.shadow.camera.bottom = -6;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xc7d8ff, 1.5);
+fillLight.position.set(-4, 4, 2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffffff, 2.4);
+rimLight.position.set(-3, 5, -4);
+scene.add(rimLight);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(100, 100),
+  new THREE.MeshStandardMaterial({
+    color: "#25272a",
+    roughness: 0.92
+  })
+);
+
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.025;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const model = new THREE.Group();
+model.name = "Memorial";
+scene.add(model);
+
+let stoneTexture = null;
+
+async function loadStoneTexture() {
+  const loader = new THREE.TextureLoader();
+
+  const urls = [
+    "./black_galaxy_color2.jpg",
+    "../../textures/black_galaxy/black_galaxy_color2.jpg"
+  ];
+
+  for (const url of urls) {
+    try {
+      const texture = await loader.loadAsync(url);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy =
+        renderer.capabilities.getMaxAnisotropy();
+      return texture;
+    } catch (error) {
+      console.warn("Текстура недоступна:", url);
+    }
+  }
+
+  return null;
+}
+
+stoneTexture = await loadStoneTexture();
+
+function stoneMaterial(roughness = 0.2) {
+  const params = {
+    color: stoneTexture ? "#ffffff" : "#171719",
+    metalness: 0.08,
+    roughness,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.13
+  };
+
+  if (stoneTexture) params.map = stoneTexture;
+
+  return new THREE.MeshPhysicalMaterial(params);
+}
+
+const granite = stoneMaterial(0.22);
+const polished = stoneMaterial(0.16);
+
+const soilMaterial = new THREE.MeshStandardMaterial({
+  color: "#282b25",
+  roughness: 0.98
+});
+
+const steelMat = new THREE.MeshStandardMaterial({
+  color: "#999999",
+  roughness: 0.4,
+  metalness: 0.9
+});
+
+function box(parent, name, w, h, d, material, x, y, z) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    material
+  );
+
+  mesh.name = name;
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+
+  return mesh;
+}
+
+function disposeObject(root) {
+  root.traverse(obj => {
+    if (obj.geometry) obj.geometry.dispose();
+
+    const materials = Array.isArray(obj.material)
+      ? obj.material
+      : obj.material ? [obj.material] : [];
+
+    for (const material of materials) {
+      if (material.userData?.dynamicResource) {
+        material.map?.dispose();
+        material.alphaMap?.dispose();
+        material.dispose();
+      }
+    }
+  });
+}
+
+function clearModel() {
+  while (model.children.length) {
+    const child = model.children[0];
+    model.remove(child);
+    disposeObject(child);
+  }
+}
+
+async function loadImageTexture(source) {
+  if (typeof source !== "string" || !source.trim()) {
+    throw new Error("Источник изображения не указан");
+  }
+
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin("anonymous");
+
+  const texture = await loader.loadAsync(source.trim());
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy =
+    renderer.capabilities.getMaxAnisotropy();
+
+  return texture;
+}
+
+function addTextPlane({
+  name,
+  text,
+  fontSize = 36,
+  color = "#e3d8c2",
+  width,
+  height,
+  x = 0,
+  y = 0.74,
+  z,
+  rotationY = 0
+}) {
+  if (!text) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, 1024, 1024);
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const lines = String(text).split("\n");
+  const lineHeight = fontSize * 1.4;
+  const startY = 512 - (lines.length - 1) * lineHeight / 2;
+
+  ctx.font = `bold ${fontSize}px Georgia`;
+
+  lines.forEach((line, i) => {
+    ctx.fillText(line, 512, startY + i * lineHeight, 960);
+  });
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1
+  });
+
+  material.userData.dynamicResource = true;
+
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    material
+  );
+
+  plane.name = name;
+  plane.position.set(x, y, z);
+  plane.rotation.y = rotationY;
+  model.add(plane);
+
+  return plane;
+}
+
+async function buildMonumentFromJSON(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Корневой элемент JSON должен быть объектом");
+  }
+
+  clearModel();
+
+  const W = Math.max(0.05, Number(data.width ?? 0.6));
+  const H = Math.max(0.1, Number(data.height ?? 1.2));
+  const D = Math.max(0.02, Number(data.depth ?? 0.08));
+
+  if (![W, H, D].every(Number.isFinite)) {
+    throw new Error("Размеры памятника должны быть числами");
+  }
+
+  const hasPedestal = data.pedestalEnabled === true;
+  const baseH = hasPedestal ? 0.16 : 0;
+  const steleCenterZ = -0.15;
+  const steleFrontZ = steleCenterZ + D / 2;
+
+  // Основание
+  if (hasPedestal) {
+    box(
+      model,
+      "Granite_Base",
+      W + 1.2,
+      baseH,
+      D + 2.0,
+      granite,
+      0,
+      baseH / 2,
+      D * 1.5
+    );
+  }
+
+  // Стела
+  box(
+    model,
+    "Stele",
+    W,
+    H,
+    D,
+    polished,
+    0,
+    baseH + H / 2,
+    steleCenterZ
+  );
+
+  // Цветник
+  if (
+    data.flowerbedMode === "flowerbed" ||
+    data.flowerbedType === "grass"
+  ) {
+    const fw = W + 0.4;
+    const fl = 1.1;
+    const fz = 0.55;
+    const railT = 0.06;
+    const railH = 0.07;
+    const railY = baseH + railH / 2;
+
+    box(
+      model, "Flowerbed_Soil",
+      fw - railT * 2, 0.02, fl - railT * 2,
+      soilMaterial, 0, baseH + 0.01, fz
+    );
+
+    box(
+      model, "Flowerbed_L",
+      railT, railH, fl,
+      polished, -fw / 2 + railT / 2, railY, fz
+    );
+
+    box(
+      model, "Flowerbed_R",
+      railT, railH, fl,
+      polished, fw / 2 - railT / 2, railY, fz
+    );
+
+    box(
+      model, "Flowerbed_F",
+      fw, railH, railT,
+      polished, 0, railY, fz + fl / 2 - railT / 2
+    );
+
+    box(
+      model, "Flowerbed_B",
+      fw, railH, railT,
+      polished, 0, railY, fz - fl / 2 + railT / 2
+    );
+
+    box(
+      model, "Grave_Slab",
+      fw, 0.06, fl,
+      polished, 0, baseH + 0.05, fz
+    );
+  }
+
+  // Ограда
+  if (data.fenceType && data.fenceType !== "none") {
+    const fH = Math.max(0.1, Number(data.fenceHeight ?? 0.6));
+    const offset = Math.max(0.1, Number(data.fenceOffset ?? 0.5));
+    const halfW = W / 2 + offset;
+    const halfD = offset + 0.4;
+
+    const pillars = [
+      [-halfW, -halfD],
+      [ halfW, -halfD],
+      [-halfW,  halfD],
+      [ halfW,  halfD]
+    ];
+
+    for (const [x, z] of pillars) {
+      const pillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.02, fH, 16),
+        steelMat
+      );
+
+      pillar.name = "Fence_Pillar";
+      pillar.position.set(x, fH / 2, z);
+      pillar.castShadow = true;
+      model.add(pillar);
+    }
+
+    for (const y of [Math.min(0.2, fH / 2), fH - 0.08]) {
+      const railGeo = new THREE.CylinderGeometry(
+        0.01, 0.01, halfW * 2, 8
+      );
+
+      const frontRail = new THREE.Mesh(railGeo, steelMat);
+      frontRail.name = "Fence_Rail";
+      frontRail.rotation.z = Math.PI / 2;
+      frontRail.position.set(0, y, -halfD);
+      model.add(frontRail);
+
+      const backRail = frontRail.clone();
+      backRail.position.z = halfD;
+      model.add(backRail);
+    }
+  }
+
+  // Лицевая надпись
+  const frontText = data.modelFrontText || "";
+  const textColor = data.textColor || "#e3d8c2";
+
+  addTextPlane({
+    name: "FrontEngraving",
+    text: frontText,
+    fontSize: Number(data.modelFrontFontSize ?? 36),
+    color: textColor,
+    width: W * Number(data.frontDecalSize ?? 0.85),
+    height: H * Number(data.frontDecalSize ?? 0.85),
+    x: Number(data.frontPosX ?? 0),
+    y: baseH + Number(data.frontPosY ?? H * 0.62),
+    z: steleFrontZ + 0.002
+  });
+
+  // Обратная надпись
+  const backName = data.modelBackName || "";
+  const backDates = data.modelBackDates || "";
+
+  if (backName || backDates) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 1024;
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 1024, 1024);
+    ctx.fillStyle = textColor;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const fs = Number(data.modelBackFontSize ?? 48);
+
+    ctx.font = `bold ${fs}px Georgia`;
+    ctx.fillText(backName, 512, 400, 960);
+
+    ctx.font = `${Math.round(fs * 0.8)}px Georgia`;
+    ctx.fillText(backDates, 512, 550, 960);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1
+    });
+
+    material.userData.dynamicResource = true;
+
+    const back = new THREE.Mesh(
+      new THREE.PlaneGeometry(
+        W * Number(data.backDecalSize ?? 0.65),
+        H * Number(data.backDecalSize ?? 0.65)
+      ),
+      material
+    );
+
+    back.name = "BackEngraving";
+    back.rotation.y = Math.PI;
+    back.position.set(
+      Number(data.backPosX ?? 0),
+      baseH + Number(data.backPosY ?? H * 0.55),
+      steleCenterZ - D / 2 - 0.002
+    );
+
+    model.add(back);
+  }
+
+  // Фото
+  const photoSource = data.modelPhotoUrl || data.textureUrl;
+
+  if (data.hasPhoto && photoSource) {
+    try {
+      const texture = await loadImageTexture(photoSource);
+
+      const pW = Number(data.photoWidthMm ?? 100) / 1000;
+      const pH = Number(data.photoHeightMm ?? 140) / 1000;
+
+      let geometry;
+
+      if (data.photoShape === "oval") {
+        geometry = new THREE.CircleGeometry(0.5, 64);
+        geometry.scale(pW, pH, 1);
+      } else {
+        geometry = new THREE.PlaneGeometry(pW, pH);
+      }
+
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2
+      });
+
+      material.userData.dynamicResource = true;
+
+      const photo = new THREE.Mesh(geometry, material);
+      photo.name = "Portrait";
+
+      photo.position.set(
+        Number(data.photoPosX ?? 0),
+        baseH + Number(data.photoPosY ?? H * 0.55),
+        steleFrontZ + 0.004
+      );
+
+      model.add(photo);
+    } catch (error) {
+      console.warn("Ошибка загрузки фотографии:", error);
+    }
+  }
+
+  // Масштаб и позиция
+  const scale = Number(data.modelScale ?? 1);
+
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new Error("modelScale должен быть положительным числом");
+  }
+
+  model.scale.setScalar(scale);
+  model.position.y = Number(data.modelPosY ?? 0);
+
+  // Информация
+  const burials = Array.isArray(data.burials) ? data.burials : [];
+
+  jsonInfo.style.display = "block";
+  jsonInfo.textContent =
+    `Захоронений: ${burials.length} · ` +
+    `Имя: ${data.modelBackName || data.fullName || "—"} · ` +
+    `Материал: ${data.material || "—"}`;
+
+  // Автоматически центрируем камеру по размерам модели
+  const bounds = new THREE.Box3().setFromObject(model);
+
+  if (!bounds.isEmpty()) {
+    const center = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+
+    controls.target.copy(center);
+
+    const maxDim = Math.max(size.x, size.y, size.z, 1);
+    camera.position.set(
+      center.x + maxDim * 1.5,
+      center.y + maxDim * 0.9,
+      center.z + maxDim * 1.8
+    );
+
+    controls.minDistance = maxDim * 0.5;
+    controls.maxDistance = maxDim * 10;
+    camera.near = Math.max(0.01, maxDim / 1000);
+    camera.far = maxDim * 100;
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
+}
+
+async function loadJSONFromFile(file) {
+  const text = await file.text();
+  const data = JSON.parse(text);
+
+  await buildMonumentFromJSON(data);
+
+  status.textContent = "Модель построена: " + file.name;
+}
+
+async function tryAutoLoad() {
+  try {
+    const response = await fetch(
+      "./monument_1792865344982.json",
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const data = await response.json();
+    await buildMonumentFromJSON(data);
+
+    status.textContent =
+      "Автозагрузка: monument_1792865344982.json";
+  } catch (error) {
+    status.textContent =
+      "Загрузите JSON-файл вручную.";
+  }
+}
+
+document.getElementById("jsonFile").addEventListener(
+  "change",
+  async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      status.textContent = "Загрузка JSON...";
+      await loadJSONFromFile(file);
+    } catch (error) {
+      console.error(error);
+      status.textContent = "Ошибка: " + error.message;
+    }
+  }
+);
+
+// Размеры окна
+function resize() {
+  const width = host.clientWidth;
+  const height = host.clientHeight;
+
+  if (!width || !height) return;
+
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+
+const resizeObserver = new ResizeObserver(resize);
+resizeObserver.observe(host);
+resize();
+
+// Рендеринг
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// Сброс камеры
+document.getElementById("reset").addEventListener("click", () => {
+  const bounds = new THREE.Box3().setFromObject(model);
+  const center = bounds.isEmpty()
+    ? new THREE.Vector3(0, 0.8, 0)
+    : bounds.getCenter(new THREE.Vector3());
+
+  const size = bounds.isEmpty()
+    ? new THREE.Vector3(1, 1, 1)
+    : bounds.getSize(new THREE.Vector3());
+
+  const maxDim = Math.max(size.x, size.y, size.z, 1);
+
+  camera.position.set(
+    center.x + maxDim * 1.5,
+    center.y + maxDim * 0.9,
+    center.z + maxDim * 1.8
+  );
+
+  controls.target.copy(center);
+  controls.update();
+});
+
+// Экспорт GLB
+document.getElementById("export").addEventListener(
+  "click",
+  async () => {
+    const button = document.getElementById("export");
+
+    button.disabled = true;
+    button.textContent = "Экспортируем...";
+
+    try {
+      const exportScene = new THREE.Scene();
+      const exportedModel = model.clone(true);
+
+      exportScene.add(exportedModel);
+      exportScene.updateMatrixWorld(true);
+
+      const exporter = new GLTFExporter();
+
+      const result = await exporter.parseAsync(exportScene, {
+        binary: true,
+        onlyVisible: true,
+        maxTextureSize: 2048
+      });
+
+      const blob = new Blob([result], {
+        type: "model/gltf-binary"
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "memorial.glb";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+      status.textContent = "GLB успешно экспортирован.";
+    } catch (error) {
+      console.error(error);
+      status.textContent =
+        "Ошибка экспорта: " + error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Скачать 3D-модель GLB";
+    }
+  }
+);
+
+await tryAutoLoad();
+</script>
+</body>
+</html>

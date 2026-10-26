@@ -6,6 +6,8 @@ import { createStelePedestal } from './stelePedestal.js';
 import { createFlowerbedBorder } from './flowerbedBorder.js';
 import { applyBackgroundToGroup} from './backgrounds.js';
 import { createGraveSlab } from './graveSlab.js';
+import { hasBackEpitaphs } from './epitaphUtils.js';
+import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 
 
 // ⭐ КАРТА ТЕКСТУР
@@ -1018,7 +1020,7 @@ updatePhotoPosition(photoMesh, x, y) {
 
 		const depthEl = document.getElementById('depthRange');
 		if (depthEl) {
-			data.depth = parseFloat(depthEl.value) || 0.1;
+			data.depth = parseFloat(depthEl.value) || 0.07;
 		}
 
 		const materialEl =
@@ -1041,6 +1043,20 @@ updatePhotoPosition(photoMesh, x, y) {
 		if (pedestalMaterialEl) {
 			data.pedestalMaterial =
 				pedestalMaterialEl.value;
+		}
+
+		const pedestalEnabledEl =
+			document.getElementById('pedestalEnabled');
+
+		if (pedestalEnabledEl) {
+			data.pedestalEnabled = pedestalEnabledEl.checked;
+		}
+
+		const tileMaterialEl =
+			document.getElementById('tileMaterialSelect');
+
+		if (tileMaterialEl) {
+			data.tileMaterial = tileMaterialEl.value;
 		}
 
 		const borderMaterialEl =
@@ -1358,6 +1374,21 @@ updatePhotoPosition(photoMesh, x, y) {
 
 	// ОБРАБОТЧИК ИЗМЕНЕНИЙ UI
 	_handleUIChange(e) {
+		if (
+			window.state &&
+			(
+				e.target?.id === 'backgroundScale' ||
+				e.target?.id === 'backgroundOffsetX' ||
+				e.target?.id === 'backgroundOffsetY'
+			)
+		) {
+			const value = Number(e.target.value);
+
+			if (Number.isFinite(value)) {
+				window.state[e.target.id] = value;
+			}
+		}
+
 		if (e.target?.id === 'enableMovePhoto') {
 			console.log('Чекбокс переключен, позиция не сохраняется');
 			return;
@@ -1472,11 +1503,31 @@ updatePhotoPosition(photoMesh, x, y) {
 				}))
 			);
 
+			if (typeof window.updateStelePreview === 'function') {
+				window.updateStelePreview();
+			}
+			if (typeof window.updateGraveSlabPreview === 'function') {
+				window.updateGraveSlabPreview();
+			}
+			if (typeof window.calculatePrice === 'function') {
+				window.calculatePrice();
+			}
+
 			return;
 		}
 
 		if (this.currentMode === 'main') {
 			this.syncStateFromUI();
+
+			// Масштаб фото обрабатывает eventHandlers.js:
+			// он меняет burial.photoScale и сам вызывает updateScene.
+			// Здесь не дублируем пересборку тем же input-событием.
+			if (
+				e.target?.id === 'photoScale' ||
+				e.target?.id === 'photoScaleInput'
+			) {
+				return;
+			}
 
 			clearTimeout(this._updateTimeout);
 
@@ -1557,7 +1608,7 @@ updatePhotoPosition(photoMesh, x, y) {
 		if (heightEl) window.state.height = parseFloat(heightEl.value);
 		
 		const depthEl = document.getElementById('depthRange');
-		if (depthEl) window.state.depth = parseFloat(depthEl.value) || 0.1;
+		if (depthEl) window.state.depth = parseFloat(depthEl.value) || 0.07;
 		
 		const materialEl = document.getElementById('materialSelect');
 		if (materialEl) window.state.material = materialEl.value;
@@ -1570,6 +1621,16 @@ updatePhotoPosition(photoMesh, x, y) {
 		const pedestalMaterialEl = document.getElementById('pedestalMaterialSelect');
 		if (pedestalMaterialEl) {
 			window.state.pedestalMaterial = pedestalMaterialEl.value;
+		}
+
+		const pedestalEnabledEl = document.getElementById('pedestalEnabled');
+		if (pedestalEnabledEl) {
+			window.state.pedestalEnabled = pedestalEnabledEl.checked;
+		}
+
+		const tileMaterialEl = document.getElementById('tileMaterialSelect');
+		if (tileMaterialEl) {
+			window.state.tileMaterial = tileMaterialEl.value;
 		}
 
 		const borderMaterialEl = document.getElementById('borderMaterialSelect');
@@ -1691,8 +1752,17 @@ updatePhotoPosition(photoMesh, x, y) {
 		const pathTileLayoutEl = document.getElementById('pathTileLayout');
 		if (pathTileLayoutEl) window.state.pathTileLayout = pathTileLayoutEl.value;
 		
+		// Масштаб фото хранится индивидуально в burial.photoScale.
+		// Глобальный state.photoScale обновляем только для старых
+		// проектов без массива burials.
 		const photoScaleEl = document.getElementById('photoScale');
-		if (photoScaleEl) window.state.photoScale = parseFloat(photoScaleEl.value);
+		const hasBurialRecords =
+			Array.isArray(window.state.burials) &&
+			window.state.burials.length > 0;
+
+		if (photoScaleEl && !hasBurialRecords) {
+			window.state.photoScale = parseFloat(photoScaleEl.value);
+		}
 		
 		const photoWidthMmEl = document.getElementById('photoWidthMm');
 		if (photoWidthMmEl) window.state.photoWidthMm = parseInt(photoWidthMmEl.value) || 100;
@@ -1720,7 +1790,25 @@ updatePhotoPosition(photoMesh, x, y) {
     // ⭐ СБОР ДАННЫХ ИЗ UI (ДЛЯ ДУБЛЕРОВ)
     collectUIData() {
         const data = {};
-        
+
+        if (typeof window.captureActiveBurialRecord === 'function') {
+            window.captureActiveBurialRecord();
+        }
+
+        data.burials = (window.state?.burials || []).map(person => ({
+            ...person,
+            epitaphs: Array.isArray(person.epitaphs)
+                ? person.epitaphs.map(item => (
+                    typeof item === 'string' ? item : { ...item }
+                ))
+                : [],
+            photos: Array.isArray(person.photos)
+                ? person.photos.map(photo => ({ ...photo }))
+                : person.photos
+        }));
+
+        data.activeBurialId = window.state?.activeBurialId || null;
+
         const fullNameEl = document.getElementById('fullName');
         if (fullNameEl) data.fullName = fullNameEl.value;
         
@@ -1737,7 +1825,7 @@ updatePhotoPosition(photoMesh, x, y) {
         if (heightEl) data.height = parseFloat(heightEl.value);
         
         const depthEl = document.getElementById('depthRange');
-        if (depthEl) data.depth = parseFloat(depthEl.value) || 0.1;
+        if (depthEl) data.depth = parseFloat(depthEl.value) || 0.07;
         
         const materialEl = document.getElementById('materialSelect');
         if (materialEl) data.material = materialEl.value;
@@ -1757,6 +1845,20 @@ updatePhotoPosition(photoMesh, x, y) {
 				pedestalMaterialEl.value;
 		}
 
+		const pedestalEnabledEl =
+			document.getElementById('pedestalEnabled');
+
+		if (pedestalEnabledEl) {
+			data.pedestalEnabled = pedestalEnabledEl.checked;
+		}
+
+		const tileMaterialEl =
+			document.getElementById('tileMaterialSelect');
+
+		if (tileMaterialEl) {
+			data.tileMaterial = tileMaterialEl.value;
+		}
+
 		const borderMaterialEl =
 			document.getElementById('borderMaterialSelect');
 
@@ -1765,8 +1867,16 @@ updatePhotoPosition(photoMesh, x, y) {
 				borderMaterialEl.value;
 		}
 
-		data.backgroundId =
-			window.state?.backgroundId || '';
+        data.backgroundId =
+            window.state?.backgroundId || '';
+        data.backgroundScale =
+            window.state?.backgroundScale !== undefined
+                ? Number(window.state.backgroundScale)
+                : 0.98;
+        data.backgroundOffsetX =
+            Number(window.state?.backgroundOffsetX) || 0;
+        data.backgroundOffsetY =
+            Number(window.state?.backgroundOffsetY) || 0;
        
         const textColorEl = document.getElementById('textColor');
         if (textColorEl) data.textColor = textColorEl.value;
@@ -1863,10 +1973,10 @@ updatePhotoPosition(photoMesh, x, y) {
         const epitaphFontSizeEl = document.getElementById('epitaphFontSize');
         if (epitaphFontSizeEl) data.epitaphFontSize = parseInt(epitaphFontSizeEl.value);
         
-        data.textOffsetX = parseFloat(document.getElementById('textOffsetX')?.value) || 0;
-        data.textOffsetY = parseFloat(document.getElementById('textOffsetY')?.value) || 0;
-        data.epitaphOffsetX = parseFloat(document.getElementById('epitaphOffsetX')?.value) || 0;
-        data.epitaphOffsetY = parseFloat(document.getElementById('epitaphOffsetY')?.value) || 0;
+        data.textOffsetX = Number(window.state?.textOffsetX) || 0;
+        data.textOffsetY = Number(window.state?.textOffsetY) || 0;
+        data.epitaphOffsetX = Number(window.state?.epitaphOffsetX) || 0;
+        data.epitaphOffsetY = Number(window.state?.epitaphOffsetY) || 0;
         
         // ⭐ ТИП СТЕЛЫ - ВАЖНО ДЛЯ ДУБЛЕРОВ!
         const steleSelect = document.getElementById('steleTypeSelect');
@@ -2316,7 +2426,17 @@ updatePhotoPosition(photoMesh, x, y) {
 		// Загружаем независимый список людей выбранного памятника
 		if (window.state) {
 			window.state.burials = Array.isArray(data.burials)
-				? data.burials.map(person => ({ ...person }))
+				? data.burials.map(person => ({
+					...person,
+					epitaphs: Array.isArray(person.epitaphs)
+						? person.epitaphs.map(item => (
+							typeof item === 'string' ? item : { ...item }
+						))
+						: [],
+					photos: Array.isArray(person.photos)
+						? person.photos.map(photo => ({ ...photo }))
+						: person.photos
+				}))
 				: [];
 
 			window.state.activeBurialId =
@@ -2339,6 +2459,8 @@ updatePhotoPosition(photoMesh, x, y) {
 			'materialSelect': 'material',
 			'baseMaterialSelect': 'baseMaterial',
 			'pedestalMaterialSelect': 'pedestalMaterial',
+			'pedestalEnabled': 'pedestalEnabled',
+			'tileMaterialSelect': 'tileMaterial',
 			'borderMaterialSelect': 'borderMaterial',
 			'textColor': 'textColor',
 			'textColor': 'textColor',
@@ -2409,6 +2531,62 @@ updatePhotoPosition(photoMesh, x, y) {
 			} else {
 				el.value = value;
 			}
+		}
+
+		const backgroundScale =
+			Number.isFinite(Number(data.backgroundScale))
+				? Number(data.backgroundScale)
+				: 0.98;
+		const backgroundOffsetX =
+			Number.isFinite(Number(data.backgroundOffsetX))
+				? Number(data.backgroundOffsetX)
+				: 0;
+		const backgroundOffsetY =
+			Number.isFinite(Number(data.backgroundOffsetY))
+				? Number(data.backgroundOffsetY)
+				: 0;
+
+		if (window.state) {
+			window.state.backgroundId = data.backgroundId || 'none';
+			window.state.backgroundScale = backgroundScale;
+			window.state.backgroundOffsetX = backgroundOffsetX;
+			window.state.backgroundOffsetY = backgroundOffsetY;
+		}
+
+		const backgroundScaleEl = document.getElementById('backgroundScale');
+		const backgroundOffsetXEl = document.getElementById('backgroundOffsetX');
+		const backgroundOffsetYEl = document.getElementById('backgroundOffsetY');
+		const backgroundScaleValueEl = document.getElementById('backgroundScaleValue');
+		const backgroundOffsetXValueEl = document.getElementById('backgroundOffsetXValue');
+		const backgroundOffsetYValueEl = document.getElementById('backgroundOffsetYValue');
+
+		if (backgroundScaleEl) backgroundScaleEl.value = backgroundScale;
+		if (backgroundOffsetXEl) backgroundOffsetXEl.value = backgroundOffsetX;
+		if (backgroundOffsetYEl) backgroundOffsetYEl.value = backgroundOffsetY;
+		if (backgroundScaleValueEl) backgroundScaleValueEl.textContent = `${Math.round(backgroundScale * 100)}%`;
+		if (backgroundOffsetXValueEl) backgroundOffsetXValueEl.textContent = backgroundOffsetX.toFixed(2);
+		if (backgroundOffsetYValueEl) backgroundOffsetYValueEl.textContent = backgroundOffsetY.toFixed(2);
+
+		document.querySelectorAll('.background-card').forEach(card => {
+			card.classList.toggle(
+				'active',
+				card.dataset.backgroundId === (data.backgroundId || 'none')
+			);
+		});
+
+		if (data.tileMaterial === undefined) {
+			const tileMaterialEl = document.getElementById('tileMaterialSelect');
+			if (tileMaterialEl) tileMaterialEl.value = '';
+		}
+
+		if (data.pedestalEnabled === undefined) {
+			const pedestalEnabledEl = document.getElementById('pedestalEnabled');
+			if (pedestalEnabledEl) pedestalEnabledEl.checked = true;
+		}
+
+		if (data.depth === undefined) {
+			const depthEl = document.getElementById('depthRange');
+			if (depthEl) depthEl.value = '0.07';
 		}
 		
 		// ⭐ ЗАГРУЗКА ФОТО
@@ -2486,6 +2664,16 @@ updatePhotoPosition(photoMesh, x, y) {
 		}
 
 		this.isUpdating = false;
+
+		if (typeof window.updateStelePreview === 'function') {
+			window.updateStelePreview();
+		}
+		if (typeof window.updateGraveSlabPreview === 'function') {
+			window.updateGraveSlabPreview();
+		}
+		if (typeof window.calculatePrice === 'function') {
+			window.calculatePrice();
+		}
 
 		// Обновляем панель людей для выбранного дублера
 		if (typeof window.refreshBurialRecordsUI === 'function') {
@@ -2586,6 +2774,15 @@ updatePhotoPosition(photoMesh, x, y) {
 
 			return {
 				...person,
+				epitaphs: Array.isArray(current?.epitaphs)
+					? current.epitaphs
+					: person.epitaphs,
+				epitaphOffsetX: Number(
+					current?.epitaphOffsetX ?? person.epitaphOffsetX ?? 0
+				),
+				epitaphOffsetY: Number(
+					current?.epitaphOffsetY ?? person.epitaphOffsetY ?? 0
+				),
 				photoScale: Number(
 					current?.photoScale ?? person.photoScale ?? 1
 				),
@@ -3428,7 +3625,7 @@ updatePhotoPosition(photoMesh, x, y) {
 
 					data.steleDepth ||
 					data.depth ||
-					0.08,
+					0.07,
 
 					// ⭐ МАТЕРИАЛ СТЕЛЫ
 					materialType,
@@ -3497,7 +3694,9 @@ updatePhotoPosition(photoMesh, x, y) {
 				0,
 
 				baseH +
-				(data.stelePedestalHeight || 0.12) +
+				(data.pedestalEnabled === false
+					? 0
+					: (data.stelePedestalHeight || 0.12)) +
 				(
 					(data.steleHeight ||
 					data.height ||
@@ -3509,7 +3708,7 @@ updatePhotoPosition(photoMesh, x, y) {
 					(
 						data.steleDepth ||
 						data.depth ||
-						0.08
+						0.07
 					) / 2 -
 					0.05
 				)
@@ -3670,6 +3869,8 @@ updatePhotoPosition(photoMesh, x, y) {
 
 										const steleBox =
 											new THREE.Box3().setFromObject(foundSteleGroup);
+										const steleCenterY =
+											steleBox.getCenter(new THREE.Vector3()).y;
 
 										await applyBackgroundToGroup(
 											decalsGroup,
@@ -3677,7 +3878,7 @@ updatePhotoPosition(photoMesh, x, y) {
 											data.width || 0.6,
 											data.height || 1.2,
 											steleBox.max.z + 0.001,
-											(data.height || 1.2) / 2
+											steleCenterY
 										);
 
 										positionDecalsOnCustomStele(
@@ -3796,6 +3997,7 @@ createDecalsForDuplicator(steleGroup, data) {
 		});
 
 		const center = boundingBox.getCenter(new THREE.Vector3());
+		const engravingBaseY = boundingBox.min.y;
 		const frontZ = boundingBox.max.z + 0.016;
 		const backZ = boundingBox.min.z - 0.016;
 
@@ -3984,90 +4186,16 @@ if (photoDrag && decalsGroup) {
 }
         
 
-        // ⭐ Задняя сторона: персональная эпитафия каждого погребённого
-        const burialsWithEpitaph = Array.isArray(data.burials)
-            ? data.burials.filter(burial =>
-                typeof burial.epitaph === 'string' &&
-                burial.epitaph.trim()
-            )
-            : [];
-
-        // Совместимость со старыми данными без массива burials
-        const epitaphs = Array.isArray(data.burials) && data.burials.length
-            ? burialsWithEpitaph
-            : (
-                typeof data.epitaph === 'string' && data.epitaph.trim()
-                    ? [{
-                        id: 'default',
-                        epitaph: data.epitaph,
-                        epitaphOffsetX: data.epitaphOffsetX,
-                        epitaphOffsetY: data.epitaphOffsetY
-                    }]
-                    : []
-            );
-
-        const epitaphSpacing = 0.22;
-
-        epitaphs.forEach((burial, index) => {
-            const epitaphText = burial.epitaph.trim();
-
-            // Передаём персональную эпитафию в генератор текстуры
-            const epitaphData = {
-                ...data,
-                ...burial,
-                epitaph: epitaphText,
-                frontTextureCache: null,
-                frontTextureNeedsUpdate: true
-            };
-
-            const texture = this.createDecalTextureFromData(
-                epitaphData,
-                'back'
-            );
-
-            const textGeo = new THREE.PlaneGeometry(
-                width * 0.85,
-                height * 0.85
-            );
-
-            const textMat = new THREE.MeshBasicMaterial({
-                map: texture,
-                transparent: true,
-                side: THREE.DoubleSide,
-                depthWrite: false,
-                alphaTest: 0.05
+        if (hasBackEpitaphs(data)) {
+            const epitaphMeshes = createBackEpitaphMeshes(data, {
+                decalWidth: width * 0.85,
+                decalHeight: height * 0.85,
+                centerY: center.y,
+                z: backZ + 0.015
             });
 
-            const textMesh = new THREE.Mesh(textGeo, textMat);
-
-            const epitaphOffsetX =
-                (Number(burial.epitaphOffsetX ?? data.epitaphOffsetX) || 0)
-                * width * 0.5;
-
-            const epitaphOffsetY =
-                (Number(burial.epitaphOffsetY ?? data.epitaphOffsetY) || 0)
-                * height * 0.5;
-
-            textMesh.position.set(
-                epitaphOffsetX,
-                center.y + epitaphOffsetY - index * epitaphSpacing,
-                backZ + 0.015
-            );
-
-            textMesh.rotation.y = Math.PI;
-            textMesh.renderOrder = 9 + index;
-
-            textMesh.userData.type = 'burialEpitaph';
-            textMesh.userData.burialId = burial.id;
-            textMesh.userData.isDraggable = true;
-
-            decalsGroup.add(textMesh);
-
-            console.log('🪦 Эпитафия создана:', {
-                burialId: burial.id,
-                epitaph: epitaphText
-            });
-        });
+            epitaphMeshes.forEach(mesh => decalsGroup.add(mesh));
+        }
 
         
         // ⭐ ГРАВИРОВКИ (перед)
@@ -4087,7 +4215,7 @@ if (photoDrag && decalsGroup) {
                         alphaTest: 0.05
                     });
                     const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.set(eng.x || 0, center.y + (eng.y || 0), frontZ - 0.014);
+                    mesh.position.set(eng.x || 0, engravingBaseY + (eng.y || 0), frontZ - 0.014);
                     mesh.renderOrder = 10;
                     decalsGroup.add(mesh);
                 });
@@ -4111,7 +4239,7 @@ if (photoDrag && decalsGroup) {
                         alphaTest: 0.05
                     });
                     const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.set(eng.x || 0, center.y + (eng.y || 0), backZ + 0.014);
+                    mesh.position.set(eng.x || 0, engravingBaseY + (eng.y || 0), backZ + 0.014);
                     mesh.rotation.y = Math.PI;
                     mesh.renderOrder = 10;
                     decalsGroup.add(mesh);
@@ -4183,21 +4311,6 @@ if (photoDrag && decalsGroup) {
 				const fontSize = (data.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
 				ctx.fillText(safeDates, canvas.width / 2, currentY);
-			}
-		} else {
-			// Эпитафия
-			if (data.epitaph && data.epitaph.trim()) {
-				const safeEpitaph = data.epitaph.trim();
-				const lines = safeEpitaph.split(/\r?\n|\//);
-				const fontSize = (data.epitaphFontSize || 40) * (isMobile ? 0.8 : 1.2);
-				ctx.font = `bold ${fontSize}px ${fontFamily}`;
-				
-				lines.forEach(line => {
-					if (line.trim()) {
-						ctx.fillText(line.trim(), canvas.width / 2, currentY);
-						currentY += (data.epitaphFontSize || 40) * (isMobile ? 0.9 : 1.5);
-					}
-				});
 			}
 		}
 		
@@ -4291,7 +4404,15 @@ if (photoDrag && decalsGroup) {
 		const newData = {
 			...source.data,
 			burials: (source.data.burials || []).map(person => ({
-				...person
+				...person,
+				epitaphs: Array.isArray(person.epitaphs)
+					? person.epitaphs.map(item => (
+						typeof item === 'string' ? item : { ...item }
+					))
+					: [],
+				photos: Array.isArray(person.photos)
+					? person.photos.map(photo => ({ ...photo }))
+					: person.photos
 			})),
 			activeBurialId: source.data.activeBurialId || null
 		};

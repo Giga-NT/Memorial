@@ -71,10 +71,8 @@ export class PhotoManager {
     }
     
     setScale(value) {
-        this.state.photoScale = parseFloat(value);
         const scaleVal = document.getElementById('photoScaleVal');
-        if (scaleVal) scaleVal.textContent = this.state.photoScale.toFixed(1);
-        if (this.updateCallback) this.updateCallback();
+        if (scaleVal) scaleVal.textContent = parseFloat(value).toFixed(1);
     }
     
     getTouchCoords(e) {

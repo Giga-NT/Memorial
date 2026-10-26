@@ -73,6 +73,7 @@ export function initDragManagers(options = {}) {
         state,
         controls,
         renderer,
+        camera: options.camera,
         monumentGroup,
         decalsGroup,
         onUpdate
@@ -94,6 +95,7 @@ export function initDragManagers(options = {}) {
         state,
         controls,
         renderer,
+        camera: options.camera,
         monumentGroup,
         decalsGroup,
         onUpdate
