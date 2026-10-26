@@ -797,10 +797,12 @@ export function positionDecalsOnCustomStele(
     const steleCenterY = steleBox.getCenter(new THREE.Vector3()).y;
 
     const scale = state.decalScale ?? 1;
-    const decalWidth = dims.width * scale;
-    const decalHeight = dims.height * scale;
-    // Опускаем текстовую декаль немного ниже относительно центра стелы.
-    const textCenterY = steleCenterY - decalHeight * 0.08;
+    // Декаль на 20% больше фактических габаритов стелы:
+    // это оставляет небольшой запас для пользовательского смещения.
+    const decalWidth = dims.width * scale * 1.2;
+    const decalHeight = dims.height * scale * 1.2;
+    // Смещение считаем от размера самой стелы, а не увеличенной декали.
+    const textCenterY = steleCenterY - dims.height * 0.08;
     const steleDepth = Number(state.steleDepth ?? state.depth) || 0.07;
     const zShift = (steleDepth - 0.07) ;
     const frontZ = (state.decalFrontZ !== undefined) ? state.decalFrontZ : -0.629 + zShift;
@@ -1053,7 +1055,7 @@ export function positionDecalsOnCustomStele(
         const epitaphMeshes = createBackEpitaphMeshes(state, {
             decalWidth,
             decalHeight,
-            centerY: steleCenterY - decalHeight * 0.08,
+            centerY: textCenterY,
             z: backZ
         });
 
