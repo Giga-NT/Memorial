@@ -4357,7 +4357,7 @@ if (photoDrag && decalsGroup) {
     }
 
     // ⭐ ДОБАВЛЕНИЕ ДУБЛЕРА
-    addMonument(position) {
+    async addMonument(position) {
         this.currentMode = 'duplicator';
         this.pendingChanges = null;
         this.pendingIndex = -1;
