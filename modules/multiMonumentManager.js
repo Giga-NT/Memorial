@@ -2348,6 +2348,46 @@ updatePhotoPosition(photoMesh, x, y) {
 			}
 
 			// ========================================================
+			// 💾 СОХРАНЯЕМ ТЕКУЩИЙ ДУБЛЕР ПЕРЕД ПЕРЕКЛЮЧЕНИЕМ
+			// Не очищаем pendingChanges, пока данные не сохранены.
+			// ========================================================
+			if (
+				this.currentMode === 'duplicator' &&
+				this.activeIndex >= 0 &&
+				this.activeIndex < this.monuments.length &&
+				this.activeIndex !== index
+			) {
+				const currentIndex = this.activeIndex;
+				const currentMonument = this.monuments[currentIndex];
+
+				if (currentMonument) {
+					const uiData = this.collectUIData();
+					const pendingData =
+						this.pendingIndex === currentIndex && this.pendingChanges
+							? this.pendingChanges
+							: {};
+
+					const savedData = {
+						...(currentMonument.data || {}),
+						...uiData,
+						...pendingData
+					};
+
+					// Данные людей из текущего UI приоритетнее устаревшего pending.
+					if (Array.isArray(uiData.burials)) {
+						savedData.burials = uiData.burials;
+					}
+					if (uiData.activeBurialId !== undefined) {
+						savedData.activeBurialId = uiData.activeBurialId;
+					}
+
+					currentMonument.data = savedData;
+					this._duplicatorDataCache[currentIndex] = savedData;
+					console.log('💾 Данные дублера сохранены перед переключением:', currentIndex);
+				}
+			}
+
+			// ========================================================
 			// 🔒 ПЕРЕХОД В РЕЖИМ ДУБЛЕРА
 			// ========================================================
 			this.currentMode = 'duplicator';
