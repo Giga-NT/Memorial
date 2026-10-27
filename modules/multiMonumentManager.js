@@ -2319,6 +2319,12 @@ updatePhotoPosition(photoMesh, x, y) {
 		try {
 
 			// ========================================================
+			// Предыдущие дублеры после создания нового закрыты для выбора.
+			if (index >= 0 && index < this.monuments.length - 1) {
+				this.showToast('Предыдущие дублеры заблокированы. Работайте с последним созданным.', 'info');
+				return;
+			}
+
 			// ❌ НЕВЕРНЫЙ ИНДЕКС
 			// ========================================================
 			if (index < 0 || index >= this.monuments.length) {
@@ -4444,6 +4450,10 @@ if (photoDrag && decalsGroup) {
     // ⭐ ДУБЛИРОВАНИЕ
     async duplicateMonument(index) {
         if (index < 0 || index >= this.monuments.length) return;
+        if (index !== this.monuments.length - 1) {
+            this.showToast('Создавать копию можно только из последнего дублера.', 'info');
+            return;
+        }
         
         this.currentMode = 'duplicator';
         this.pendingChanges = null;
