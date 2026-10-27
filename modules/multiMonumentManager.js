@@ -122,7 +122,8 @@ export class MultiMonumentManager {
 		this.activeIndex = -1;
 		this.nextId = 1;
 		this.isUpdating = false;
-		this.isRebuilding = false;
+		this.isRebuilding = false; // Совместимость со старым кодом
+		this._rebuildingIndexes = new Set();
 		this._isSleeping = false;
 		this._isMoveModeActive = false;
 		this._skipDuplicatorRebuild = false;
@@ -3111,14 +3112,18 @@ updatePhotoPosition(photoMesh, x, y) {
 
 		console.log('🚦 rebuildSimpleMonument START', {
 			index,
-			isRebuilding: this.isRebuilding
+			isRebuilding: this.isRebuilding,
+			rebuildingIndexes: [...this._rebuildingIndexes]
 		});
 
-		if (this.isRebuilding) {
-			console.log('⏳ Пропуск (уже идёт перестроение)');
+		// Блокируем повторное перестроение только этого памятника.
+		// Перестроение другого дублера не должно пропускаться.
+		if (this._rebuildingIndexes.has(index)) {
+			console.log('⏳ Перестроение уже идёт для памятника', index);
 			return;
 		}
 
+		this._rebuildingIndexes.add(index);
 		this.isRebuilding = true;
 
 		try {
@@ -3923,8 +3928,8 @@ updatePhotoPosition(photoMesh, x, y) {
 
 		} finally {
 
-			this.isRebuilding =
-				false;
+			this._rebuildingIndexes.delete(index);
+			this.isRebuilding = this._rebuildingIndexes.size > 0;
 		}
 	}
 	
@@ -4387,7 +4392,7 @@ if (photoDrag && decalsGroup) {
         
         this.monuments.push(monument);
         this.activeIndex = this.monuments.length - 1;
-        this.rebuildSimpleMonument(this.monuments.length - 1);
+        await this.rebuildSimpleMonument(this.monuments.length - 1);
         this.renderMonumentList();
         
         window._disableAutoMonument = true;
@@ -4397,7 +4402,7 @@ if (photoDrag && decalsGroup) {
     }
 
     // ⭐ ДУБЛИРОВАНИЕ
-    duplicateMonument(index) {
+    async duplicateMonument(index) {
         if (index < 0 || index >= this.monuments.length) return;
         
         this.currentMode = 'duplicator';
