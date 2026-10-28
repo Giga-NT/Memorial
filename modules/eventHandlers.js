@@ -646,6 +646,10 @@ export function initSiteCurbHandlers() {
         window.state.curbInstallEnabled = e.target.checked;
         window.calculatePrice();
     });
+    document.getElementById('curbGateOpeningEnabled')?.addEventListener('change', e => {
+        window.state.curbGateOpeningEnabled = e.target.checked;
+        refresh();
+    });
     syncVisibility();
 }
 
