@@ -2489,6 +2489,13 @@ app.post('/api/order', async (req, res) => {
     const pathTileSize = data.pathTileSize || 0.3;
     const pathJointColor = data.pathJointColor || '#666666';
     const pathTileLayout = data.pathTileLayout || 'brick';
+
+    // --- БОРДЮР ПЛОЩАДКИ ---
+    const curbVisible = data.curbVisible === true;
+    const curbMaterial = data.curbMaterial || 'granite';
+    const curbWidth = data.curbWidth || 0.08;
+    const curbHeight = data.curbHeight || 0.12;
+    const curbInstallEnabled = data.curbInstallEnabled !== false;
     
     // --- ОГРАДКА ---
     const fenceEnabled = data.fenceEnabled || false;
@@ -2614,6 +2621,11 @@ app.post('/api/order', async (req, res) => {
         pathTileSize: pathTileSize,
         pathJointColor: pathJointColor,
         pathTileLayout: pathTileLayout,
+        curbVisible: curbVisible,
+        curbMaterial: curbMaterial,
+        curbWidth: curbWidth,
+        curbHeight: curbHeight,
+        curbInstallEnabled: curbInstallEnabled,
         fenceEnabled: fenceEnabled,
         fenceWidth: fenceW,
         fenceLength: fenceL,
