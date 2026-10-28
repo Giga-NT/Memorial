@@ -19,7 +19,7 @@ export function createSiteCurb(params = {}) {
     const length = Math.max(0.2, Number(params.fenceLength) || 2.5);
     const curbWidth = Math.max(0.03, Number(params.curbWidth) || 0.08);
     const curbHeight = Math.max(0.03, Number(params.curbHeight) || 0.12);
-    const gateSide = params.fenceGateSide || 'none';
+    const gateSide = params.curbGateOpeningEnabled ? (params.fenceGateSide || 'none') : 'none';
     const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
     const gateWidth = Math.min(Math.max(0, gateSpan - curbWidth * 2), Math.max(0, Number(params.gateWidth) || 0));
     const spec = CURB_MATERIALS[params.curbMaterial] || CURB_MATERIALS.granite;
@@ -81,5 +81,6 @@ export function createSiteCurb(params = {}) {
         return null;
     }
 
+    material.dispose();
     return group;
 }
