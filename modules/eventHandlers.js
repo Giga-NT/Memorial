@@ -51,8 +51,7 @@ export function initCheckboxHandlers() {
         const type = surfaceType.value;
         const options = Array.from(surfaceMaterial.options);
         options.forEach(option => {
-            const allowed = option.dataset.surface === type ||
-                option.dataset.surface === 'other';
+            const allowed = option.dataset.surface === type;
             option.hidden = !allowed;
             option.disabled = !allowed;
         });
