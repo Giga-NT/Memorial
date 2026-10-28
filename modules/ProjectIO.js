@@ -109,6 +109,8 @@ export class ProjectIO {
             'fenceMaterial',
             'fenceGateSide',
             'pathMaterial',
+            'pathSurfaceType',
+            'slabMaterial',
             'pathTileLayout',
             'curbMaterial',
             'steleType',
@@ -128,6 +130,11 @@ export class ProjectIO {
                 this.state[id] = el.value;
             }
         });
+
+        this.state.pathSurfaceType = document.getElementById('pathSurfaceType')?.value || this.state.pathSurfaceType || 'paver';
+        this.state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || this.state.pathSlabMaterial || 'tile_gray';
+        this.state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || this.state.pathPaverMaterial || 'tile_gray';
+        this.state.pathMaterial = this.state.pathSurfaceType === 'slab' ? this.state.pathSlabMaterial : this.state.pathPaverMaterial;
 
 
         // Название проекта
@@ -1785,8 +1792,10 @@ export class ProjectIO {
                                 ) || 0.5,
 
                             pathMaterial:
-                                ui.pathMaterial ||
-                                'tile_gray',
+                                ui.pathMaterial || 'tile_gray',
+                            pathSurfaceType: ui.pathSurfaceType || 'paver',
+                            pathSlabMaterial: ui.pathSlabMaterial || 'tile_gray',
+                            pathPaverMaterial: ui.pathPaverMaterial || ui.pathMaterial || 'tile_gray',
 
                             graveWidth:
                                 parseFloat(
@@ -2815,11 +2824,14 @@ export class ProjectIO {
         }
 
 
-        setSelect(
-            'pathMaterial',
-            state.pathMaterial ||
-            'tile_gray'
-        );
+        setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');
+        setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
+        setSelect('pathMaterial', state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
+        const pathType = document.getElementById('pathSurfaceType')?.value || 'paver';
+        const slabSettings = document.getElementById('pathSlabSettings');
+        const paverSettings = document.getElementById('pathPaverSettings');
+        if (slabSettings) slabSettings.style.display = pathType === 'slab' ? 'block' : 'none';
+        if (paverSettings) paverSettings.style.display = pathType === 'paver' ? 'block' : 'none';
 
 
         setVal(
