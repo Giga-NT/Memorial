@@ -40,6 +40,49 @@ export function initCheckboxHandlers() {
         window.throttledUpdate();
         window.calculatePrice();
     });
+
+    // Раздельный выбор брусчатки и крупноформатной плитки.
+    const surfaceType = document.getElementById('pathSurfaceType');
+    const surfaceMaterial = document.getElementById('pathMaterial');
+    const tileSettings = document.getElementById('pathTileSettings');
+
+    const syncSurfaceOptions = (preferredValue) => {
+        if (!surfaceType || !surfaceMaterial) return;
+        const type = surfaceType.value;
+        const options = Array.from(surfaceMaterial.options);
+        options.forEach(option => {
+            const allowed = option.dataset.surface === type ||
+                option.dataset.surface === 'other';
+            option.hidden = !allowed;
+            option.disabled = !allowed;
+        });
+        const current = surfaceMaterial.selectedOptions[0];
+        if (!current || current.disabled) {
+            const first = options.find(option => !option.disabled);
+            if (first) surfaceMaterial.value = preferredValue && options.some(o => o.value === preferredValue && !o.disabled)
+                ? preferredValue
+                : first.value;
+        }
+        if (tileSettings) tileSettings.style.display = type === 'paving' ? '' : 'none';
+    };
+
+    if (surfaceType && surfaceMaterial) {
+        const initial = window.state.pathMaterial || surfaceMaterial.value;
+        surfaceType.value = initial.startsWith('slab_') ? 'slab' : 'paving';
+        syncSurfaceOptions(initial);
+        surfaceType.addEventListener('change', () => {
+            const preferred = surfaceType.value === 'slab' ? 'slab_gray' : 'tile_gray';
+            syncSurfaceOptions(preferred);
+            window.state.pathMaterial = surfaceMaterial.value;
+            window.throttledUpdate();
+            window.calculatePrice();
+        });
+        surfaceMaterial.addEventListener('change', () => {
+            window.state.pathMaterial = surfaceMaterial.value;
+            window.throttledUpdate();
+            window.calculatePrice();
+        });
+    }
 }
 
 // ============================================================
