@@ -484,6 +484,9 @@ class MultiMonumentManager {
             'curbHeight': 'curbHeight',
 
             'curbInstallEnabled': 'curbInstallEnabled',
+
+
+            'curbGateOpeningEnabled': 'curbGateOpeningEnabled',
             'pathColor': 'pathColor',
             'pathTileSize': 'pathTileSize',
             'pathJointColor': 'pathJointColor',
