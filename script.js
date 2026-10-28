@@ -4992,20 +4992,59 @@ function buildPriceBreakdown() {
         );
     }
 
-    if (state.pathEnabled && state.fenceEnabled && state.fenceType !== 'none') {
-        const fenceArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
+    if (state.pathEnabled) {
+        const siteArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
         const monumentsArea = monuments.reduce((sum, monument) => {
             const baseWidth = Number(monument.graveWidth) || 0.9;
             const baseLength = Number(monument.graveLength) || 1.5;
             return sum + baseWidth * baseLength;
         }, 0);
-        const bruschatkaArea = Math.max(0, fenceArea - monumentsArea);
-        const bruschatkaPrice = getPriceValue('bruschatka_per_m2');
-        addRow(
-            '🛤️ Брусчатка',
-            `${fenceArea.toFixed(2)} м² оградки − ${monumentsArea.toFixed(2)} м² оснований = ${bruschatkaArea.toFixed(2)} м² × ${bruschatkaPrice} ₽/м² (материал + укладка)`,
-            bruschatkaArea * bruschatkaPrice
-        );
+        const coverageArea = Math.max(0, siteArea - monumentsArea);
+        const material = state.pathMaterial || 'tile_gray';
+        const tileMaterials = material.startsWith('tile_');
+        const materialLabels = {
+            tile_black: 'Чёрная брусчатка', tile_gray: 'Серая брусчатка',
+            tile_beige: 'Бежевая брусчатка', tile_dark: 'Тёмная брусчатка',
+            tile_light: 'Светлая брусчатка', tile_marble: 'Мраморная брусчатка',
+            gravel: 'Гравий', sand: 'Песок', grass: 'Газон',
+            flowers: 'Цветы', marble_chips: 'Мраморная крошка'
+        };
+        if (tileMaterials) {
+            const tileMaterialPrice = getPriceValue('path_tile_material_per_m2');
+            const tileWorkPrice = getPriceValue('path_tile_work_per_m2');
+            if (tileMaterialPrice > 0 || tileWorkPrice > 0) {
+                addRow(
+                    '🛤️ Покрытие площадки — материал',
+                    `${materialLabels[material] || material}, ${coverageArea.toFixed(2)} м² × ${tileMaterialPrice} ₽/м²`,
+                    coverageArea * tileMaterialPrice
+                );
+                addRow(
+                    '🔧 Укладка брусчатки',
+                    `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
+                    coverageArea * tileWorkPrice
+                );
+            } else {
+                const legacyPrice = getPriceValue('bruschatka_per_m2');
+                addRow(
+                    '🛤️ Брусчатка — материал + укладка',
+                    `${coverageArea.toFixed(2)} м² × ${legacyPrice} ₽/м² (старая единая ставка)`,
+                    coverageArea * legacyPrice
+                );
+            }
+        } else {
+            const materialPrice = getPriceValue(material);
+            const workPrice = getPriceValue('site_fill_work_per_m2');
+            addRow(
+                `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
+                `${coverageArea.toFixed(2)} м² × ${materialPrice} ₽/м² материала`,
+                coverageArea * materialPrice
+            );
+            addRow(
+                '🔧 Устройство отсыпки / покрытия',
+                `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
+                coverageArea * workPrice
+            );
+        }
     }
 
     if (state.curbVisible) {
