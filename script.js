@@ -6620,13 +6620,12 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         const flowerColor = document.getElementById('flowerColor')?.value || '#4caf50';
         
         // --- 5. ДОРОЖКА ---
-        const pathEnabled = document.getElementById('pathEnabled')?.checked || false;
+        const pathEnabled = document.getElementById('pathEnabled')?.checked ?? state.pathEnabled ?? true;
         const pathWidth = parseFloat(document.getElementById('pathWidth')?.value) || 0.5;
         const pathSurfaceType = document.getElementById('pathSurfaceType')?.value || state.pathSurfaceType || 'paver';
         const pathMaterial = pathSurfaceType === 'slab'
             ? (document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray')
             : (document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || 'tile_gray');
-        const pathEnabled = document.getElementById('pathEnabled')?.checked ?? state.pathEnabled ?? true;
         state.pathSurfaceType = pathSurfaceType;
         state.pathMaterial = pathMaterial;
         state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray';
