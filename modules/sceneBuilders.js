@@ -1587,7 +1587,6 @@ export async function createPathBetweenGraveAndFence(
         layerTop -= thickness;
     }
 
-    sideMaterial.dispose();
     assembly.userData.totalBuildUpThickness = topThickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
     return assembly;
 }
