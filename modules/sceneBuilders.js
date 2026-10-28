@@ -4,6 +4,7 @@ import {
     getTextureTypeFromMaterial,
     loadFlowerbedTexture
 } from './textures.min.js';
+import { getSiteSurfaceProfile } from './siteSurfaceProfiles.js';
 
 // ============================================================
 // ⭐ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ТЕКСТУР
@@ -1333,10 +1334,15 @@ export async function createPathBetweenGraveAndFence(
 
     shape.closePath();
 
-    const geometry =
-        new THREE.ShapeGeometry(
-            shape
-        );
+    const profile = getSiteSurfaceProfile(pathMaterial);
+    const topThickness = profile.top.thickness;
+
+    // Extruded surface gives paving/gravel a real, measurable thickness.
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: topThickness,
+        bevelEnabled: false,
+        curveSegments: 1
+    });
 
     const pos =
         geometry.attributes.position;
@@ -1522,26 +1528,66 @@ export async function createPathBetweenGraveAndFence(
             });
     }
 
-    const mesh =
-        new THREE.Mesh(
-            geometry,
-            material
-        );
+    const assembly = new THREE.Group();
+    assembly.name = 'siteSurfaceAssembly';
+    assembly.userData.isPath = true;
+    assembly.userData.isSiteSurfaceAssembly = true;
+    assembly.userData.surfaceMaterial = pathMaterial || 'tile_gray';
 
-    mesh.rotation.x =
-        -Math.PI / 2;
+    const sideMaterial = new THREE.MeshStandardMaterial({
+        color: isTile ? 0x777777 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
+        roughness: 0.9,
+        metalness: 0
+    });
+    const mesh = new THREE.Mesh(geometry, [material, sideMaterial]);
+    mesh.rotation.x = -Math.PI / 2;
+    // The top face remains at local y=0, matching the former surface plane.
+    mesh.position.y = -topThickness;
+    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.userData.isSurfaceTop = true;
+    assembly.add(mesh);
 
-    mesh.position.y =
-        0.09;
+    // The layers are intentionally visible at the perimeter. Lower layers
+    // extend slightly beyond upper ones, as a readable construction section.
+    let layerTop = -topThickness;
+    for (let index = 0; index < profile.layers.length; index++) {
+        const layer = profile.layers[index];
+        const thickness = Math.max(0.001, Number(layer.thickness) || 0.001);
+        const margin = index === 0 ? 0.02 : index === 1 ? 0.05 : 0.08;
+        const layerWidth = totalWidth + extra * 2 + margin * 2;
+        const layerLength = totalLength + extra * 2 + margin * 2;
+        const layerGeometry = new THREE.BoxGeometry(layerWidth, thickness, layerLength);
 
-    mesh.receiveShadow =
-        true;
+        let layerTexture = null;
+        if (layer.kind === 'sand') {
+            layerTexture = await loadFlowerbedTexture('sand');
+        } else if (layer.kind === 'gravel') {
+            layerTexture = await loadFlowerbedTexture('gravel');
+        } else if (layer.kind === 'soil') {
+            layerTexture = await loadFlowerbedTexture('soil');
+        }
 
-    mesh.castShadow =
-        false;
+        const layerMaterial = new THREE.MeshStandardMaterial({
+            color: layer.color ?? (layer.kind === 'geotextile' ? 0x414848 : 0x777777),
+            map: layerTexture || null,
+            roughness: 0.95,
+            metalness: 0,
+            side: THREE.DoubleSide
+        });
+        const layerMesh = new THREE.Mesh(layerGeometry, layerMaterial);
+        layerMesh.position.y = layerTop - thickness / 2;
+        layerMesh.receiveShadow = true;
+        layerMesh.castShadow = false;
+        layerMesh.userData.isSiteSurfaceLayer = true;
+        layerMesh.userData.layerKey = layer.key;
+        layerMesh.userData.layerLabel = layer.label;
+        layerMesh.userData.thickness = thickness;
+        assembly.add(layerMesh);
+        layerTop -= thickness;
+    }
 
-    mesh.userData.isPath =
-        true;
-
-    return mesh;
+    sideMaterial.dispose();
+    assembly.userData.totalBuildUpThickness = topThickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
+    return assembly;
 }
