@@ -1333,10 +1333,13 @@ export async function createPathBetweenGraveAndFence(
 
     shape.closePath();
 
+    // Экструдируем плоскость, чтобы у покрытия появились видимые боковые грани.
     const geometry =
-        new THREE.ShapeGeometry(
-            shape
-        );
+        new THREE.ExtrudeGeometry(shape, {
+            depth: 0.04,
+            bevelEnabled: false,
+            curveSegments: 1
+        });
 
     const pos =
         geometry.attributes.position;
@@ -1483,6 +1486,9 @@ export async function createPathBetweenGraveAndFence(
             sand: 0xf4e4a0,
             marble_chips: 0xf5f5f5,
             flowers: 0x7cb342,
+            slab_gray: 0xb8b8b8,
+            slab_black: 0x303030,
+            slab_beige: 0xd6c4a3
         };
 
         let texture = null;
@@ -1531,8 +1537,9 @@ export async function createPathBetweenGraveAndFence(
     mesh.rotation.x =
         -Math.PI / 2;
 
+    // Верх покрытия остаётся на прежней высоте: 0.05 + 0.04 = 0.09.
     mesh.position.y =
-        0.09;
+        0.05;
 
     mesh.receiveShadow =
         true;
