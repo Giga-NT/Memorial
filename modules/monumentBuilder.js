@@ -2578,8 +2578,8 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         }
     }
 
-    const siteCurb = createSiteCurb(params);
-    if (siteCurb) group.add(siteCurb);
+    // Бордюр площадки создаётся один раз в основной сцене,
+    // а не дублируется вокруг каждого памятника.
 
     // ============================================================
     // ПОЗИЦИЯ ДУБЛИКАТА
