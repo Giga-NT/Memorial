@@ -2543,6 +2543,9 @@ updatePhotoPosition(photoMesh, x, y) {
 			'curbHeight': 'curbHeight',
 
 			'curbInstallEnabled': 'curbInstallEnabled',
+
+
+			'curbGateOpeningEnabled': 'curbGateOpeningEnabled',
 			'nameFontSize': 'nameFontSize',
 			'datesFontSize': 'datesFontSize',
 			'epitaphFontSize': 'epitaphFontSize',
