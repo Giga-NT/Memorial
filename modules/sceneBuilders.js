@@ -1544,7 +1544,7 @@ export async function createPathBetweenGraveAndFence(
     const mesh = new THREE.Mesh(geometry, [material, sideMaterial]);
     mesh.rotation.x = -Math.PI / 2;
     // The top face remains at local y=0, matching the former surface plane.
-    mesh.position.y = 0.09 - topThickness;
+    mesh.position.y = -topThickness;
     mesh.receiveShadow = true;
     mesh.castShadow = false;
     mesh.userData.isSurfaceTop = true;
