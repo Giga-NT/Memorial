@@ -20,7 +20,8 @@ export function createSiteCurb(params = {}) {
     const curbWidth = Math.max(0.03, Number(params.curbWidth) || 0.08);
     const curbHeight = Math.max(0.03, Number(params.curbHeight) || 0.12);
     const gateSide = params.fenceGateSide || 'none';
-    const gateWidth = Math.min(width - curbWidth, Math.max(0, Number(params.gateWidth) || 0));
+    const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
+    const gateWidth = Math.min(Math.max(0, gateSpan - curbWidth * 2), Math.max(0, Number(params.gateWidth) || 0));
     const spec = CURB_MATERIALS[params.curbMaterial] || CURB_MATERIALS.granite;
     const material = new THREE.MeshStandardMaterial({ ...spec });
 
