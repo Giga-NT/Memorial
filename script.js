@@ -5008,11 +5008,17 @@ function buildPriceBreakdown() {
         }, 0);
         const coverageArea = Math.max(0, siteArea - monumentsArea);
         const material = state.pathMaterial || 'tile_gray';
+        const surfaceType = state.pathSurfaceType || 'paver';
+        const surfaceLabel = surfaceType === 'slab' ? 'тротуарная плитка' : 'брусчатка';
         const tileMaterials = material.startsWith('tile_');
         const materialLabels = {
-            tile_black: 'Чёрная брусчатка', tile_gray: 'Серая брусчатка',
-            tile_beige: 'Бежевая брусчатка', tile_dark: 'Тёмная брусчатка',
-            tile_light: 'Светлая брусчатка', tile_marble: 'Мраморная брусчатка',
+            tile_black: surfaceType === 'slab' ? 'Чёрная тротуарная плитка' : 'Чёрная брусчатка',
+            tile_gray: surfaceType === 'slab' ? 'Серая тротуарная плитка' : 'Серая брусчатка',
+            tile_beige: surfaceType === 'slab' ? 'Бежевая тротуарная плитка' : 'Бежевая брусчатка',
+            tile_dark: surfaceType === 'slab' ? 'Тёмная тротуарная плитка' : 'Тёмная брусчатка',
+            tile_light: surfaceType === 'slab' ? 'Светлая тротуарная плитка' : 'Светлая брусчатка',
+            tile_marble: 'Мраморная брусчатка',
+            tile_red: 'Красная тротуарная плитка',
             gravel: 'Гравий', sand: 'Песок', grass: 'Газон',
             flowers: 'Цветы', marble_chips: 'Мраморная крошка'
         };
@@ -5021,19 +5027,19 @@ function buildPriceBreakdown() {
             const tileWorkPrice = getPriceValue('path_tile_work_per_m2');
             if (tileMaterialPrice > 0 || tileWorkPrice > 0) {
                 addRow(
-                    '🛤️ Покрытие площадки — материал',
+                    `🛤️ Покрытие площадки — ${surfaceLabel} (материал)`,
                     `${materialLabels[material] || material}, ${coverageArea.toFixed(2)} м² × ${tileMaterialPrice} ₽/м²`,
                     coverageArea * tileMaterialPrice
                 );
                 addRow(
-                    '🔧 Укладка брусчатки',
+                    `🔧 Укладка ${surfaceLabel}`,
                     `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
                     coverageArea * tileWorkPrice
                 );
             } else {
                 const legacyPrice = getPriceValue('bruschatka_per_m2');
                 addRow(
-                    '🛤️ Брусчатка — материал + укладка',
+                    `🛤️ ${surfaceLabel} — материал + укладка`,
                     `${coverageArea.toFixed(2)} м² × ${legacyPrice} ₽/м² (старая единая ставка)`,
                     coverageArea * legacyPrice
                 );
