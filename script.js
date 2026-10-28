@@ -5058,10 +5058,20 @@ function buildPriceBreakdown() {
         const perimeter = 2 * (width + length);
         const curbLength = Math.max(0, perimeter - gateOpening);
         const materialKeys = {
-            granite: 'site_curb_granite_per_m', concrete: 'site_curb_concrete_per_m',
-            marble: 'site_curb_marble_per_m', brick: 'site_curb_brick_per_m'
+            granite: 'site_curb_granite_per_m',
+            black_galaxy: 'site_curb_black_galaxy_per_m',
+            red_granite: 'site_curb_red_granite_per_m',
+            beige_granite: 'site_curb_beige_granite_per_m',
+            gray_granite: 'site_curb_gray_granite_per_m',
+            concrete: 'site_curb_concrete_per_m',
+            marble: 'site_curb_marble_per_m',
+            brick: 'site_curb_brick_per_m'
         };
-        const materialLabels = { granite: 'Гранит', concrete: 'Бетон', marble: 'Мрамор', brick: 'Кирпич' };
+        const materialLabels = {
+            granite: 'Чёрный гранит', black_galaxy: 'Гранит Black Galaxy',
+            red_granite: 'Красный гранит', beige_granite: 'Бежевый гранит',
+            gray_granite: 'Серый гранит', concrete: 'Бетон', marble: 'Мрамор', brick: 'Кирпич'
+        };
         const materialPrice = getPriceValue(materialKeys[state.curbMaterial] || materialKeys.granite);
         addRow('🧱 Бордюр площадки — материал',
             `${materialLabels[state.curbMaterial] || 'Гранит'}, ${curbLength.toFixed(2)} п.м. × ${materialPrice} ₽/п.м.`,
