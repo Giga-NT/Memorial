@@ -642,52 +642,62 @@
                         </div>
                     </div>
 
-                    <div class="subsection" style="margin-top:16px;">
-                        <div class="subsection-title">🧱 Бордюр площадки</div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="curbVisible">
-                            <label for="curbVisible">Показывать бордюр по периметру</label>
-                        </div>
-                        <div id="siteCurbControls" style="display:none;">
-                            <div class="checkbox-group">
-                                <input type="checkbox" id="curbGateOpeningEnabled">
-                                <label for="curbGateOpeningEnabled">Оставить проём для входа</label>
-                            </div>
-                            <div class="control-group">
-                                <label for="curbMaterial">Материал бордюра</label>
-                                <select id="curbMaterial">
-                                    <option value="granite">⚫ Гранит</option>
-                                    <option value="concrete">⬜ Бетон</option>
-                                    <option value="marble">⚪ Мрамор</option>
-                                    <option value="brick">🧱 Кирпич</option>
-                                </select>
-                            </div>
-                            <div class="control-group-with-input">
-                                <label for="curbWidth">Ширина бордюра</label>
-                                <div class="input-with-range">
-                                    <input type="range" id="curbWidth" min="0.03" max="0.25" step="0.01" value="0.08">
-                                    <input type="number" id="curbWidthInput" class="number-input" min="0.03" max="0.25" step="0.01" value="0.08">
-                                    <span class="unit">м</span>
-                                </div>
-                                <span class="value-display" id="curbWidthVal">0.08 м</span>
-                            </div>
-                            <div class="control-group-with-input">
-                                <label for="curbHeight">Высота бордюра</label>
-                                <div class="input-with-range">
-                                    <input type="range" id="curbHeight" min="0.03" max="0.3" step="0.01" value="0.12">
-                                    <input type="number" id="curbHeightInput" class="number-input" min="0.03" max="0.3" step="0.01" value="0.12">
-                                    <span class="unit">м</span>
-                                </div>
-                                <span class="value-display" id="curbHeightVal">0.12 м</span>
-                            </div>
-                            <div class="checkbox-group">
-                                <input type="checkbox" id="curbInstallEnabled" checked>
-                                <label for="curbInstallEnabled">Включить установку в заказ</label>
-                            </div>
-                            <div class="hint-text">Бордюр считается отдельно от металлической ограды и покрытия площадки. Материал покрытия выбирается независимо.</div>
-                        </div>
-                    </div>
+                    
                 </div>
+            </div>
+        </div>
+
+
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                🧱 Бордюр площадки
+            </div>
+            <div class="section-content">
+                                <div class="subsection" style="margin-top:0;">
+                                        <div class="subsection-title">🧱 Бордюр площадки</div>
+                                        <div class="checkbox-group">
+                                            <input type="checkbox" id="curbVisible">
+                                            <label for="curbVisible">Показывать бордюр по периметру</label>
+                                        </div>
+                                        <div id="siteCurbControls" style="display:none;">
+                                            <div class="checkbox-group">
+                                                <input type="checkbox" id="curbGateOpeningEnabled">
+                                                <label for="curbGateOpeningEnabled">Оставить проём для входа</label>
+                                            </div>
+                                            <div class="control-group">
+                                                <label for="curbMaterial">Материал бордюра</label>
+                                                <select id="curbMaterial">
+                                                    <option value="granite">⚫ Гранит</option>
+                                                    <option value="concrete">⬜ Бетон</option>
+                                                    <option value="marble">⚪ Мрамор</option>
+                                                    <option value="brick">🧱 Кирпич</option>
+                                                </select>
+                                            </div>
+                                            <div class="control-group-with-input">
+                                                <label for="curbWidth">Ширина бордюра</label>
+                                                <div class="input-with-range">
+                                                    <input type="range" id="curbWidth" min="0.03" max="0.25" step="0.01" value="0.08">
+                                                    <input type="number" id="curbWidthInput" class="number-input" min="0.03" max="0.25" step="0.01" value="0.08">
+                                                    <span class="unit">м</span>
+                                                </div>
+                                                <span class="value-display" id="curbWidthVal">0.08 м</span>
+                                            </div>
+                                            <div class="control-group-with-input">
+                                                <label for="curbHeight">Высота бордюра</label>
+                                                <div class="input-with-range">
+                                                    <input type="range" id="curbHeight" min="0.03" max="0.3" step="0.01" value="0.12">
+                                                    <input type="number" id="curbHeightInput" class="number-input" min="0.03" max="0.3" step="0.01" value="0.12">
+                                                    <span class="unit">м</span>
+                                                </div>
+                                                <span class="value-display" id="curbHeightVal">0.12 м</span>
+                                            </div>
+                                            <div class="checkbox-group">
+                                                <input type="checkbox" id="curbInstallEnabled" checked>
+                                                <label for="curbInstallEnabled">Включить установку в заказ</label>
+                                            </div>
+                                            <div class="hint-text">Бордюр считается отдельно от металлической ограды и покрытия площадки. Материал покрытия выбирается независимо.</div>
+                                        </div>
+                                    </div>
             </div>
         </div>
 
