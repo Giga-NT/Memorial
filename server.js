@@ -2496,6 +2496,7 @@ app.post('/api/order', async (req, res) => {
     const curbWidth = data.curbWidth || 0.08;
     const curbHeight = data.curbHeight || 0.12;
     const curbInstallEnabled = data.curbInstallEnabled !== false;
+    const curbGateOpeningEnabled = data.curbGateOpeningEnabled === true;
     
     // --- ОГРАДКА ---
     const fenceEnabled = data.fenceEnabled || false;
@@ -2626,6 +2627,7 @@ app.post('/api/order', async (req, res) => {
         curbWidth: curbWidth,
         curbHeight: curbHeight,
         curbInstallEnabled: curbInstallEnabled,
+        curbGateOpeningEnabled: curbGateOpeningEnabled,
         fenceEnabled: fenceEnabled,
         fenceWidth: fenceW,
         fenceLength: fenceL,
