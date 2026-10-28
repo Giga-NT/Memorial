@@ -2533,6 +2533,16 @@ updatePhotoPosition(photoMesh, x, y) {
 			'pathEnabled': 'pathEnabled',
 			'pathWidth': 'pathWidth',
 			'pathMaterial': 'pathMaterial',
+
+			'curbVisible': 'curbVisible',
+
+			'curbMaterial': 'curbMaterial',
+
+			'curbWidth': 'curbWidth',
+
+			'curbHeight': 'curbHeight',
+
+			'curbInstallEnabled': 'curbInstallEnabled',
 			'nameFontSize': 'nameFontSize',
 			'datesFontSize': 'datesFontSize',
 			'epitaphFontSize': 'epitaphFontSize',
