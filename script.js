@@ -89,7 +89,7 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
     initPhotoScaleHandler();
-    initSiteCurbHandlers();
+    queueMicrotask(initSiteCurbHandlers);
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -5012,8 +5012,9 @@ function buildPriceBreakdown() {
         const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
         const gateSide = state.fenceGateSide || 'none';
         const gateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
+        const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
         const perimeter = 2 * (width + length);
-        const curbLength = Math.max(0, perimeter - Math.min(gateWidth, Math.max(width, length)));
+        const curbLength = Math.max(0, perimeter - Math.min(gateWidth, gateSpan));
         const materialKeys = {
             granite: 'site_curb_granite_per_m', concrete: 'site_curb_concrete_per_m',
             marble: 'site_curb_marble_per_m', brick: 'site_curb_brick_per_m'
