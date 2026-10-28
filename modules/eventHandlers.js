@@ -606,6 +606,50 @@ export function initPathHandlers() {
 }
 
 // ============================================================
+// БОРДЮР ПЛОЩАДКИ
+// ============================================================
+export function initSiteCurbHandlers() {
+    const controls = document.getElementById('siteCurbControls');
+    const syncVisibility = () => {
+        if (controls) controls.style.display = window.state.curbVisible ? 'block' : 'none';
+    };
+    const refresh = () => {
+        window.throttledUpdate();
+        window.calculatePrice();
+    };
+    document.getElementById('curbVisible')?.addEventListener('change', e => {
+        window.state.curbVisible = e.target.checked;
+        syncVisibility();
+        refresh();
+    });
+    document.getElementById('curbMaterial')?.addEventListener('change', e => {
+        window.state.curbMaterial = e.target.value;
+        refresh();
+    });
+    ['curbWidth', 'curbHeight'].forEach(id => {
+        const range = document.getElementById(id);
+        const number = document.getElementById(`${id}Input`);
+        const update = raw => {
+            const value = Number.parseFloat(raw);
+            if (!Number.isFinite(value)) return;
+            window.state[id] = value;
+            if (range) range.value = String(value);
+            if (number) number.value = String(value);
+            const label = document.getElementById(`${id}Val`);
+            if (label) label.textContent = `${value.toFixed(2)} м`;
+            refresh();
+        };
+        range?.addEventListener('input', e => update(e.target.value));
+        number?.addEventListener('change', e => update(e.target.value));
+    });
+    document.getElementById('curbInstallEnabled')?.addEventListener('change', e => {
+        window.state.curbInstallEnabled = e.target.checked;
+        window.calculatePrice();
+    });
+    syncVisibility();
+}
+
+// ============================================================
 // ⭐ ОБРАБОТЧИКИ ДЛЯ ОГРАДКИ (ТИП, МАТЕРИАЛ, ВЫСОТА, ВХОД)
 // ============================================================
 
