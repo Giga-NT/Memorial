@@ -5051,10 +5051,12 @@ function buildPriceBreakdown() {
         const width = Math.max(0.2, Number(state.fenceWidth) || 1.5);
         const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
         const gateSide = state.curbGateOpeningEnabled ? (state.fenceGateSide || 'none') : 'none';
-        const gateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
+        const requestedGateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
         const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
+        const curbWidth = Math.max(0.03, Number(state.curbWidth) || 0.08);
+        const gateOpening = Math.min(requestedGateWidth, Math.max(0, gateSpan - curbWidth * 2));
         const perimeter = 2 * (width + length);
-        const curbLength = Math.max(0, perimeter - Math.min(gateWidth, gateSpan));
+        const curbLength = Math.max(0, perimeter - gateOpening);
         const materialKeys = {
             granite: 'site_curb_granite_per_m', concrete: 'site_curb_concrete_per_m',
             marble: 'site_curb_marble_per_m', brick: 'site_curb_brick_per_m'
