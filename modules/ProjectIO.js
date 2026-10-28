@@ -145,6 +145,7 @@ export class ProjectIO {
             'pathEnabled',
             'curbVisible',
             'curbInstallEnabled',
+            'curbGateOpeningEnabled',
             'flowerEnabled',
             'showFurniture',
             'showVases'
@@ -2881,6 +2882,7 @@ export class ProjectIO {
         setVal('curbVisible', state.curbVisible === true);
         setSelect('curbMaterial', state.curbMaterial || 'granite');
         setVal('curbInstallEnabled', state.curbInstallEnabled !== false);
+        setVal('curbGateOpeningEnabled', state.curbGateOpeningEnabled === true);
         ['curbWidth', 'curbHeight'].forEach(id => {
             const fallback = id === 'curbWidth' ? 0.08 : 0.12;
             const value = Number(state[id]) || fallback;
