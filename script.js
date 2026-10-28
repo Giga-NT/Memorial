@@ -76,6 +76,7 @@ import {
     initBaseHandlers,
     initFlowerbedHandlers,
     initPathHandlers,
+    initSiteCurbHandlers,
     initFenceOptionsHandlers,
     initTextPositionHandlers,
     initEpitaphPositionHandlers,
@@ -85,8 +86,10 @@ import {
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+    document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
     initPhotoScaleHandler();
+    initSiteCurbHandlers();
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -848,6 +851,11 @@ const state = {
     fenceLength: 2.5,
     fenceEnabled: true,
     pathEnabled: true,
+    curbVisible: false,
+    curbMaterial: 'granite',
+    curbWidth: 0.08,
+    curbHeight: 0.12,
+    curbInstallEnabled: true,
 	textAbsoluteX: 0,
 	textAbsoluteY: 0.6,
 	epitaphAbsoluteX: 0,
@@ -4997,6 +5005,30 @@ function buildPriceBreakdown() {
             `${fenceArea.toFixed(2)} м² оградки − ${monumentsArea.toFixed(2)} м² оснований = ${bruschatkaArea.toFixed(2)} м² × ${bruschatkaPrice} ₽/м² (материал + укладка)`,
             bruschatkaArea * bruschatkaPrice
         );
+    }
+
+    if (state.curbVisible) {
+        const width = Math.max(0.2, Number(state.fenceWidth) || 1.5);
+        const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
+        const gateSide = state.fenceGateSide || 'none';
+        const gateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
+        const perimeter = 2 * (width + length);
+        const curbLength = Math.max(0, perimeter - Math.min(gateWidth, Math.max(width, length)));
+        const materialKeys = {
+            granite: 'site_curb_granite_per_m', concrete: 'site_curb_concrete_per_m',
+            marble: 'site_curb_marble_per_m', brick: 'site_curb_brick_per_m'
+        };
+        const materialLabels = { granite: 'Гранит', concrete: 'Бетон', marble: 'Мрамор', brick: 'Кирпич' };
+        const materialPrice = getPriceValue(materialKeys[state.curbMaterial] || materialKeys.granite);
+        addRow('🧱 Бордюр площадки — материал',
+            `${materialLabels[state.curbMaterial] || 'Гранит'}, ${curbLength.toFixed(2)} п.м. × ${materialPrice} ₽/п.м.`,
+            curbLength * materialPrice);
+        if (state.curbInstallEnabled !== false) {
+            const installPrice = getPriceValue('site_curb_install_per_m');
+            addRow('🔧 Установка бордюра площадки',
+                `${curbLength.toFixed(2)} п.м. × ${installPrice} ₽/п.м.`,
+                curbLength * installPrice);
+        }
     }
 
     const furnitureList = window.furniture3DManager?.furniture || [];
