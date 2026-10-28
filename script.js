@@ -856,6 +856,7 @@ const state = {
     curbWidth: 0.08,
     curbHeight: 0.12,
     curbInstallEnabled: true,
+    curbGateOpeningEnabled: false,
 	textAbsoluteX: 0,
 	textAbsoluteY: 0.6,
 	epitaphAbsoluteX: 0,
@@ -5010,7 +5011,7 @@ function buildPriceBreakdown() {
     if (state.curbVisible) {
         const width = Math.max(0.2, Number(state.fenceWidth) || 1.5);
         const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
-        const gateSide = state.fenceGateSide || 'none';
+        const gateSide = state.curbGateOpeningEnabled ? (state.fenceGateSide || 'none') : 'none';
         const gateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
         const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
         const perimeter = 2 * (width + length);
