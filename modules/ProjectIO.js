@@ -68,6 +68,7 @@ export class ProjectIO {
             'graveWidth', 'graveLength', 'baseHeight',
             'flowerWidth', 'flowerLength',
             'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
+            'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
             'pathWidth', 'pathTileSize',
             'photoScale', 'furnitureScale', 'vaseScale',
@@ -109,6 +110,7 @@ export class ProjectIO {
             'fenceGateSide',
             'pathMaterial',
             'pathTileLayout',
+            'curbMaterial',
             'steleType',
             'steleModel',
             'material',
@@ -141,6 +143,8 @@ export class ProjectIO {
         const checkboxFields = [
             'fenceEnabled',
             'pathEnabled',
+            'curbVisible',
+            'curbInstallEnabled',
             'flowerEnabled',
             'showFurniture',
             'showVases'
@@ -2870,6 +2874,22 @@ export class ProjectIO {
                     : 'none';
         }
 
+
+        // --------------------------------------------------------
+        // БОРДЮР ПЛОЩАДКИ
+        // --------------------------------------------------------
+        setVal('curbVisible', state.curbVisible === true);
+        setSelect('curbMaterial', state.curbMaterial || 'granite');
+        setVal('curbInstallEnabled', state.curbInstallEnabled !== false);
+        ['curbWidth', 'curbHeight'].forEach(id => {
+            const fallback = id === 'curbWidth' ? 0.08 : 0.12;
+            const value = Number(state[id]) || fallback;
+            setVal(id, value);
+            setVal(`${id}Input`, value);
+            setText(`${id}Val`, value.toFixed(2) + ' м');
+        });
+        const siteCurbControls = document.getElementById('siteCurbControls');
+        if (siteCurbControls) siteCurbControls.style.display = state.curbVisible ? 'block' : 'none';
 
         // --------------------------------------------------------
         // ОГРАДКА
