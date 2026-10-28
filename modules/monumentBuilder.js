@@ -1820,6 +1820,7 @@ export async function updateMainMonument(
         curbWidth: Number(state.curbWidth) || 0.08,
         curbHeight: Number(state.curbHeight) || 0.12,
         curbInstallEnabled: state.curbInstallEnabled !== false,
+        curbGateOpeningEnabled: state.curbGateOpeningEnabled === true,
 
         // ========================================================
         // ДОРОЖКА
@@ -2455,7 +2456,8 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         curbMaterial: data.curbMaterial || 'granite',
         curbWidth: Number(data.curbWidth) || 0.08,
         curbHeight: Number(data.curbHeight) || 0.12,
-        curbInstallEnabled: data.curbInstallEnabled !== false
+        curbInstallEnabled: data.curbInstallEnabled !== false,
+        curbGateOpeningEnabled: data.curbGateOpeningEnabled === true
     };
 
 
