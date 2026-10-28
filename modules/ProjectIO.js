@@ -2828,6 +2828,10 @@ export class ProjectIO {
         setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
         setSelect('pathMaterial', state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
         const pathType = document.getElementById('pathSurfaceType')?.value || 'paver';
+        state.pathSurfaceType = pathType;
+        state.pathSlabMaterial = state.pathSlabMaterial || document.getElementById('slabMaterial')?.value || 'tile_gray';
+        state.pathPaverMaterial = state.pathPaverMaterial || document.getElementById('pathMaterial')?.value || 'tile_gray';
+        state.pathMaterial = pathType === 'slab' ? state.pathSlabMaterial : state.pathPaverMaterial;
         const slabSettings = document.getElementById('pathSlabSettings');
         const paverSettings = document.getElementById('pathPaverSettings');
         if (slabSettings) slabSettings.style.display = pathType === 'slab' ? 'block' : 'none';
