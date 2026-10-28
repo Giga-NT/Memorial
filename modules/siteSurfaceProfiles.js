@@ -4,10 +4,19 @@
 const TILE_MATERIALS = ['tile_black','tile_gray','tile_beige','tile_dark','tile_light','tile_marble','tile_red','tile_brown','tile_blue','tile_green'];
 
 const PROFILES = {
+    slab: {
+        top: { key: 'surface', label: 'Тротуарная плитка', thickness: 0.04, kind: 'surface' },
+        layers: [
+            { key: 'bedding_sand', label: 'Песчаная постель', thickness: 0.03, kind: 'sand', color: 0xd8c18b },
+            { key: 'screenings', label: 'Выравнивающий отсев', thickness: 0.01, kind: 'screenings', color: 0x99958b },
+            { key: 'crushed_stone', label: 'Щебёночное основание', thickness: 0.12, kind: 'gravel', color: 0x686868 },
+            { key: 'geotextile', label: 'Разделительный геотекстиль (при необходимости)', thickness: 0.002, kind: 'geotextile', color: 0x4d5555 }
+        ]
+    },
     // Pedestrian paving preset: 60 mm paver, >=30 mm sand bedding,
     // granular base and levelling/wedging layers. Adjust for soil and drainage.
     tile: {
-        top: { key: 'surface', label: 'Брусчатка / тротуарная плитка', thickness: 0.06, kind: 'surface' },
+        top: { key: 'surface', label: 'Брусчатка', thickness: 0.06, kind: 'surface' },
         layers: [
             { key: 'bedding_sand', label: 'Песчаная постель', thickness: 0.03, kind: 'sand', color: 0xd8c18b },
             { key: 'screenings', label: 'Верхний слой расклинцовки / отсев', thickness: 0.01, kind: 'screenings', color: 0x99958b },
@@ -56,8 +65,8 @@ const PROFILES = {
     }
 };
 
-export function getSiteSurfaceProfile(material = 'tile_gray') {
-    const key = TILE_MATERIALS.includes(material) ? 'tile' : (PROFILES[material] ? material : 'tile');
+export function getSiteSurfaceProfile(material = 'tile_gray', surfaceType = 'paver') {
+    const key = TILE_MATERIALS.includes(material) ? (surfaceType === 'slab' ? 'slab' : 'tile') : (PROFILES[material] ? material : (surfaceType === 'slab' ? 'slab' : 'tile'));
     const profile = PROFILES[key];
     return {
         type: key,
@@ -66,8 +75,8 @@ export function getSiteSurfaceProfile(material = 'tile_gray') {
     };
 }
 
-export function getSiteSurfaceLayerTotals(material, area) {
-    const profile = getSiteSurfaceProfile(material);
+export function getSiteSurfaceLayerTotals(material, area, surfaceType = 'paver') {
+    const profile = getSiteSurfaceProfile(material, surfaceType);
     return {
         profile,
         topArea: Math.max(0, Number(area) || 0),
