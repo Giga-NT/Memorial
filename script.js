@@ -21,6 +21,7 @@ import { getQualitySettings, CONFIG } from './modules/performance-optimized.min.
 import { preloadCriticalTextures } from './modules/textures-optimized.min.js';
 import { loadPBRMaterial, getTextureTypeFromMaterial, loadFlowerbedTexture, loadGrassTexture, clearTextureCache } from './modules/textures.min.js';
 import { TileManager } from './modules/tileManager.min.js';
+import { getSiteSurfaceProfile, getSiteSurfaceLayerTotals } from './modules/siteSurfaceProfiles.js';
 
 // ⭐ МОДУЛИ (обфусцированные .min.js)
 import { EngravingsManager } from './modules/engravings.min.js';
@@ -5044,6 +5045,53 @@ function buildPriceBreakdown() {
                 `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
                 coverageArea * workPrice
             );
+        }
+
+        // Add the underlying construction layers by actual thickness and volume.
+        const layerTotals = getSiteSurfaceLayerTotals(material, coverageArea);
+        const profile = layerTotals.profile;
+        const excavationDepth = profile.top.thickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
+        const excavationVolume = coverageArea * excavationDepth;
+        const excavationRate = getPriceValue('site_excavation_per_m3');
+        const prepRate = getPriceValue('site_base_preparation_per_m2');
+        if (prepRate > 0) {
+            addRow('🔧 Подготовка и планировка основания',
+                `${coverageArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
+                coverageArea * prepRate);
+        }
+        if (excavationRate > 0) {
+            addRow('🚜 Выемка грунта под конструкцию',
+                `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (общая глубина ${(excavationDepth * 100).toFixed(1)} см)`,
+                excavationVolume * excavationRate);
+        }
+
+        for (const layer of layerTotals.layers) {
+            const thicknessCm = (layer.thickness * 100).toFixed(1);
+            if (layer.kind === 'sand') {
+                const rate = getPriceValue('site_sand_material_per_m3');
+                addRow(`🟨 ${layer.label} — материал`,
+                    `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
+                    layer.volume * rate);
+            } else if (layer.kind === 'gravel') {
+                const rate = getPriceValue('site_crushed_stone_material_per_m3');
+                addRow(`🪨 ${layer.label} — материал`,
+                    `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
+                    layer.volume * rate);
+            } else if (layer.kind === 'geotextile') {
+                const rate = getPriceValue('site_geotextile_material_per_m2');
+                addRow(`🧵 ${layer.label} — материал`,
+                    `${layer.area.toFixed(2)} м² × ${rate} ₽/м²`,
+                    layer.area * rate);
+            }
+        }
+        const compactionRate = getPriceValue('site_compaction_per_m3');
+        const compactableVolume = layerTotals.layers
+            .filter(layer => layer.kind === 'sand' || layer.kind === 'gravel')
+            .reduce((sum, layer) => sum + layer.volume, 0);
+        if (compactionRate > 0 && compactableVolume > 0) {
+            addRow('🔧 Уплотнение песка и щебня',
+                `${compactableVolume.toFixed(3)} м³ × ${compactionRate} ₽/м³`,
+                compactableVolume * compactionRate);
         }
     }
 
