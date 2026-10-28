@@ -584,37 +584,60 @@
                 </div>
 
                 <div class="subsection">
-                    <div class="subsection-title">🛤️ Дорожка</div>
+                    <div class="subsection-title">🛤️ Покрытие площадки</div>
                     <div id="pathControls" class="path-controls">
-                        <div class="control-group-with-input">
-                            <label for="pathWidth">Ширина</label>
-                            <div class="input-with-range">
-                                <input type="range" id="pathWidth" min="0.2" max="2.0" step="0.05" value="0.5">
-                                <input type="number" id="pathWidthInput" class="number-input" value="0.5" min="0.2" max="2.0" step="0.05">
-                                <span class="unit">м</span>
-                            </div>
-                            <span class="value-display" id="pathWidthVal">0.50 м</span>
+                        <div class="checkbox-group" style="margin-bottom:12px;">
+                            <input type="checkbox" id="pathEnabled" checked>
+                            <label for="pathEnabled">Показывать покрытие и слои основания</label>
                         </div>
-                        
                         <div class="control-group">
-                            <label for="pathMaterial">Покрытие</label>
-                            <select id="pathMaterial">
-                                <option value="tile_black">⬛ Чёрная брусчатка</option>
-                                <option value="tile_gray" selected>⬜ Серая брусчатка</option>
-                                <option value="tile_beige">🟨 Бежевая брусчатка</option>
-                                <option value="tile_dark">⬛ Тёмная брусчатка</option>
-                                <option value="tile_light">⬜ Светлая брусчатка</option>
-                                <option value="tile_marble">⚪ Мраморная брусчатка</option>
-                                <option value="gravel">🪨 Гравий</option>
-                                <option value="sand">🏜️ Песок</option>
-                                <option value="grass">🌿 Газон</option>
-                                <option value="flowers">🌸 Цветы</option>
+                            <label for="pathSurfaceType">Тип покрытия</label>
+                            <select id="pathSurfaceType">
+                                <option value="slab">Тротуарная плитка</option>
+                                <option value="paver" selected>Брусчатка</option>
                             </select>
                         </div>
-                        
-                        <div id="pathTileSettings" class="path-tile-settings">
+                        <div class="control-group-with-input">
+                            <label for="pathWidth">Ширина площадки</label>
+                            <div class="input-with-range">
+                                <input type="range" id="pathWidth" min="0.2" max="10.0" step="0.05" value="1.5">
+                                <input type="number" id="pathWidthInput" class="number-input" value="1.5" min="0.2" max="10.0" step="0.05">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="pathWidthVal">1.50 м</span>
+                        </div>
+
+                        <div id="pathSlabSettings" style="display:none; border:1px solid #d7dce2; border-radius:8px; padding:10px; margin:10px 0;">
+                            <div class="subsection-title">🧱 Тротуарная плитка</div>
+                            <div class="control-group">
+                                <label for="slabMaterial">Цвет и фактура плитки</label>
+                                <select id="slabMaterial">
+                                    <option value="tile_gray" selected>Серая плитка</option>
+                                    <option value="tile_black">Чёрная плитка</option>
+                                    <option value="tile_beige">Бежевая плитка</option>
+                                    <option value="tile_light">Светлая плитка</option>
+                                    <option value="tile_dark">Тёмная плитка</option>
+                                    <option value="tile_red">Красная плитка</option>
+                                </select>
+                            </div>
+                            <div class="hint-text">Профиль плитки: верхний элемент 4 см; ниже отображаются песчаная постель, отсев, щебёночное основание и геотекстиль при необходимости.</div>
+                        </div>
+
+                        <div id="pathPaverSettings" style="display:block; border:1px solid #d7dce2; border-radius:8px; padding:10px; margin:10px 0;">
+                            <div class="subsection-title">🧱 Брусчатка</div>
+                            <div class="control-group">
+                                <label for="pathMaterial">Цвет и фактура брусчатки</label>
+                                <select id="pathMaterial">
+                                    <option value="tile_gray" selected>Серая брусчатка</option>
+                                    <option value="tile_black">Чёрная брусчатка</option>
+                                    <option value="tile_beige">Бежевая брусчатка</option>
+                                    <option value="tile_dark">Тёмная брусчатка</option>
+                                    <option value="tile_light">Светлая брусчатка</option>
+                                    <option value="tile_marble">Мраморная брусчатка</option>
+                                </select>
+                            </div>
                             <div class="control-group-with-input">
-                                <label for="pathTileSize">Размер брусчатки</label>
+                                <label for="pathTileSize">Размер элемента брусчатки</label>
                                 <div class="input-with-range">
                                     <input type="range" id="pathTileSize" min="0.1" max="0.6" step="0.05" value="0.3">
                                     <input type="number" id="pathTileSizeInput" class="number-input" value="0.3" min="0.1" max="0.6" step="0.05">
@@ -622,29 +645,27 @@
                                 </div>
                                 <span class="value-display" id="pathTileSizeVal">0.30 м</span>
                             </div>
-                            
                             <div class="control-group">
-                                <label for="pathJointColor">Цвет швов</label>
-                                <div class="color-picker-row">
-                                    <input type="color" id="pathJointColor" value="#666666">
-                                </div>
+                                <label for="pathJointColor">Цвет швов брусчатки</label>
+                                <div class="color-picker-row"><input type="color" id="pathJointColor" value="#666666"></div>
                             </div>
-                            
                             <div class="control-group">
-                                <label for="pathTileLayout">Укладка</label>
+                                <label for="pathTileLayout">Схема укладки</label>
                                 <select id="pathTileLayout">
-                                    <option value="straight">📐 Прямая</option>
-                                    <option value="brick" selected>🧱 Вразбежку</option>
-                                    <option value="diagonal">🔲 Диагональная</option>
-                                    <option value="herringbone">〰️ Ёлочка</option>
+                                    <option value="straight">Прямая</option>
+                                    <option value="brick" selected>Вразбежку</option>
+                                    <option value="diagonal">Диагональная</option>
+                                    <option value="herringbone">Ёлочка</option>
                                 </select>
                             </div>
+                            <div class="hint-text">Профиль брусчатки: верхний элемент 6 см; ниже отображаются песчаная постель, отсев, щебень для расклинцовки, нижний щебёночный слой и геотекстиль при необходимости.</div>
                         </div>
-                        <div class="hint-text">
-                            В 3D показывается типовой пешеходный разрез: покрытие, песчаная постель, щебёночные слои и геотекстиль при необходимости. Толщины и состав основания зависят от грунта, водоотвода и нагрузки; это расчётный шаблон, а не индивидуальный проект.
+                        <div id="pathLayerLegend" style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-top:12px;">
+                            <strong>Слои основания</strong>
+                            <div id="pathLayerLegendItems" style="margin-top:8px;"></div>
+                            <div class="hint-text">Это типовой пешеходный профиль для предварительного расчёта. Толщины следует корректировать с учётом грунта, водоотвода и предполагаемой нагрузки.</div>
                         </div>
                     </div>
-
                     
                 </div>
             </div>
@@ -1369,7 +1390,7 @@
 <!-- ============================================================
 ПОДКЛЮЧАЕМ СКРИПТЫ
 ============================================================ -->
-<script type="module" src="script.js?v=20261028-site-layers-1"></script>
+<script type="module" src="script.js?v=20261028-site-layers-ui-2"></script>
 <script src="modules/menu.js" defer></script>
 <script src="modules/modeManager.js" defer></script>
 
