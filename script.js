@@ -5072,7 +5072,7 @@ function buildPriceBreakdown() {
                 addRow(`🟨 ${layer.label} — материал`,
                     `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
                     layer.volume * rate);
-            } else if (layer.kind === 'gravel') {
+            } else if (layer.kind === 'gravel' || layer.kind === 'screenings') {
                 const rate = getPriceValue('site_crushed_stone_material_per_m3');
                 addRow(`🪨 ${layer.label} — материал`,
                     `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
@@ -5086,7 +5086,7 @@ function buildPriceBreakdown() {
         }
         const compactionRate = getPriceValue('site_compaction_per_m3');
         const compactableVolume = layerTotals.layers
-            .filter(layer => layer.kind === 'sand' || layer.kind === 'gravel')
+            .filter(layer => layer.kind === 'sand' || layer.kind === 'gravel' || layer.kind === 'screenings')
             .reduce((sum, layer) => sum + layer.volume, 0);
         if (compactionRate > 0 && compactableVolume > 0) {
             addRow('🔧 Уплотнение песка и щебня',
