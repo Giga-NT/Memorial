@@ -69,6 +69,8 @@ export function initCheckboxHandlers() {
         const initial = window.state.pathMaterial || surfaceMaterial.value;
         surfaceType.value = initial.startsWith('slab_') ? 'slab' : 'paving';
         syncSurfaceOptions(initial);
+        // Синхронизируем состояние даже при загрузке старого проекта с другим покрытием.
+        window.state.pathMaterial = surfaceMaterial.value;
         surfaceType.addEventListener('change', () => {
             const preferred = surfaceType.value === 'slab' ? 'slab_gray' : 'tile_gray';
             syncSurfaceOptions(preferred);
