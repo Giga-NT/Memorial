@@ -104,7 +104,10 @@ export async function createSiteCurb(params = {}) {
     const addPiece = (pieceWidth, pieceLength, x, z) => {
         if (!(pieceWidth > 0) || !(pieceLength > 0)) return;
         const pieceMaterial = baseMaterial.clone();
-        if (pieceMaterial.map) pieceMaterial.map = pieceMaterial.map.clone();
+        if (pieceMaterial.map) {
+            pieceMaterial.map = pieceMaterial.map.clone();
+            pieceMaterial.map.needsUpdate = true;
+        }
         const mesh = new THREE.Mesh(
             new THREE.BoxGeometry(pieceWidth, curbHeight, pieceLength),
             pieceMaterial
