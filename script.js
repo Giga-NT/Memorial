@@ -5023,8 +5023,12 @@ function buildPriceBreakdown() {
             flowers: 'Цветы', marble_chips: 'Мраморная крошка'
         };
         if (tileMaterials) {
-            const tileMaterialPrice = getPriceValue('path_tile_material_per_m2');
-            const tileWorkPrice = getPriceValue('path_tile_work_per_m2');
+            const tileMaterialPrice = surfaceType === 'slab'
+                ? (getPriceValue('path_slab_material_per_m2') || getPriceValue('path_tile_material_per_m2'))
+                : getPriceValue('path_tile_material_per_m2');
+            const tileWorkPrice = surfaceType === 'slab'
+                ? (getPriceValue('path_slab_work_per_m2') || getPriceValue('path_tile_work_per_m2'))
+                : getPriceValue('path_tile_work_per_m2');
             if (tileMaterialPrice > 0 || tileWorkPrice > 0) {
                 addRow(
                     `🛤️ Покрытие площадки — ${surfaceLabel} (материал)`,
