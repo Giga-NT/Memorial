@@ -2240,7 +2240,7 @@ export async function updateMainMonument(
         disposeObject3D(curb);
         monumentGroup.remove(curb);
     });
-    const siteCurb = createSiteCurb(params);
+    const siteCurb = await createSiteCurb(params);
     if (siteCurb) {
         siteCurb.position.set(Number(params.fenceOffsetX) || 0, 0, Number(params.fenceOffsetZ) || 0);
         monumentGroup.add(siteCurb);
