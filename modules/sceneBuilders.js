@@ -1281,6 +1281,7 @@ export async function createPathBetweenGraveAndFence(
         pathEnabled,
         pathWidth,
         pathMaterial,
+        pathSurfaceType = 'paver',
         pathTileSize,
         pathJointColor,
         pathTileLayout,
@@ -1334,7 +1335,7 @@ export async function createPathBetweenGraveAndFence(
 
     shape.closePath();
 
-    const profile = getSiteSurfaceProfile(pathMaterial);
+    const profile = getSiteSurfaceProfile(pathMaterial, pathSurfaceType);
     const topThickness = profile.top.thickness;
 
     // Extruded surface gives paving/gravel a real, measurable thickness.
@@ -1533,6 +1534,7 @@ export async function createPathBetweenGraveAndFence(
     assembly.userData.isPath = true;
     assembly.userData.isSiteSurfaceAssembly = true;
     assembly.userData.surfaceMaterial = pathMaterial || 'tile_gray';
+    assembly.userData.surfaceType = pathSurfaceType;
 
     const sideMaterial = new THREE.MeshStandardMaterial({
         color: isTile ? 0x777777 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
@@ -1542,7 +1544,7 @@ export async function createPathBetweenGraveAndFence(
     const mesh = new THREE.Mesh(geometry, [material, sideMaterial]);
     mesh.rotation.x = -Math.PI / 2;
     // The top face remains at local y=0, matching the former surface plane.
-    mesh.position.y = -topThickness;
+    mesh.position.y = 0.09 - topThickness;
     mesh.receiveShadow = true;
     mesh.castShadow = false;
     mesh.userData.isSurfaceTop = true;
@@ -1550,7 +1552,7 @@ export async function createPathBetweenGraveAndFence(
 
     // The layers are intentionally visible at the perimeter. Lower layers
     // extend slightly beyond upper ones, as a readable construction section.
-    let layerTop = -topThickness;
+    let layerTop = mesh.position.y;
     for (let index = 0; index < profile.layers.length; index++) {
         const layer = profile.layers[index];
         const thickness = Math.max(0.001, Number(layer.thickness) || 0.001);
