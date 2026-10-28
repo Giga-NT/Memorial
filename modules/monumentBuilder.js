@@ -1839,6 +1839,9 @@ export async function updateMainMonument(
         pathMaterial:
             state.pathMaterial || 'tile_gray',
 
+        pathSurfaceType:
+            state.pathSurfaceType || 'paver',
+
         pathTileSize:
             state.pathTileSize !== undefined
                 ? Number(state.pathTileSize)
