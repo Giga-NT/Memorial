@@ -1562,7 +1562,7 @@ export async function createPathBetweenGraveAndFence(
         let layerTexture = null;
         if (layer.kind === 'sand') {
             layerTexture = await loadFlowerbedTexture('sand');
-        } else if (layer.kind === 'gravel') {
+        } else if (layer.kind === 'gravel' || layer.kind === 'screenings') {
             layerTexture = await loadFlowerbedTexture('gravel');
         } else if (layer.kind === 'soil') {
             layerTexture = await loadFlowerbedTexture('soil');
