@@ -445,6 +445,9 @@ if (tempGrassTex) {
 }
 
 const ground = new THREE.Mesh(groundGeo, groundMat);
+// Keep the terrain visually behind the exposed construction layers of the paving.
+groundMat.depthWrite = false;
+ground.renderOrder = -10;
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0;
 if (!isMobile) ground.receiveShadow = true;
@@ -838,6 +841,9 @@ const state = {
     pathEnabled: true,
     pathWidth: 0.5,
     pathMaterial: 'tile_gray',
+    pathSurfaceType: 'paver',
+    pathSlabMaterial: 'tile_gray',
+    pathPaverMaterial: 'tile_gray',
     pathColor: '#888888',
     pathTileSize: 0.3,
     pathJointColor: '#666666',
@@ -5048,7 +5054,7 @@ function buildPriceBreakdown() {
         }
 
         // Add the underlying construction layers by actual thickness and volume.
-        const layerTotals = getSiteSurfaceLayerTotals(material, coverageArea);
+        const layerTotals = getSiteSurfaceLayerTotals(material, coverageArea, state.pathSurfaceType || 'paver');
         const profile = layerTotals.profile;
         const excavationDepth = profile.top.thickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
         const excavationVolume = coverageArea * excavationDepth;
