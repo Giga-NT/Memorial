@@ -851,28 +851,20 @@ export async function createUnifiedTextureWithJoints(
 export function createPavingTexture(
     tileSize,
     tileType,
-    jointColor
+    jointColor,
+    layout = 'brick'
 ) {
     const isMobile =
         window.innerWidth < 768;
 
-    const texWidth =
+    const texSize =
         isMobile ? 256 : 512;
 
-    const texHeight =
-        isMobile ? 256 : 512;
+    const cells =
+        8;
 
-    const canvas =
-        document.createElement('canvas');
-
-    canvas.width =
-        texWidth;
-
-    canvas.height =
-        texHeight;
-
-    const ctx =
-        canvas.getContext('2d');
+    const cellPx =
+        texSize / cells;
 
     const tileColors = {
         tile_black: '#2a2a2a',
@@ -888,34 +880,84 @@ export function createPavingTexture(
     };
 
     const baseColor =
-        tileColors[tileType] ||
-        '#8a8a8a';
+        new THREE.Color(
+            tileColors[tileType] ||
+            '#8a8a8a'
+        );
+
+    const toSrgb255 = (
+        value
+    ) => {
+        const v =
+            Math.max(0, Math.min(1, value));
+
+        const s =
+            v <= 0.0031308
+                ? v * 12.92
+                : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+
+        return Math.round(s * 255);
+    };
 
     const joint =
         jointColor ||
         '#666666';
 
-    const tilePx =
-        isMobile ? 48 : 80;
+    const layoutKey =
+        ['straight', 'brick', 'diagonal', 'herringbone'].includes(layout)
+            ? layout
+            : 'brick';
+
+    const elementSize =
+        Number(tileSize) > 0
+            ? Number(tileSize)
+            : 0.3;
+
+    const periods =
+        6;
+
+    let spanX;
+    let spanY;
+
+    if (layoutKey === 'straight') {
+        spanX = spanY = cells * elementSize;
+    } else if (layoutKey === 'diagonal') {
+        spanX = spanY = periods * elementSize * Math.SQRT2;
+    } else {
+        spanX = spanY = cells * elementSize / 2;
+    }
 
     const jointPx =
-        isMobile ? 3 : 4;
+        Math.max(
+            1,
+            Math.round(
+                0.008 * texSize / spanX
+            )
+        );
 
-    const totalPx =
-        tilePx +
-        jointPx;
+    const cornerPx =
+        Math.max(
+            0.5,
+            Math.min(
+                isMobile ? 1.5 : 2,
+                jointPx * 0.6
+            )
+        );
 
-    const cols =
-        Math.ceil(
-            texWidth /
-            totalPx
-        ) + 1;
+    const canvas =
+        document.createElement('canvas');
 
-    const rows =
-        Math.ceil(
-            texHeight /
-            totalPx
-        ) + 1;
+    canvas.width =
+        texSize;
+
+    canvas.height =
+        texSize;
+
+    const ctx =
+        canvas.getContext(
+            '2d',
+            { willReadFrequently: true }
+        );
 
     ctx.fillStyle =
         joint;
@@ -923,249 +965,232 @@ export function createPavingTexture(
     ctx.fillRect(
         0,
         0,
-        texWidth,
-        texHeight
+        texSize,
+        texSize
     );
 
-    let row = 0;
-    let col = 0;
+    const brightnessFor = (
+        a,
+        b
+    ) => {
+        const hash =
+            Math.sin(
+                a * 127.1 +
+                b * 311.7
+            ) * 43758.5453;
 
-    let resolveTexture = null;
+        return 0.85 +
+            (hash - Math.floor(hash)) *
+            0.28;
+    };
 
-    const promise =
-        new Promise(
-            (resolve) => {
+    const paintStone = (
+        x,
+        y,
+        width,
+        height,
+        brightness
+    ) => {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
 
-                resolveTexture =
-                    resolve;
+        const radius =
+            Math.min(
+                cornerPx,
+                width / 2,
+                height / 2
+            );
 
-                function drawNextTile() {
+        const r =
+            toSrgb255(baseColor.r * brightness);
 
-                    if (row >= rows) {
+        const g =
+            toSrgb255(baseColor.g * brightness);
 
-                        const texture =
-                            new THREE.CanvasTexture(
-                                canvas
-                            );
+        const b =
+            toSrgb255(baseColor.b * brightness);
 
-                        texture.minFilter =
-                            THREE.LinearFilter;
+        ctx.beginPath();
 
-                        texture.magFilter =
-                            THREE.LinearFilter;
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
 
-                        texture.anisotropy =
-                            isMobile ? 1 : 2;
+        ctx.fillStyle =
+            `rgb(${r}, ${g}, ${b})`;
 
-                        resolveTexture(
-                            texture
-                        );
+        ctx.fill();
+    };
 
-                        return;
-                    }
+    const paintCell = (
+        cellX,
+        cellY,
+        cellW,
+        cellH
+    ) => {
+        const a =
+            ((cellX % cells) + cells) % cells;
 
-                    const offset =
-                        row % 2 === 0
-                            ? 0
-                            : tilePx / 2;
+        const b =
+            ((cellY % cells) + cells) % cells;
 
-                    const x =
-                        col *
-                        totalPx +
-                        offset;
+        paintStone(
+            cellX * cellPx + jointPx / 2,
+            cellY * cellPx + jointPx / 2,
+            cellW * cellPx - jointPx,
+            cellH * cellPx - jointPx,
+            brightnessFor(a, b)
+        );
+    };
 
-                    const y =
-                        row *
-                        totalPx;
+    if (layoutKey === 'straight') {
 
-                    if (
-                        x <= texWidth &&
-                        y <= texHeight
-                    ) {
+        for (let row = 0; row < cells; row++) {
+            for (let col = 0; col < cells; col++) {
+                paintCell(col, row, 1, 1);
+            }
+        }
 
-                        const brightness =
-                            0.85 +
-                            Math.random() *
-                            0.3;
+    } else if (layoutKey === 'diagonal') {
 
-                        const color =
-                            new THREE.Color(
-                                baseColor
-                            );
+        const diamondPx =
+            texSize / (periods * Math.SQRT2);
 
-                        const r =
-                            Math.round(
-                                Math.min(
-                                    255,
-                                    color.r *
-                                    255 *
-                                    brightness
-                                )
-                            );
+        const range =
+            periods + 4;
 
-                        const g =
-                            Math.round(
-                                Math.min(
-                                    255,
-                                    color.g *
-                                    255 *
-                                    brightness
-                                )
-                            );
+        ctx.save();
+        ctx.translate(texSize / 2, texSize / 2);
+        ctx.rotate(Math.PI / 4);
 
-                        const b =
-                            Math.round(
-                                Math.min(
-                                    255,
-                                    color.b *
-                                    255 *
-                                    brightness
-                                )
-                            );
+        for (let i = -range; i <= range; i++) {
+            for (let j = -range; j <= range; j++) {
+                const a =
+                    ((i % periods) + periods) % periods;
 
-                        ctx.fillStyle =
-                            `rgb(${r}, ${g}, ${b})`;
+                const b =
+                    ((j % periods) + periods) % periods;
 
-                        const radius =
-                            isMobile
-                                ? 1
-                                : 2;
-
-                        const px = x;
-                        const py = y;
-                        const w = tilePx;
-                        const h = tilePx;
-
-                        ctx.beginPath();
-
-                        ctx.moveTo(
-                            px + radius,
-                            py
-                        );
-
-                        ctx.lineTo(
-                            px + w - radius,
-                            py
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px + w,
-                            py,
-                            px + w,
-                            py + radius
-                        );
-
-                        ctx.lineTo(
-                            px + w,
-                            py + h - radius
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px + w,
-                            py + h,
-                            px + w - radius,
-                            py + h
-                        );
-
-                        ctx.lineTo(
-                            px + radius,
-                            py + h
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px,
-                            py + h,
-                            px,
-                            py + h - radius
-                        );
-
-                        ctx.lineTo(
-                            px,
-                            py + radius
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px,
-                            py,
-                            px + radius,
-                            py
-                        );
-
-                        ctx.closePath();
-
-                        ctx.fill();
-
-                        addStoneNoiseToTile(
-                            ctx,
-                            px,
-                            py,
-                            w,
-                            h
-                        );
-
-                        const grad =
-                            ctx.createLinearGradient(
-                                px,
-                                py,
-                                px,
-                                py + h
-                            );
-
-                        grad.addColorStop(
-                            0,
-                            'rgba(0,0,0,0.08)'
-                        );
-
-                        grad.addColorStop(
-                            0.5,
-                            'rgba(0,0,0,0)'
-                        );
-
-                        grad.addColorStop(
-                            1,
-                            'rgba(0,0,0,0.08)'
-                        );
-
-                        ctx.fillStyle =
-                            grad;
-
-                        ctx.fillRect(
-                            px,
-                            py,
-                            w,
-                            h
-                        );
-                    }
-
-                    col++;
-
-                    if (col >= cols) {
-                        col = 0;
-                        row++;
-                    }
-
-                    if (
-                        (row * cols + col) %
-                        5 === 0
-                    ) {
-
-                        requestAnimationFrame(
-                            drawNextTile
-                        );
-
-                    } else {
-
-                        drawNextTile();
-                    }
-                }
-
-                requestAnimationFrame(
-                    drawNextTile
+                paintStone(
+                    i * diamondPx + jointPx / 2,
+                    j * diamondPx + jointPx / 2,
+                    diamondPx - jointPx,
+                    diamondPx - jointPx,
+                    brightnessFor(a, b)
                 );
             }
-        );
+        }
 
-    return promise;
+        ctx.restore();
+
+    } else if (layoutKey === 'herringbone') {
+
+        const period =
+            4;
+
+        for (let row = -period; row < cells + period; row++) {
+
+            let start =
+                -period * 2;
+
+            start -=
+                ((start + row) % period + period) % period;
+
+            for (let x = start; x < cells + period * 2; x += period) {
+                paintCell(x, row, 2, 1);
+                paintCell(x + 2, row, 1, 2);
+            }
+        }
+
+    } else {
+
+        for (let row = 0; row < cells; row++) {
+
+            const offset =
+                (row % 2) * cellPx;
+
+            for (let col = -2; col < cells + 2; col += 2) {
+                paintStone(
+                    col * cellPx + offset + jointPx / 2,
+                    row * cellPx + jointPx / 2,
+                    cellPx * 2 - jointPx,
+                    cellPx - jointPx,
+                    brightnessFor(
+                        ((col % cells) + cells) % cells,
+                        row % cells
+                    )
+                );
+            }
+        }
+    }
+
+    try {
+
+        const image =
+            ctx.getImageData(0, 0, texSize, texSize);
+
+        const data =
+            image.data;
+
+        const strength =
+            isMobile ? 10 : 14;
+
+        for (let i = 0; i < data.length; i += 4) {
+
+            const grain =
+                (Math.random() - 0.5) * strength;
+
+            data[i] =
+                Math.max(0, Math.min(255, data[i] + grain));
+
+            data[i + 1] =
+                Math.max(0, Math.min(255, data[i + 1] + grain));
+
+            data[i + 2] =
+                Math.max(0, Math.min(255, data[i + 2] + grain));
+        }
+
+        ctx.putImageData(image, 0, 0);
+
+    } catch (error) {
+    }
+
+    const texture =
+        new THREE.CanvasTexture(canvas);
+
+    texture.colorSpace =
+        THREE.SRGBColorSpace;
+
+    texture.minFilter =
+        THREE.LinearFilter;
+
+    texture.magFilter =
+        THREE.LinearFilter;
+
+    texture.generateMipmaps =
+        false;
+
+    texture.anisotropy =
+        isMobile ? 1 : 2;
+
+    texture.userData = {
+        spanX,
+        spanY,
+        layout: layoutKey
+    };
+
+    texture.needsUpdate =
+        true;
+
+    return Promise.resolve(texture);
 }
 
 // ============================================================
@@ -1338,6 +1363,53 @@ export async function createPathBetweenGraveAndFence(
     const profile = getSiteSurfaceProfile(pathMaterial, pathSurfaceType);
     const topThickness = profile.top.thickness;
 
+    const isTile =
+        pathMaterial &&
+        pathMaterial.startsWith(
+            'tile_'
+        );
+
+    const tileStep =
+        pathTileSize || 0.3;
+
+    const pavingLayout =
+        pathTileLayout || 'brick';
+
+    let pavingTexture = null;
+
+    if (isTile) {
+        pavingTexture =
+            await createPavingTexture(
+                tileStep,
+                pathMaterial,
+                pathJointColor ||
+                    '#666666',
+                pavingLayout
+            );
+    }
+
+    const pavingSpanX =
+        pavingTexture &&
+        pavingTexture.userData &&
+        pavingTexture.userData.spanX
+            ? pavingTexture.userData.spanX
+            : tileStep;
+
+    const pavingSpanY =
+        pavingTexture &&
+        pavingTexture.userData &&
+        pavingTexture.userData.spanY
+            ? pavingTexture.userData.spanY
+            : tileStep;
+
+    const repeatX =
+        totalWidth /
+        pavingSpanX;
+
+    const repeatY =
+        totalLength /
+        pavingSpanY;
+
     // Extruded surface gives paving/gravel a real, measurable thickness.
     const geometry = new THREE.ExtrudeGeometry(shape, {
         depth: topThickness,
@@ -1355,6 +1427,9 @@ export async function createPathBetweenGraveAndFence(
         pos &&
         uv
     ) {
+
+        const normal =
+            geometry.attributes.normal;
 
         let minX = Infinity;
         let minY = Infinity;
@@ -1402,6 +1477,15 @@ export async function createPathBetweenGraveAndFence(
             rangeY > 0
         ) {
 
+            // Sample the tile texture inside a single paving row on the
+            // side walls, so the top joints continue down the exposed
+            // edges instead of looking like a solid cast slab.
+            const sideV0 =
+                0.42;
+
+            const sideV1 =
+                0.46;
+
             for (
                 let i = 0;
                 i < pos.count;
@@ -1414,12 +1498,69 @@ export async function createPathBetweenGraveAndFence(
                 const y =
                     pos.getY(i);
 
+                const nx =
+                    normal ? normal.getX(i) : 0;
+
+                const ny =
+                    normal ? normal.getY(i) : 0;
+
+                const nz =
+                    normal ? normal.getZ(i) : 1;
+
+                const isCap =
+                    Math.abs(nz) >
+                    Math.abs(nx) &&
+                    Math.abs(nz) >
+                    Math.abs(ny);
+
+                if (!isTile || isCap) {
+
+                    uv.setXY(
+                        i,
+                        (x - minX) /
+                            rangeX,
+                        (y - minY) /
+                            rangeY
+                    );
+
+                    continue;
+                }
+
+                const runsAlongY =
+                    Math.abs(nx) >
+                    Math.abs(ny);
+
+                const along =
+                    runsAlongY
+                        ? (y - minY) /
+                            rangeY
+                        : (x - minX) /
+                            rangeX;
+
+                const z =
+                    pos.getZ(i);
+
+                const heightRatio =
+                    topThickness > 0
+                        ? Math.min(
+                            1,
+                            Math.max(
+                                0,
+                                z / topThickness
+                            )
+                        )
+                        : 0;
+
                 uv.setXY(
                     i,
-                    (x - minX) /
-                        rangeX,
-                    (y - minY) /
-                        rangeY
+                    along *
+                        (runsAlongY
+                            ? repeatY / repeatX
+                            : 1),
+                    (sideV0 +
+                        (sideV1 - sideV0) *
+                            heightRatio) /
+                        repeatY
                 );
             }
 
@@ -1430,35 +1571,10 @@ export async function createPathBetweenGraveAndFence(
 
     let material;
 
-    const isTile =
-        pathMaterial &&
-        pathMaterial.startsWith(
-            'tile_'
-        );
-
     if (isTile) {
 
-        const texturePromise =
-            createPavingTexture(
-                pathTileSize || 0.3,
-                pathMaterial,
-                pathJointColor ||
-                    '#666666'
-            );
-
-        const tileSize =
-            pathTileSize || 0.3;
-
-        const repeatX =
-            totalWidth /
-            tileSize;
-
-        const repeatY =
-            totalLength /
-            tileSize;
-
         const texture =
-            await texturePromise;
+            pavingTexture;
 
         if (texture) {
 
@@ -1536,8 +1652,16 @@ export async function createPathBetweenGraveAndFence(
     assembly.userData.surfaceMaterial = pathMaterial || 'tile_gray';
     assembly.userData.surfaceType = pathSurfaceType;
 
+    const sideTexture =
+        isTile && material.map
+            ? material.map
+            : null;
+
     const sideMaterial = new THREE.MeshStandardMaterial({
-        color: isTile ? 0x777777 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
+        map: sideTexture,
+        color: sideTexture
+            ? 0xffffff
+            : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
         roughness: 0.9,
         metalness: 0
     });
