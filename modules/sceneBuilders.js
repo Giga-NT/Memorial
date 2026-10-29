@@ -1357,12 +1357,21 @@ export async function createPathBetweenGraveAndFence(
         };
 
         // Передняя и задняя кромки.
-        const halfCountX = Math.ceil(outerHalfW / jointSize);
+        const halfCountX = Math.ceil(outerHalfW / jointSize) + 1;
+        const frontRow = 0;
+        const backRow = Math.round((2 * outerHalfL) / jointSize);
+        const frontOffset = pathTileLayout === 'brick' && frontRow % 2 !== 0 ? jointSize / 2 : 0;
+        const backOffset = pathTileLayout === 'brick' && backRow % 2 !== 0 ? jointSize / 2 : 0;
         for (let i = -halfCountX; i <= halfCountX; i++) {
-            const x = i * jointSize + (pathTileLayout === 'brick' && i % 2 !== 0 ? jointSize / 2 : 0);
-            if (Math.abs(x) >= outerHalfW - 0.005) continue;
-            addVerticalJoint(x, -outerHalfL - sideOffset);
-            addVerticalJoint(x, outerHalfL + sideOffset);
+            const baseX = i * jointSize;
+            const frontX = baseX + frontOffset;
+            const backX = baseX + backOffset;
+            if (Math.abs(frontX) < outerHalfW - 0.005) {
+                addVerticalJoint(frontX, -outerHalfL - sideOffset);
+            }
+            if (Math.abs(backX) < outerHalfW - 0.005) {
+                addVerticalJoint(backX, outerHalfL + sideOffset);
+            }
         }
 
         // Торцы по длине: шаг равен шагу верхней текстуры.
