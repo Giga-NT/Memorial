@@ -1119,6 +1119,17 @@ export function createDecals(params, steleObj) {
 
 export async function createStele(params, decalsGroup) {
 
+    // Пересобираем декали вместе со стелой, чтобы фото, гравировки и фон
+    // не оставались на координатах предыдущего размера/положения стелы.
+    // createDecals и applyBackgroundToGroup ниже создадут актуальные элементы заново.
+    if (decalsGroup) {
+        const oldDecals = [...decalsGroup.children];
+        oldDecals.forEach(child => {
+            decalsGroup.remove(child);
+            disposeObject3D(child);
+        });
+    }
+
     const pedestalHeight =
         params.pedestalEnabled === false
             ? 0
