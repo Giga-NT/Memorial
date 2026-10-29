@@ -1092,29 +1092,35 @@ export async function createPathBetweenGraveAndFence(
             rangeY > 0
         ) {
 
-            for (
-                let i = 0;
-                i < pos.count;
-                i++
-            ) {
-
-                const x =
-                    pos.getX(i);
-
-                const y =
-                    pos.getY(i);
-
-                uv.setXY(
-                    i,
-                    (x - minX) /
-                        rangeX,
-                    (y - minY) /
-                        rangeY
-                );
+            // Верх получает UV в пределах 0..1, боковые грани —
+            // отдельную развёртку с вертикальной координатой по глубине экструзии.
+            const depth = Math.max(0.001, topThickness);
+            const sideVertices = new Set();
+            for (const group of geometry.groups) {
+                if (group.materialIndex !== 1) continue;
+                for (let i = group.start; i < group.start + group.count; i++) {
+                    sideVertices.add(i);
+                }
             }
 
-            uv.needsUpdate =
-                true;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                const z = pos.getZ(i);
+
+                if (sideVertices.has(i)) {
+                    const normalX = geometry.attributes.normal?.getX(i) || 0;
+                    const normalY = geometry.attributes.normal?.getY(i) || 0;
+                    const alongEdge = Math.abs(normalX) > Math.abs(normalY)
+                        ? (y - minY) / Math.max(0.001, rangeY)
+                        : (x - minX) / Math.max(0.001, rangeX);
+                    uv.setXY(i, alongEdge, Math.max(0, Math.min(1, z / depth)));
+                } else {
+                    uv.setXY(i, (x - minX) / rangeX, (y - minY) / rangeY);
+                }
+            }
+
+            uv.needsUpdate = true;
         }
     }
 
@@ -1128,49 +1134,41 @@ export async function createPathBetweenGraveAndFence(
 
     if (isTile) {
 
-        const texturePromise =
-            createPavingTexture(
-                pathTileSize || 0.3,
-                pathMaterial,
-                pathJointColor ||
-                    '#666666'
-            );
+        // Плитка крупнее брусчатки; схема укладки применяется к текстуре,
+        // а физический шаг рисунка рассчитывается в метрах.
+        const tileSize = pathSurfaceType === 'slab'
+            ? 0.4
+            : Math.max(0.1, Number(pathTileSize) || 0.3);
+        const layout = pathSurfaceType === 'slab'
+            ? 'straight'
+            : (pathTileLayout || 'brick');
 
-        const tileSize =
-            pathTileSize || 0.3;
-
-        const repeatX =
-            totalWidth /
-            tileSize;
-
-        const repeatY =
-            totalLength /
-            tileSize;
-
-        const texture =
-            await texturePromise;
+        const texture = createPavingTexture(
+            tileSize,
+            pathMaterial,
+            pathJointColor || '#666666',
+            layout,
+            pathSurfaceType
+        );
 
         if (texture) {
-
-            texture.wrapS =
-                THREE.RepeatWrapping;
-
-            texture.wrapT =
-                THREE.RepeatWrapping;
-
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            const tilesAcross = texture.userData?.tilesAcross || 1;
+            const tilesDown = texture.userData?.tilesDown || 1;
             texture.repeat.set(
-                repeatX,
-                repeatY
+                totalWidth / (tileSize * tilesAcross),
+                totalLength / (tileSize * tilesDown)
             );
+            texture.needsUpdate = true;
         }
 
-        material =
-            new THREE.MeshStandardMaterial({
-                map: texture || null,
-                roughness: 0.6,
-                metalness: 0.05,
-                side: THREE.DoubleSide,
-            });
+        material = new THREE.MeshStandardMaterial({
+            map: texture || null,
+            roughness: 0.6,
+            metalness: 0.05,
+            side: THREE.DoubleSide,
+        });
 
     } else {
 
@@ -1226,10 +1224,21 @@ export async function createPathBetweenGraveAndFence(
     assembly.userData.surfaceMaterial = pathMaterial || 'tile_gray';
     assembly.userData.surfaceType = pathSurfaceType;
 
+    const sideTexture = isTile && material.map ? material.map.clone() : null;
+    if (sideTexture) {
+        sideTexture.wrapS = THREE.RepeatWrapping;
+        sideTexture.wrapT = THREE.ClampToEdgeWrapping;
+        // На вертикальных гранях показываем фактуру торца, не растягивая её
+        // в несколько десятков повторов по толщине покрытия.
+        sideTexture.repeat.set(1, 1);
+        sideTexture.needsUpdate = true;
+    }
     const sideMaterial = new THREE.MeshStandardMaterial({
-        color: isTile ? 0x777777 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
+        map: sideTexture,
+        color: isTile ? 0xb0b0b0 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
         roughness: 0.9,
-        metalness: 0
+        metalness: 0,
+        side: THREE.DoubleSide
     });
     const mesh = new THREE.Mesh(geometry, [material, sideMaterial]);
     mesh.rotation.x = -Math.PI / 2;
