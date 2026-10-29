@@ -1079,6 +1079,7 @@ export async function createPathBetweenGraveAndFence(
         pathMaterial,
         pathSurfaceType = 'paver',
         pathTileSize,
+        pathPaverThickness = 0.06,
         pathJointColor,
         pathTileLayout,
         fenceWidth,
@@ -1131,7 +1132,11 @@ export async function createPathBetweenGraveAndFence(
 
     shape.closePath();
 
-    const profile = getSiteSurfaceProfile(pathMaterial, pathSurfaceType);
+    const profile = getSiteSurfaceProfile(
+        pathMaterial,
+        pathSurfaceType,
+        pathSurfaceType === 'paver' ? pathPaverThickness : null
+    );
     const topThickness = profile.top.thickness;
 
     // Extruded surface gives paving/gravel a real, measurable thickness.
