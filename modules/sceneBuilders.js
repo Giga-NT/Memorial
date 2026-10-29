@@ -851,28 +851,16 @@ export async function createUnifiedTextureWithJoints(
 export function createPavingTexture(
     tileSize,
     tileType,
-    jointColor
+    jointColor,
+    tileLayout = 'brick'
 ) {
-    const isMobile =
-        window.innerWidth < 768;
-
-    const texWidth =
-        isMobile ? 256 : 512;
-
-    const texHeight =
-        isMobile ? 256 : 512;
-
-    const canvas =
-        document.createElement('canvas');
-
-    canvas.width =
-        texWidth;
-
-    canvas.height =
-        texHeight;
-
-    const ctx =
-        canvas.getContext('2d');
+    const isMobile = window.innerWidth < 768;
+    const texWidth = isMobile ? 256 : 512;
+    const texHeight = isMobile ? 256 : 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = texWidth;
+    canvas.height = texHeight;
+    const ctx = canvas.getContext('2d');
 
     const tileColors = {
         tile_black: '#2a2a2a',
@@ -884,288 +872,96 @@ export function createPavingTexture(
         tile_red: '#8b2a2a',
         tile_brown: '#6b4a3a',
         tile_blue: '#3a5a7a',
-        tile_green: '#4a7a4a',
+        tile_green: '#4a7a4a'
+    };
+    const baseColor = tileColors[tileType] || '#8a8a8a';
+    const joint = jointColor || '#666666';
+    const tilePx = isMobile ? 48 : 80;
+    const jointPx = isMobile ? 3 : 4;
+    const pitch = tilePx + jointPx;
+
+    ctx.fillStyle = joint;
+    ctx.fillRect(0, 0, texWidth, texHeight);
+
+    const drawTile = (x, y, w = tilePx, h = tilePx, angle = 0) => {
+        const brightness = 0.85 + Math.random() * 0.3;
+        const color = new THREE.Color(baseColor);
+        const rgb = [
+            Math.round(Math.min(255, color.r * 255 * brightness)),
+            Math.round(Math.min(255, color.g * 255 * brightness)),
+            Math.round(Math.min(255, color.b * 255 * brightness))
+        ];
+        ctx.save();
+        ctx.translate(x + w / 2, y + h / 2);
+        ctx.rotate(angle);
+        const px = -w / 2;
+        const py = -h / 2;
+        ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        ctx.fillRect(px, py, w, h);
+        addStoneNoiseToTile(ctx, px, py, w, h);
+        const grad = ctx.createLinearGradient(px, py, px, py + h);
+        grad.addColorStop(0, 'rgba(0,0,0,0.08)');
+        grad.addColorStop(0.5, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.08)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(px, py, w, h);
+        ctx.restore();
     };
 
-    const baseColor =
-        tileColors[tileType] ||
-        '#8a8a8a';
-
-    const joint =
-        jointColor ||
-        '#666666';
-
-    const tilePx =
-        isMobile ? 48 : 80;
-
-    const jointPx =
-        isMobile ? 3 : 4;
-
-    const totalPx =
-        tilePx +
-        jointPx;
-
-    const cols =
-        Math.ceil(
-            texWidth /
-            totalPx
-        ) + 1;
-
-    const rows =
-        Math.ceil(
-            texHeight /
-            totalPx
-        ) + 1;
-
-    ctx.fillStyle =
-        joint;
-
-    ctx.fillRect(
-        0,
-        0,
-        texWidth,
-        texHeight
-    );
-
-    let row = 0;
-    let col = 0;
-
-    let resolveTexture = null;
-
-    const promise =
-        new Promise(
-            (resolve) => {
-
-                resolveTexture =
-                    resolve;
-
-                function drawNextTile() {
-
-                    if (row >= rows) {
-
-                        const texture =
-                            new THREE.CanvasTexture(
-                                canvas
-                            );
-
-                        texture.minFilter =
-                            THREE.LinearFilter;
-
-                        texture.magFilter =
-                            THREE.LinearFilter;
-
-                        texture.anisotropy =
-                            isMobile ? 1 : 2;
-
-                        resolveTexture(
-                            texture
-                        );
-
-                        return;
-                    }
-
-                    const offset =
-                        row % 2 === 0
-                            ? 0
-                            : tilePx / 2;
-
-                    const x =
-                        col *
-                        totalPx +
-                        offset;
-
-                    const y =
-                        row *
-                        totalPx;
-
-                    if (
-                        x <= texWidth &&
-                        y <= texHeight
-                    ) {
-
-                        const brightness =
-                            0.85 +
-                            Math.random() *
-                            0.3;
-
-                        const color =
-                            new THREE.Color(
-                                baseColor
-                            );
-
-                        const r =
-                            Math.round(
-                                Math.min(
-                                    255,
-                                    color.r *
-                                    255 *
-                                    brightness
-                                )
-                            );
-
-                        const g =
-                            Math.round(
-                                Math.min(
-                                    255,
-                                    color.g *
-                                    255 *
-                                    brightness
-                                )
-                            );
-
-                        const b =
-                            Math.round(
-                                Math.min(
-                                    255,
-                                    color.b *
-                                    255 *
-                                    brightness
-                                )
-                            );
-
-                        ctx.fillStyle =
-                            `rgb(${r}, ${g}, ${b})`;
-
-                        const radius =
-                            isMobile
-                                ? 1
-                                : 2;
-
-                        const px = x;
-                        const py = y;
-                        const w = tilePx;
-                        const h = tilePx;
-
-                        ctx.beginPath();
-
-                        ctx.moveTo(
-                            px + radius,
-                            py
-                        );
-
-                        ctx.lineTo(
-                            px + w - radius,
-                            py
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px + w,
-                            py,
-                            px + w,
-                            py + radius
-                        );
-
-                        ctx.lineTo(
-                            px + w,
-                            py + h - radius
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px + w,
-                            py + h,
-                            px + w - radius,
-                            py + h
-                        );
-
-                        ctx.lineTo(
-                            px + radius,
-                            py + h
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px,
-                            py + h,
-                            px,
-                            py + h - radius
-                        );
-
-                        ctx.lineTo(
-                            px,
-                            py + radius
-                        );
-
-                        ctx.quadraticCurveTo(
-                            px,
-                            py,
-                            px + radius,
-                            py
-                        );
-
-                        ctx.closePath();
-
-                        ctx.fill();
-
-                        addStoneNoiseToTile(
-                            ctx,
-                            px,
-                            py,
-                            w,
-                            h
-                        );
-
-                        const grad =
-                            ctx.createLinearGradient(
-                                px,
-                                py,
-                                px,
-                                py + h
-                            );
-
-                        grad.addColorStop(
-                            0,
-                            'rgba(0,0,0,0.08)'
-                        );
-
-                        grad.addColorStop(
-                            0.5,
-                            'rgba(0,0,0,0)'
-                        );
-
-                        grad.addColorStop(
-                            1,
-                            'rgba(0,0,0,0.08)'
-                        );
-
-                        ctx.fillStyle =
-                            grad;
-
-                        ctx.fillRect(
-                            px,
-                            py,
-                            w,
-                            h
-                        );
-                    }
-
-                    col++;
-
-                    if (col >= cols) {
-                        col = 0;
-                        row++;
-                    }
-
-                    if (
-                        (row * cols + col) %
-                        5 === 0
-                    ) {
-
-                        requestAnimationFrame(
-                            drawNextTile
-                        );
-
-                    } else {
-
-                        drawNextTile();
-                    }
-                }
-
-                requestAnimationFrame(
-                    drawNextTile
-                );
+    if (tileLayout === 'diagonal') {
+        ctx.save();
+        ctx.translate(texWidth / 2, texHeight / 2);
+        ctx.rotate(Math.PI / 4);
+        ctx.translate(-texWidth / 2, -texHeight / 2);
+        for (let y = -texHeight; y < texHeight * 2; y += pitch) {
+            const row = Math.floor(y / pitch);
+            const offset = row % 2 === 0 ? 0 : tilePx / 2;
+            for (let x = -texWidth; x < texWidth * 2; x += pitch) {
+                drawTile(x + offset, y);
             }
-        );
+        }
+        ctx.restore();
+    } else if (tileLayout === 'herringbone') {
+        // Контрастная раскладка «ёлочкой»: длинные прямоугольные элементы
+        // чередуют горизонтальную и вертикальную ориентацию.
+        const blockW = tilePx * 2 + jointPx;
+        const blockH = tilePx;
+        const step = tilePx + jointPx;
+        for (let y = -texHeight; y < texHeight * 2; y += step * 2) {
+            for (let x = -texWidth; x < texWidth * 2; x += step * 2) {
+                drawTile(x, y, blockW, blockH);
+                drawTile(x + step, y + step, blockH, blockW);
+                drawTile(x + step * 2, y, blockH, blockW);
+                drawTile(x + step * 2, y + step * 2, blockW, blockH);
+            }
+        }
+    } else {
+        for (let y = -pitch; y < texHeight + pitch; y += pitch) {
+            const row = Math.round(y / pitch);
+            const offset = tileLayout === 'brick' && Math.abs(row % 2) === 1
+                ? tilePx / 2
+                : 0;
+            for (let x = -pitch; x < texWidth + pitch; x += pitch) {
+                drawTile(x + offset, y);
+            }
+        }
+    }
 
-    return promise;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = isMobile ? 1 : 2;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.userData = {
+        cellsAcross: texWidth / pitch,
+        cellsDown: texHeight / pitch,
+        tileSizeMeters: Math.max(0.05, Number(tileSize) || 0.2),
+        layout: tileLayout
+    };
+    texture.needsUpdate = true;
+    return Promise.resolve(texture);
 }
 
 // ============================================================
