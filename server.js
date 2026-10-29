@@ -429,6 +429,26 @@ const ALLOWED_PRICE_KEYS = new Set([
     'fence_base_height',
     'path_work_per_m2',
     'path_material_per_m2',
+    'site_fill_work_per_m2',
+    'site_sand_material_per_m3',
+    'site_crushed_stone_material_per_m3',
+    'site_geotextile_material_per_m2',
+    'site_base_preparation_per_m2',
+    'site_excavation_per_m3',
+    'site_compaction_per_m3',
+    'path_tile_material_per_m2',
+    'path_tile_work_per_m2',
+    'path_slab_material_per_m2',
+    'path_slab_work_per_m2',
+    'site_curb_granite_per_m',
+    'site_curb_black_galaxy_per_m',
+    'site_curb_red_granite_per_m',
+    'site_curb_beige_granite_per_m',
+    'site_curb_gray_granite_per_m',
+    'site_curb_concrete_per_m',
+    'site_curb_marble_per_m',
+    'site_curb_brick_per_m',
+    'site_curb_install_per_m',
     'install_full_set',
     'install_flowerbed_base',
     'install_pedestal_percent',
@@ -507,6 +527,26 @@ const DEFAULT_PRICES = {
     fence_base_height: 0.6,
     path_work_per_m2: 1500,
     path_material_per_m2: 0,
+    site_fill_work_per_m2: 0,
+    site_sand_material_per_m3: 0,
+    site_crushed_stone_material_per_m3: 0,
+    site_geotextile_material_per_m2: 0,
+    site_base_preparation_per_m2: 0,
+    site_excavation_per_m3: 0,
+    site_compaction_per_m3: 0,
+    path_tile_material_per_m2: 0,
+    path_tile_work_per_m2: 0,
+    path_slab_material_per_m2: 0,
+    path_slab_work_per_m2: 0,
+    site_curb_granite_per_m: 0,
+    site_curb_black_galaxy_per_m: 0,
+    site_curb_red_granite_per_m: 0,
+    site_curb_beige_granite_per_m: 0,
+    site_curb_gray_granite_per_m: 0,
+    site_curb_concrete_per_m: 0,
+    site_curb_marble_per_m: 0,
+    site_curb_brick_per_m: 0,
+    site_curb_install_per_m: 0,
     install_full_set: 35000,
     install_flowerbed_base: 25000,
     install_pedestal_percent: 10,
@@ -2479,6 +2519,14 @@ app.post('/api/order', async (req, res) => {
     const pathTileSize = data.pathTileSize || 0.3;
     const pathJointColor = data.pathJointColor || '#666666';
     const pathTileLayout = data.pathTileLayout || 'brick';
+
+    // --- БОРДЮР ПЛОЩАДКИ ---
+    const curbVisible = data.curbVisible === true;
+    const curbMaterial = data.curbMaterial || 'granite';
+    const curbWidth = data.curbWidth || 0.08;
+    const curbHeight = data.curbHeight || 0.12;
+    const curbInstallEnabled = data.curbInstallEnabled !== false;
+    const curbGateOpeningEnabled = data.curbGateOpeningEnabled === true;
     
     // --- ОГРАДКА ---
     const fenceEnabled = data.fenceEnabled || false;
@@ -2604,6 +2652,12 @@ app.post('/api/order', async (req, res) => {
         pathTileSize: pathTileSize,
         pathJointColor: pathJointColor,
         pathTileLayout: pathTileLayout,
+        curbVisible: curbVisible,
+        curbMaterial: curbMaterial,
+        curbWidth: curbWidth,
+        curbHeight: curbHeight,
+        curbInstallEnabled: curbInstallEnabled,
+        curbGateOpeningEnabled: curbGateOpeningEnabled,
         fenceEnabled: fenceEnabled,
         fenceWidth: fenceW,
         fenceLength: fenceL,

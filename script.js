@@ -21,6 +21,7 @@ import { getQualitySettings, CONFIG } from './modules/performance-optimized.min.
 import { preloadCriticalTextures } from './modules/textures-optimized.min.js';
 import { loadPBRMaterial, getTextureTypeFromMaterial, loadFlowerbedTexture, loadGrassTexture, clearTextureCache } from './modules/textures.min.js';
 import { TileManager } from './modules/tileManager.min.js';
+import { getSiteSurfaceProfile, getSiteSurfaceLayerTotals } from './modules/siteSurfaceProfiles.js';
 
 // ⭐ МОДУЛИ (обфусцированные .min.js)
 import { EngravingsManager } from './modules/engravings.min.js';
@@ -76,6 +77,7 @@ import {
     initBaseHandlers,
     initFlowerbedHandlers,
     initPathHandlers,
+    initSiteCurbHandlers,
     initFenceOptionsHandlers,
     initTextPositionHandlers,
     initEpitaphPositionHandlers,
@@ -85,8 +87,10 @@ import {
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+    document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
     initPhotoScaleHandler();
+    queueMicrotask(initSiteCurbHandlers);
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -441,6 +445,9 @@ if (tempGrassTex) {
 }
 
 const ground = new THREE.Mesh(groundGeo, groundMat);
+// Keep the terrain visually behind the exposed construction layers of the paving.
+groundMat.depthWrite = false;
+ground.renderOrder = -10;
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0;
 if (!isMobile) ground.receiveShadow = true;
@@ -834,6 +841,9 @@ const state = {
     pathEnabled: true,
     pathWidth: 0.5,
     pathMaterial: 'tile_gray',
+    pathSurfaceType: 'paver',
+    pathSlabMaterial: 'tile_gray',
+    pathPaverMaterial: 'tile_gray',
     pathColor: '#888888',
     pathTileSize: 0.3,
     pathJointColor: '#666666',
@@ -848,6 +858,12 @@ const state = {
     fenceLength: 2.5,
     fenceEnabled: true,
     pathEnabled: true,
+    curbVisible: false,
+    curbMaterial: 'granite',
+    curbWidth: 0.08,
+    curbHeight: 0.12,
+    curbInstallEnabled: true,
+    curbGateOpeningEnabled: false,
 	textAbsoluteX: 0,
 	textAbsoluteY: 0.6,
 	epitaphAbsoluteX: 0,
@@ -4983,20 +4999,153 @@ function buildPriceBreakdown() {
         );
     }
 
-    if (state.pathEnabled && state.fenceEnabled && state.fenceType !== 'none') {
-        const fenceArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
+    if (state.pathEnabled) {
+        const siteArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
         const monumentsArea = monuments.reduce((sum, monument) => {
             const baseWidth = Number(monument.graveWidth) || 0.9;
             const baseLength = Number(monument.graveLength) || 1.5;
             return sum + baseWidth * baseLength;
         }, 0);
-        const bruschatkaArea = Math.max(0, fenceArea - monumentsArea);
-        const bruschatkaPrice = getPriceValue('bruschatka_per_m2');
-        addRow(
-            '🛤️ Брусчатка',
-            `${fenceArea.toFixed(2)} м² оградки − ${monumentsArea.toFixed(2)} м² оснований = ${bruschatkaArea.toFixed(2)} м² × ${bruschatkaPrice} ₽/м² (материал + укладка)`,
-            bruschatkaArea * bruschatkaPrice
-        );
+        const coverageArea = Math.max(0, siteArea - monumentsArea);
+        const material = state.pathMaterial || 'tile_gray';
+        const surfaceType = state.pathSurfaceType || 'paver';
+        const surfaceLabel = surfaceType === 'slab' ? 'тротуарная плитка' : 'брусчатка';
+        const tileMaterials = material.startsWith('tile_');
+        const materialLabels = {
+            tile_black: surfaceType === 'slab' ? 'Чёрная тротуарная плитка' : 'Чёрная брусчатка',
+            tile_gray: surfaceType === 'slab' ? 'Серая тротуарная плитка' : 'Серая брусчатка',
+            tile_beige: surfaceType === 'slab' ? 'Бежевая тротуарная плитка' : 'Бежевая брусчатка',
+            tile_dark: surfaceType === 'slab' ? 'Тёмная тротуарная плитка' : 'Тёмная брусчатка',
+            tile_light: surfaceType === 'slab' ? 'Светлая тротуарная плитка' : 'Светлая брусчатка',
+            tile_marble: 'Мраморная брусчатка',
+            tile_red: 'Красная тротуарная плитка',
+            gravel: 'Гравий', sand: 'Песок', grass: 'Газон',
+            flowers: 'Цветы', marble_chips: 'Мраморная крошка'
+        };
+        if (tileMaterials) {
+            const tileMaterialPrice = surfaceType === 'slab'
+                ? (getPriceValue('path_slab_material_per_m2') || getPriceValue('path_tile_material_per_m2'))
+                : getPriceValue('path_tile_material_per_m2');
+            const tileWorkPrice = surfaceType === 'slab'
+                ? (getPriceValue('path_slab_work_per_m2') || getPriceValue('path_tile_work_per_m2'))
+                : getPriceValue('path_tile_work_per_m2');
+            if (tileMaterialPrice > 0 || tileWorkPrice > 0) {
+                addRow(
+                    `🛤️ Покрытие площадки — ${surfaceLabel} (материал)`,
+                    `${materialLabels[material] || material}, ${coverageArea.toFixed(2)} м² × ${tileMaterialPrice} ₽/м²`,
+                    coverageArea * tileMaterialPrice
+                );
+                addRow(
+                    `🔧 Укладка ${surfaceLabel}`,
+                    `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
+                    coverageArea * tileWorkPrice
+                );
+            } else {
+                const legacyPrice = getPriceValue('bruschatka_per_m2');
+                addRow(
+                    `🛤️ ${surfaceLabel} — материал + укладка`,
+                    `${coverageArea.toFixed(2)} м² × ${legacyPrice} ₽/м² (старая единая ставка)`,
+                    coverageArea * legacyPrice
+                );
+            }
+        } else {
+            const materialPrice = getPriceValue(material);
+            const workPrice = getPriceValue('site_fill_work_per_m2');
+            addRow(
+                `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
+                `${coverageArea.toFixed(2)} м² × ${materialPrice} ₽/м² материала`,
+                coverageArea * materialPrice
+            );
+            addRow(
+                '🔧 Устройство отсыпки / покрытия',
+                `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
+                coverageArea * workPrice
+            );
+        }
+
+        // Add the underlying construction layers by actual thickness and volume.
+        const layerTotals = getSiteSurfaceLayerTotals(material, coverageArea, state.pathSurfaceType || 'paver');
+        const profile = layerTotals.profile;
+        const excavationDepth = profile.top.thickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
+        const excavationVolume = coverageArea * excavationDepth;
+        const excavationRate = getPriceValue('site_excavation_per_m3');
+        const prepRate = getPriceValue('site_base_preparation_per_m2');
+        if (prepRate > 0) {
+            addRow('🔧 Подготовка и планировка основания',
+                `${coverageArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
+                coverageArea * prepRate);
+        }
+        if (excavationRate > 0) {
+            addRow('🚜 Выемка грунта под конструкцию',
+                `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (общая глубина ${(excavationDepth * 100).toFixed(1)} см)`,
+                excavationVolume * excavationRate);
+        }
+
+        for (const layer of layerTotals.layers) {
+            const thicknessCm = (layer.thickness * 100).toFixed(1);
+            if (layer.kind === 'sand') {
+                const rate = getPriceValue('site_sand_material_per_m3');
+                addRow(`🟨 ${layer.label} — материал`,
+                    `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
+                    layer.volume * rate);
+            } else if (layer.kind === 'gravel' || layer.kind === 'screenings') {
+                const rate = getPriceValue('site_crushed_stone_material_per_m3');
+                addRow(`🪨 ${layer.label} — материал`,
+                    `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
+                    layer.volume * rate);
+            } else if (layer.kind === 'geotextile') {
+                const rate = getPriceValue('site_geotextile_material_per_m2');
+                addRow(`🧵 ${layer.label} — материал`,
+                    `${layer.area.toFixed(2)} м² × ${rate} ₽/м²`,
+                    layer.area * rate);
+            }
+        }
+        const compactionRate = getPriceValue('site_compaction_per_m3');
+        const compactableVolume = layerTotals.layers
+            .filter(layer => layer.kind === 'sand' || layer.kind === 'gravel' || layer.kind === 'screenings')
+            .reduce((sum, layer) => sum + layer.volume, 0);
+        if (compactionRate > 0 && compactableVolume > 0) {
+            addRow('🔧 Уплотнение песка и щебня',
+                `${compactableVolume.toFixed(3)} м³ × ${compactionRate} ₽/м³`,
+                compactableVolume * compactionRate);
+        }
+    }
+
+    if (state.curbVisible) {
+        const width = Math.max(0.2, Number(state.fenceWidth) || 1.5);
+        const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
+        const gateSide = state.curbGateOpeningEnabled ? (state.fenceGateSide || 'none') : 'none';
+        const requestedGateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
+        const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
+        const curbWidth = Math.max(0.03, Number(state.curbWidth) || 0.08);
+        const gateOpening = Math.min(requestedGateWidth, Math.max(0, gateSpan - curbWidth * 2));
+        const perimeter = 2 * (width + length);
+        const curbLength = Math.max(0, perimeter - gateOpening);
+        const materialKeys = {
+            granite: 'site_curb_granite_per_m',
+            black_galaxy: 'site_curb_black_galaxy_per_m',
+            red_granite: 'site_curb_red_granite_per_m',
+            beige_granite: 'site_curb_beige_granite_per_m',
+            gray_granite: 'site_curb_gray_granite_per_m',
+            concrete: 'site_curb_concrete_per_m',
+            marble: 'site_curb_marble_per_m',
+            brick: 'site_curb_brick_per_m'
+        };
+        const materialLabels = {
+            granite: 'Чёрный гранит', black_galaxy: 'Гранит Black Galaxy',
+            red_granite: 'Красный гранит', beige_granite: 'Бежевый гранит',
+            gray_granite: 'Серый гранит', concrete: 'Бетон', marble: 'Мрамор', brick: 'Кирпич'
+        };
+        const materialPrice = getPriceValue(materialKeys[state.curbMaterial] || materialKeys.granite);
+        addRow('🧱 Бордюр площадки — материал',
+            `${materialLabels[state.curbMaterial] || 'Гранит'}, ${curbLength.toFixed(2)} п.м. × ${materialPrice} ₽/п.м.`,
+            curbLength * materialPrice);
+        if (state.curbInstallEnabled !== false) {
+            const installPrice = getPriceValue('site_curb_install_per_m');
+            addRow('🔧 Установка бордюра площадки',
+                `${curbLength.toFixed(2)} п.м. × ${installPrice} ₽/п.м.`,
+                curbLength * installPrice);
+        }
     }
 
     const furnitureList = window.furniture3DManager?.furniture || [];
@@ -6475,9 +6624,17 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         const flowerColor = document.getElementById('flowerColor')?.value || '#4caf50';
         
         // --- 5. ДОРОЖКА ---
-        const pathEnabled = document.getElementById('pathEnabled')?.checked || false;
+        const pathEnabled = document.getElementById('pathEnabled')?.checked ?? state.pathEnabled ?? true;
         const pathWidth = parseFloat(document.getElementById('pathWidth')?.value) || 0.5;
-        const pathMaterial = document.getElementById('pathMaterial')?.value || 'tile_gray';
+        const pathSurfaceType = document.getElementById('pathSurfaceType')?.value || state.pathSurfaceType || 'paver';
+        const pathMaterial = pathSurfaceType === 'slab'
+            ? (document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray')
+            : (document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || 'tile_gray');
+        state.pathSurfaceType = pathSurfaceType;
+        state.pathMaterial = pathMaterial;
+        state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray';
+        state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || 'tile_gray';
+        state.pathEnabled = pathEnabled;
         const pathColor = document.getElementById('pathColor')?.value || '#888888';
         const pathTileSize = parseFloat(document.getElementById('pathTileSize')?.value) || 0.3;
         const pathJointColor = document.getElementById('pathJointColor')?.value || '#666666';
@@ -6690,6 +6847,10 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             pathEnabled,
             pathWidth,
             pathMaterial,
+            pathSurfaceType,
+            pathEnabled,
+            pathSlabMaterial: state.pathSlabMaterial,
+            pathPaverMaterial: state.pathPaverMaterial,
             pathColor,
             pathTileSize,
             pathJointColor,

@@ -363,7 +363,8 @@ body {
 }
 
 .accordion-section.active .section-content {
-    max-height: 2000px;
+    /* Long settings sections must not be clipped before the menu's own scrollbar reaches the end. */
+    max-height: 100000px;
     padding: 12px 15px 20px;
 }
 

@@ -474,6 +474,19 @@ class MultiMonumentManager {
             'pathEnabled': 'pathEnabled',
             'pathWidth': 'pathWidth',
             'pathMaterial': 'pathMaterial',
+
+            'curbVisible': 'curbVisible',
+
+            'curbMaterial': 'curbMaterial',
+
+            'curbWidth': 'curbWidth',
+
+            'curbHeight': 'curbHeight',
+
+            'curbInstallEnabled': 'curbInstallEnabled',
+
+
+            'curbGateOpeningEnabled': 'curbGateOpeningEnabled',
             'pathColor': 'pathColor',
             'pathTileSize': 'pathTileSize',
             'pathJointColor': 'pathJointColor',

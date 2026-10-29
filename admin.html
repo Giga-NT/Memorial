@@ -778,13 +778,77 @@
 
                 <div class="price-row">
                     <div class="price-name">
-                        Брусчатка: материал + укладка
+                        Брусчатка: материал + укладка (старая единая ставка)
                         <div class="price-key">bruschatka_per_m2</div>
                     </div>
-
                     <div class="price-unit">₽/м²</div>
-
                     <input class="price-input" type="number" data-key="bruschatka_per_m2" min="0">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Материал брусчатки</div>
+                    <div class="price-key">path_tile_material_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="path_tile_material_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Материал тротуарной плитки</div>
+                    <div class="price-key">path_slab_material_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="path_slab_material_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Работа по укладке тротуарной плитки</div>
+                    <div class="price-key">path_slab_work_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="path_slab_work_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Работа по укладке брусчатки</div>
+                    <div class="price-key">path_tile_work_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="path_tile_work_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Работа по отсыпке песком / гравием / щебнем</div>
+                    <div class="price-key">site_fill_work_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="site_fill_work_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Песок для основания</div>
+                    <div class="price-key">site_sand_material_per_m3</div>
+                    <div class="price-unit">₽/м³</div>
+                    <input class="price-input" type="number" data-key="site_sand_material_per_m3" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Щебень для основания</div>
+                    <div class="price-key">site_crushed_stone_material_per_m3</div>
+                    <div class="price-unit">₽/м³</div>
+                    <input class="price-input" type="number" data-key="site_crushed_stone_material_per_m3" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Геотекстиль основания</div>
+                    <div class="price-key">site_geotextile_material_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="site_geotextile_material_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Подготовка и планировка основания</div>
+                    <div class="price-key">site_base_preparation_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="site_base_preparation_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Выемка грунта</div>
+                    <div class="price-key">site_excavation_per_m3</div>
+                    <div class="price-unit">₽/м³</div>
+                    <input class="price-input" type="number" data-key="site_excavation_per_m3" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Уплотнение песка и щебня</div>
+                    <div class="price-key">site_compaction_per_m3</div>
+                    <div class="price-unit">₽/м³</div>
+                    <input class="price-input" type="number" data-key="site_compaction_per_m3" min="0" step="1">
                 </div>
 
                 <div class="price-row">
@@ -906,7 +970,7 @@
                 </span>
 
                 <span class="category-count">
-                    4 позиции
+                    9 позиций
                 </span>
             </button>
 
@@ -942,8 +1006,53 @@
                     <input class="price-input" type="number" data-key="venzel" min="0">
                 </div>
 
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — гранит</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_granite_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — гранит Black Galaxy</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_black_galaxy_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — красный гранит</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_red_granite_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — бежевый гранит</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_beige_granite_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — серый гранит</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_gray_granite_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — бетон</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_concrete_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — мрамор</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_marble_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Бордюр площадки — кирпич</div>
+                    <div class="price-unit">₽/п.м. материала</div>
+                    <input class="price-input" type="number" data-key="site_curb_brick_per_m" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Установка бордюра площадки</div>
+                    <div class="price-unit">₽/п.м. работы</div>
+                    <input class="price-input" type="number" data-key="site_curb_install_per_m" min="0" step="1">
+                </div>
                 <div class="intro" style="padding: 12px 18px 16px;">
-                    Тип оградки влияет только на 3D-модель. Цена считается по fence_per_m и высоте.
+                    Тип оградки влияет только на 3D-модель. Цена ограды рассчитывается отдельно от бордюра. Для бордюра материал и монтаж настраиваются независимо.
                 </div>
 
             </div>

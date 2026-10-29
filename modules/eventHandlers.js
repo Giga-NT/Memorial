@@ -577,32 +577,179 @@ export function initFlowerbedHandlers() {
 // ============================================================
 
 export function initPathHandlers() {
-    document.getElementById('pathWidth')?.addEventListener('input', (e) => {
+    const typeSelect = document.getElementById('pathSurfaceType');
+    const slabSettings = document.getElementById('pathSlabSettings');
+    const paverSettings = document.getElementById('pathPaverSettings');
+    const layerLegend = document.getElementById('pathLayerLegendItems');
+
+    const renderSurfaceType = () => {
+        const type = typeSelect?.value || window.state.pathSurfaceType || 'paver';
+        window.state.pathSurfaceType = type;
+        if (slabSettings) slabSettings.style.display = type === 'slab' ? 'block' : 'none';
+        if (paverSettings) paverSettings.style.display = type === 'paver' ? 'block' : 'none';
+
+        const selectedMaterial = type === 'slab'
+            ? (document.getElementById('slabMaterial')?.value || window.state.pathSlabMaterial || 'tile_gray')
+            : (document.getElementById('pathMaterial')?.value || window.state.pathPaverMaterial || window.state.pathMaterial || 'tile_gray');
+        window.state.pathMaterial = selectedMaterial;
+
+        if (layerLegend) {
+            const rows = type === 'slab'
+                ? [
+                    ['Тротуарная плитка', '4 см'],
+                    ['Песчаная постель', '3 см'],
+                    ['Выравнивающий отсев', '1 см'],
+                    ['Щебёночное основание', '12 см'],
+                    ['Геотекстиль', 'при необходимости']
+                ]
+                : [
+                    ['Брусчатка', '6 см'],
+                    ['Песчаная постель', '3 см'],
+                    ['Отсев', '1 см'],
+                    ['Щебень для расклинцовки', '2 см'],
+                    ['Нижний щебёночный слой', '10 см'],
+                    ['Геотекстиль', 'при необходимости']
+                ];
+            layerLegend.innerHTML = rows.map(([name, thickness], index) =>
+                '<div style="display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid #e5e7eb;">' +
+                '<span>' + (index + 1) + '. ' + name + '</span><strong>' + thickness + '</strong></div>'
+            ).join('');
+        }
+    };
+
+    typeSelect?.addEventListener('change', () => {
+        renderSurfaceType();
+        window.throttledUpdate();
+        window.calculatePrice?.();
+    });
+
+    document.getElementById('pathEnabled')?.addEventListener('change', e => {
+        window.state.pathEnabled = e.target.checked;
+        const controls = document.getElementById('pathSurfaceType')?.closest('.path-controls');
+        if (controls) {
+            for (const child of controls.children) {
+                if (child !== e.target.parentElement) child.style.opacity = e.target.checked ? '1' : '0.45';
+            }
+        }
+        window.throttledUpdate();
+        window.calculatePrice?.();
+    });
+
+    document.getElementById('pathWidth')?.addEventListener('input', e => {
         window.state.pathWidth = parseFloat(e.target.value);
-        document.getElementById('pathWidthVal').textContent = window.state.pathWidth.toFixed(2) + ' м';
+        const display = document.getElementById('pathWidthVal');
+        if (display) display.textContent = window.state.pathWidth.toFixed(2) + ' м';
+        const paired = document.getElementById('pathWidthInput');
+        if (paired && paired !== e.target) paired.value = e.target.value;
         window.throttledUpdate();
+        window.calculatePrice?.();
+    });
+    document.getElementById('pathWidthInput')?.addEventListener('change', e => {
+        window.state.pathWidth = parseFloat(e.target.value);
+        const range = document.getElementById('pathWidth');
+        if (range) range.value = e.target.value;
+        const display = document.getElementById('pathWidthVal');
+        if (display) display.textContent = window.state.pathWidth.toFixed(2) + ' м';
+        window.throttledUpdate();
+        window.calculatePrice?.();
     });
 
-    document.getElementById('pathMaterial')?.addEventListener('change', (e) => {
-        window.state.pathMaterial = e.target.value;
+    document.getElementById('slabMaterial')?.addEventListener('change', e => {
+        window.state.pathSlabMaterial = e.target.value;
+        if ((typeSelect?.value || 'paver') === 'slab') window.state.pathMaterial = e.target.value;
         window.throttledUpdate();
+        window.calculatePrice?.();
+    });
+    document.getElementById('pathMaterial')?.addEventListener('change', e => {
+        window.state.pathPaverMaterial = e.target.value;
+        if ((typeSelect?.value || 'paver') === 'paver') window.state.pathMaterial = e.target.value;
+        window.throttledUpdate();
+        window.calculatePrice?.();
     });
 
-    document.getElementById('pathTileSize')?.addEventListener('input', (e) => {
+    document.getElementById('pathTileSize')?.addEventListener('input', e => {
         window.state.pathTileSize = parseFloat(e.target.value);
-        document.getElementById('pathTileSizeVal').textContent = window.state.pathTileSize.toFixed(2) + ' м';
+        const display = document.getElementById('pathTileSizeVal');
+        if (display) display.textContent = window.state.pathTileSize.toFixed(2) + ' м';
+        const paired = document.getElementById('pathTileSizeInput');
+        if (paired && paired !== e.target) paired.value = e.target.value;
+        window.throttledUpdate();
+    });
+    document.getElementById('pathTileSizeInput')?.addEventListener('change', e => {
+        window.state.pathTileSize = parseFloat(e.target.value);
+        const range = document.getElementById('pathTileSize');
+        if (range) range.value = e.target.value;
+        const display = document.getElementById('pathTileSizeVal');
+        if (display) display.textContent = window.state.pathTileSize.toFixed(2) + ' м';
         window.throttledUpdate();
     });
 
-    document.getElementById('pathJointColor')?.addEventListener('input', (e) => {
+    document.getElementById('pathJointColor')?.addEventListener('input', e => {
         window.state.pathJointColor = e.target.value;
         window.throttledUpdate();
     });
-
-    document.getElementById('pathTileLayout')?.addEventListener('change', (e) => {
+    document.getElementById('pathTileLayout')?.addEventListener('change', e => {
         window.state.pathTileLayout = e.target.value;
         window.throttledUpdate();
     });
+
+    if (typeSelect) typeSelect.value = window.state.pathSurfaceType || 'paver';
+    if (document.getElementById('slabMaterial')) {
+        document.getElementById('slabMaterial').value = window.state.pathSlabMaterial || 'tile_gray';
+    }
+    if (document.getElementById('pathMaterial')) {
+        document.getElementById('pathMaterial').value = window.state.pathPaverMaterial || window.state.pathMaterial || 'tile_gray';
+    }
+    if (document.getElementById('pathEnabled')) document.getElementById('pathEnabled').checked = window.state.pathEnabled !== false;
+    renderSurfaceType();
+}
+
+// ============================================================
+// БОРДЮР ПЛОЩАДКИ
+// ============================================================
+export function initSiteCurbHandlers() {
+    const controls = document.getElementById('siteCurbControls');
+    const syncVisibility = () => {
+        if (controls) controls.style.display = window.state.curbVisible ? 'block' : 'none';
+    };
+    const refresh = () => {
+        window.throttledUpdate();
+        window.calculatePrice();
+    };
+    document.getElementById('curbVisible')?.addEventListener('change', e => {
+        window.state.curbVisible = e.target.checked;
+        syncVisibility();
+        refresh();
+    });
+    document.getElementById('curbMaterial')?.addEventListener('change', e => {
+        window.state.curbMaterial = e.target.value;
+        refresh();
+    });
+    ['curbWidth', 'curbHeight'].forEach(id => {
+        const range = document.getElementById(id);
+        const number = document.getElementById(`${id}Input`);
+        const update = raw => {
+            const value = Number.parseFloat(raw);
+            if (!Number.isFinite(value)) return;
+            window.state[id] = value;
+            if (range) range.value = String(value);
+            if (number) number.value = String(value);
+            const label = document.getElementById(`${id}Val`);
+            if (label) label.textContent = `${value.toFixed(2)} м`;
+            refresh();
+        };
+        range?.addEventListener('input', e => update(e.target.value));
+        number?.addEventListener('change', e => update(e.target.value));
+    });
+    document.getElementById('curbInstallEnabled')?.addEventListener('change', e => {
+        window.state.curbInstallEnabled = e.target.checked;
+        window.calculatePrice();
+    });
+    document.getElementById('curbGateOpeningEnabled')?.addEventListener('change', e => {
+        window.state.curbGateOpeningEnabled = e.target.checked;
+        refresh();
+    });
+    syncVisibility();
 }
 
 // ============================================================
