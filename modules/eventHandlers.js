@@ -603,7 +603,7 @@ export function initPathHandlers() {
                     ['Геотекстиль', 'при необходимости']
                 ]
                 : [
-                    ['Брусчатка', '6 см'],
+                    ['Брусчатка', Math.round(Number(document.getElementById('pathPaverThickness')?.value || window.state.pathPaverThickness || 0.06) * 100) + ' см'],
                     ['Песчаная постель', '3 см'],
                     ['Отсев', '1 см'],
                     ['Щебень для расклинцовки', '2 см'],
@@ -684,6 +684,13 @@ export function initPathHandlers() {
         window.throttledUpdate();
     });
 
+    document.getElementById('pathPaverThickness')?.addEventListener('change', e => {
+        window.state.pathPaverThickness = parseFloat(e.target.value) || 0.06;
+        renderSurfaceType();
+        window.throttledUpdate();
+        window.calculatePrice?.();
+    });
+
     document.getElementById('pathJointColor')?.addEventListener('input', e => {
         window.state.pathJointColor = e.target.value;
         window.throttledUpdate();
@@ -699,6 +706,9 @@ export function initPathHandlers() {
     }
     if (document.getElementById('pathMaterial')) {
         document.getElementById('pathMaterial').value = window.state.pathPaverMaterial || window.state.pathMaterial || 'tile_gray';
+    }
+    if (document.getElementById('pathPaverThickness')) {
+        document.getElementById('pathPaverThickness').value = String(window.state.pathPaverThickness || 0.06);
     }
     if (document.getElementById('pathEnabled')) document.getElementById('pathEnabled').checked = window.state.pathEnabled !== false;
     renderSurfaceType();
