@@ -1550,6 +1550,59 @@ export async function createPathBetweenGraveAndFence(
     mesh.userData.isSurfaceTop = true;
     assembly.add(mesh);
 
+    // На боковинах брусчатки рисуем только швы — без изменения текстуры
+    // верхней поверхности. Каждая линия идёт по толщине покрытия и делит
+    // видимый торец на отдельные «кирпичики».
+    if (isTile && topThickness > 0) {
+        const jointColor = pathJointColor || '#3f3f3f';
+        const jointSize = Math.max(0.1, Number(pathTileSize) || 0.3);
+        const points = [];
+        const sideOffset = 0.0015;
+        const bottomY = mesh.position.y + 0.001;
+        const topY = mesh.position.y + topThickness - 0.001;
+
+        const addVerticalJoint = (x1, z1, x2, z2) => {
+            points.push(
+                new THREE.Vector3(x1, bottomY, z1),
+                new THREE.Vector3(x2, bottomY, z2),
+                new THREE.Vector3(x1, topY, z1),
+                new THREE.Vector3(x2, topY, z2)
+            );
+        };
+
+        // Передняя и задняя кромки.
+        const halfCountX = Math.ceil(outerHalfW / jointSize);
+        for (let i = -halfCountX; i <= halfCountX; i++) {
+            const x = i * jointSize;
+            if (Math.abs(x) >= outerHalfW - 0.005) continue;
+            addVerticalJoint(x, -outerHalfL - sideOffset, x, -outerHalfL - sideOffset);
+            addVerticalJoint(x, outerHalfL + sideOffset, x, outerHalfL + sideOffset);
+        }
+
+        // Левая и правая кромки. Отдельные отрезки не затрагивают верх.
+        const halfCountZ = Math.ceil(outerHalfL / jointSize);
+        for (let i = -halfCountZ; i <= halfCountZ; i++) {
+            const z = i * jointSize;
+            if (Math.abs(z) >= outerHalfL - 0.005) continue;
+            addVerticalJoint(-outerHalfW - sideOffset, z, -outerHalfW - sideOffset, z);
+            addVerticalJoint(outerHalfW + sideOffset, z, outerHalfW + sideOffset, z);
+        }
+
+        const jointGeometry = new THREE.BufferGeometry();
+        jointGeometry.setFromPoints(points);
+        const jointMaterial = new THREE.LineBasicMaterial({
+            color: jointColor,
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false
+        });
+        const sideJoints = new THREE.LineSegments(jointGeometry, jointMaterial);
+        sideJoints.name = 'pavingSideJoints';
+        sideJoints.renderOrder = 2;
+        sideJoints.userData.isPavingSideJoints = true;
+        assembly.add(sideJoints);
+    }
+
     // The layers are intentionally visible at the perimeter. Lower layers
     // extend slightly beyond upper ones, as a readable construction section.
     let layerTop = mesh.position.y;
