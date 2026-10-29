@@ -1561,12 +1561,10 @@ export async function createPathBetweenGraveAndFence(
         const bottomY = mesh.position.y + 0.001;
         const topY = mesh.position.y + topThickness - 0.001;
 
-        const addVerticalJoint = (x1, z1, x2, z2) => {
+        const addVerticalJoint = (x, z) => {
             points.push(
-                new THREE.Vector3(x1, bottomY, z1),
-                new THREE.Vector3(x2, bottomY, z2),
-                new THREE.Vector3(x1, topY, z1),
-                new THREE.Vector3(x2, topY, z2)
+                new THREE.Vector3(x, bottomY, z),
+                new THREE.Vector3(x, topY, z)
             );
         };
 
@@ -1575,8 +1573,8 @@ export async function createPathBetweenGraveAndFence(
         for (let i = -halfCountX; i <= halfCountX; i++) {
             const x = i * jointSize;
             if (Math.abs(x) >= outerHalfW - 0.005) continue;
-            addVerticalJoint(x, -outerHalfL - sideOffset, x, -outerHalfL - sideOffset);
-            addVerticalJoint(x, outerHalfL + sideOffset, x, outerHalfL + sideOffset);
+            addVerticalJoint(x, -outerHalfL - sideOffset);
+            addVerticalJoint(x, outerHalfL + sideOffset);
         }
 
         // Левая и правая кромки. Отдельные отрезки не затрагивают верх.
@@ -1584,8 +1582,8 @@ export async function createPathBetweenGraveAndFence(
         for (let i = -halfCountZ; i <= halfCountZ; i++) {
             const z = i * jointSize;
             if (Math.abs(z) >= outerHalfL - 0.005) continue;
-            addVerticalJoint(-outerHalfW - sideOffset, z, -outerHalfW - sideOffset, z);
-            addVerticalJoint(outerHalfW + sideOffset, z, outerHalfW + sideOffset, z);
+            addVerticalJoint(-outerHalfW - sideOffset, z);
+            addVerticalJoint(outerHalfW + sideOffset, z);
         }
 
         const jointGeometry = new THREE.BufferGeometry();
