@@ -65,17 +65,12 @@ const PROFILES = {
     }
 };
 
-export function getSiteSurfaceProfile(material = 'tile_gray', surfaceType = 'paver', topThicknessOverride = null) {
+export function getSiteSurfaceProfile(material = 'tile_gray', surfaceType = 'paver') {
     const key = TILE_MATERIALS.includes(material) ? (surfaceType === 'slab' ? 'slab' : 'tile') : (PROFILES[material] ? material : (surfaceType === 'slab' ? 'slab' : 'tile'));
     const profile = PROFILES[key];
-    const top = { ...profile.top };
-    const requestedThickness = Number(topThicknessOverride);
-    if (surfaceType !== 'slab' && Number.isFinite(requestedThickness) && requestedThickness >= 0.04 && requestedThickness <= 0.08) {
-        top.thickness = requestedThickness;
-    }
     return {
         type: key,
-        top,
+        top: { ...profile.top },
         layers: profile.layers.map(layer => ({ ...layer }))
     };
 }
