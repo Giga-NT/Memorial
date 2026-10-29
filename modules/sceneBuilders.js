@@ -878,9 +878,12 @@ export function createPavingTexture(
     const joint = jointColor || '#666666';
     const tilePx = isMobile ? 40 : 80;
     const jointPx = isMobile ? 3 : 4;
+    const isSlab = surfaceType === 'slab';
     const isHerringbone = tileLayout === 'herringbone';
-    const tileW = tilePx;
-    const tileH = isHerringbone ? Math.round(tilePx / 2) : tilePx;
+    // Крупноформатная плитка рисуется прямоугольниками 60×40 см;
+    // брусчатка — меньшими элементами, а «ёлочка» использует вытянутые блоки.
+    const tileW = isSlab ? Math.round(tilePx * 1.5) : tilePx;
+    const tileH = isSlab ? tilePx : (isHerringbone ? Math.round(tilePx / 2) : tilePx);
     const pitchX = tileW + jointPx;
     const pitchY = tileH + jointPx;
 
@@ -950,12 +953,12 @@ export function createPavingTexture(
     // количеству элементов в текстуре, а не повторяет их ещё раз на каждый сантиметр.
     const cols = Math.max(1, Math.floor(texSize / pitchX));
     const rows = Math.max(1, Math.floor(texSize / pitchY));
-    const physicalTileSize = Math.max(0.05, Number(tileSize) || (surfaceType === 'slab' ? 0.4 : 0.3));
+    const physicalTileSize = Math.max(0.05, Number(tileSize) || (surfaceType === 'slab' ? 0.6 : 0.3));
     texture.userData = {
         tilesAcross: cols,
         tilesDown: rows,
-        tileWidthMeters: physicalTileSize,
-        tileHeightMeters: isHerringbone ? physicalTileSize / 2 : physicalTileSize
+        tileWidthMeters: isSlab ? 0.6 : physicalTileSize,
+        tileHeightMeters: isSlab ? 0.4 : (isHerringbone ? physicalTileSize / 2 : physicalTileSize)
     };
     return texture;
 }
@@ -1157,8 +1160,8 @@ export async function createPathBetweenGraveAndFence(
             const tilesAcross = texture.userData?.tilesAcross || 1;
             const tilesDown = texture.userData?.tilesDown || 1;
             texture.repeat.set(
-                totalWidth / (tileSize * tilesAcross),
-                totalLength / (tileSize * tilesDown)
+                totalWidth / ((texture.userData?.tileWidthMeters || tileSize) * tilesAcross),
+                totalLength / ((texture.userData?.tileHeightMeters || tileSize) * tilesDown)
             );
             texture.needsUpdate = true;
         }
