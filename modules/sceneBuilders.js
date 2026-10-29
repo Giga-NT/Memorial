@@ -1234,40 +1234,27 @@ export async function createPathBetweenGraveAndFence(
 
     if (isTile) {
 
-        const texturePromise =
-            createPavingTexture(
-                pathTileSize || 0.3,
-                pathMaterial,
-                pathJointColor ||
-                    '#666666'
-            );
-
-        const tileSize =
-            pathTileSize || 0.3;
-
-        const repeatX =
-            totalWidth /
-            tileSize;
-
-        const repeatY =
-            totalLength /
-            tileSize;
-
-        const texture =
-            await texturePromise;
+        const tileSize = Math.max(0.05, Number(pathTileSize) || 0.2);
+        const layout = pathTileLayout || 'brick';
+        const texture = await createPavingTexture(
+            tileSize,
+            pathMaterial,
+            pathJointColor || '#666666',
+            layout
+        );
 
         if (texture) {
-
-            texture.wrapS =
-                THREE.RepeatWrapping;
-
-            texture.wrapT =
-                THREE.RepeatWrapping;
-
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            // Одна ячейка Canvas-текстуры соответствует одному элементу
+            // с шагом tileSize + шов; масштаб привязан к метрам сцены.
+            const cellsAcross = texture.userData?.cellsAcross || 1;
+            const cellsDown = texture.userData?.cellsDown || 1;
             texture.repeat.set(
-                repeatX,
-                repeatY
+                totalWidth / (tileSize * cellsAcross),
+                totalLength / (tileSize * cellsDown)
             );
+            texture.needsUpdate = true;
         }
 
         material =
@@ -1351,7 +1338,7 @@ export async function createPathBetweenGraveAndFence(
     // видимый торец на отдельные «кирпичики».
     if (isTile && topThickness > 0) {
         const jointColor = pathJointColor || '#3f3f3f';
-        const jointSize = Math.max(0.1, Number(pathTileSize) || 0.3);
+        const jointSize = Math.max(0.05, Number(pathTileSize) || 0.2);
         const points = [];
         const sideOffset = 0.0015;
         const bottomY = mesh.position.y + 0.001;
@@ -1367,13 +1354,13 @@ export async function createPathBetweenGraveAndFence(
         // Передняя и задняя кромки.
         const halfCountX = Math.ceil(outerHalfW / jointSize);
         for (let i = -halfCountX; i <= halfCountX; i++) {
-            const x = i * jointSize;
+            const x = i * jointSize + (pathTileLayout === 'brick' && i % 2 !== 0 ? jointSize / 2 : 0);
             if (Math.abs(x) >= outerHalfW - 0.005) continue;
             addVerticalJoint(x, -outerHalfL - sideOffset);
             addVerticalJoint(x, outerHalfL + sideOffset);
         }
 
-        // Левая и правая кромки. Отдельные отрезки не затрагивают верх.
+        // Торцы по длине: шаг равен шагу верхней текстуры.
         const halfCountZ = Math.ceil(outerHalfL / jointSize);
         for (let i = -halfCountZ; i <= halfCountZ; i++) {
             const z = i * jointSize;
