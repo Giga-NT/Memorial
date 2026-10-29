@@ -919,15 +919,15 @@ export function createPavingTexture(
         }
         ctx.restore();
     } else if (isHerringbone) {
-        // Повторяемая «ёлочка»: короткие прямоугольные элементы чередуются
-        // по горизонтали и вертикали, а швы остаются видимыми.
+        // Схематичная «ёлочка»: вытянутые элементы чередуют ориентацию,
+        // чтобы рисунок заметно отличался от прямой и кирпичной раскладки.
         const cell = tilePx + jointPx;
-        for (let y = -cell; y < texSize + cell; y += cell * 2) {
-            for (let x = -cell; x < texSize + cell; x += cell * 2) {
-                drawTile(x, y);
-                drawTile(x + cell, y + tileH + jointPx, tileH, tileW, Math.PI / 2);
-                drawTile(x + cell, y);
-                drawTile(x, y + tileH + jointPx, tileH, tileW, Math.PI / 2);
+        for (let y = -cell * 2; y < texSize + cell * 2; y += cell * 2) {
+            for (let x = -cell * 2; x < texSize + cell * 2; x += cell * 2) {
+                drawTile(x, y, tileW, tileH, 0);
+                drawTile(x + cell, y, tileW, tileH, Math.PI / 2);
+                drawTile(x, y + cell, tileW, tileH, Math.PI / 2);
+                drawTile(x + cell, y + cell, tileW, tileH, 0);
             }
         }
     } else {
