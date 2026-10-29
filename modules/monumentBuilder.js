@@ -1858,11 +1858,6 @@ export async function updateMainMonument(
                 ? Number(state.pathTileSize)
                 : 0.3,
 
-        pathPaverThickness:
-            state.pathPaverThickness !== undefined
-                ? Number(state.pathPaverThickness)
-                : 0.06,
-
         pathJointColor:
             state.pathJointColor || '#666666',
 
