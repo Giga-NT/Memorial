@@ -70,7 +70,7 @@ export class ProjectIO {
             'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
             'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
-            'pathWidth', 'pathTileSize',
+            'pathWidth', 'pathTileSize', 'pathPaverThickness',
             'photoScale', 'furnitureScale', 'vaseScale',
             'nameFontSize', 'datesFontSize', 'epitaphFontSize',
             'photoOffsetX', 'photoOffsetY',
@@ -886,6 +886,7 @@ export class ProjectIO {
 
             'pathWidth',
             'pathTileSize',
+            'pathPaverThickness',
 
             'photoScale',
 
@@ -2863,6 +2864,11 @@ export class ProjectIO {
             );
         }
 
+
+        setVal(
+            'pathPaverThickness',
+            state.pathPaverThickness || 0.06
+        );
 
         setVal(
             'pathJointColor',
