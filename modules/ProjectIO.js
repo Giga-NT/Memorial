@@ -1865,6 +1865,11 @@ export class ProjectIO {
                                     ui.pathTileSize
                                 ) || 0.3,
 
+                            pathPaverThickness:
+                                parseFloat(
+                                    ui.pathPaverThickness
+                                ) || 0.06,
+
                             pathJointColor:
                                 ui.pathJointColor ||
                                 '#666666',
