@@ -851,16 +851,28 @@ export async function createUnifiedTextureWithJoints(
 export function createPavingTexture(
     tileSize,
     tileType,
-    jointColor,
-    tileLayout = 'brick',
-    surfaceType = 'paver'
+    jointColor
 ) {
-    const isMobile = window.innerWidth < 768;
-    const texSize = isMobile ? 256 : 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = texSize;
-    canvas.height = texSize;
-    const ctx = canvas.getContext('2d');
+    const isMobile =
+        window.innerWidth < 768;
+
+    const texWidth =
+        isMobile ? 256 : 512;
+
+    const texHeight =
+        isMobile ? 256 : 512;
+
+    const canvas =
+        document.createElement('canvas');
+
+    canvas.width =
+        texWidth;
+
+    canvas.height =
+        texHeight;
+
+    const ctx =
+        canvas.getContext('2d');
 
     const tileColors = {
         tile_black: '#2a2a2a',
@@ -872,95 +884,390 @@ export function createPavingTexture(
         tile_red: '#8b2a2a',
         tile_brown: '#6b4a3a',
         tile_blue: '#3a5a7a',
-        tile_green: '#4a7a4a'
-    };
-    const baseColor = tileColors[tileType] || '#8a8a8a';
-    const joint = jointColor || '#666666';
-    const tilePx = isMobile ? 40 : 80;
-    const jointPx = isMobile ? 3 : 4;
-    const isSlab = surfaceType === 'slab';
-    const isHerringbone = tileLayout === 'herringbone';
-    // Крупноформатная плитка рисуется прямоугольниками 60×40 см;
-    // брусчатка — меньшими элементами, а «ёлочка» использует вытянутые блоки.
-    const tileW = isSlab ? Math.round(tilePx * 1.5) : tilePx;
-    const tileH = isSlab ? tilePx : (isHerringbone ? Math.round(tilePx / 2) : tilePx);
-    const pitchX = tileW + jointPx;
-    const pitchY = tileH + jointPx;
-
-    ctx.fillStyle = joint;
-    ctx.fillRect(0, 0, texSize, texSize);
-
-    const drawTile = (x, y, w = tileW, h = tileH, rotation = 0) => {
-        const color = new THREE.Color(baseColor);
-        const brightness = 0.88 + Math.random() * 0.22;
-        const r = Math.round(Math.min(255, color.r * 255 * brightness));
-        const g = Math.round(Math.min(255, color.g * 255 * brightness));
-        const b = Math.round(Math.min(255, color.b * 255 * brightness));
-        ctx.save();
-        ctx.translate(x + w / 2, y + h / 2);
-        ctx.rotate(rotation);
-        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        ctx.fillRect(-w / 2 + 1, -h / 2 + 1, w - 2, h - 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-        ctx.lineWidth = isMobile ? 1 : 2;
-        ctx.strokeRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4);
-        ctx.restore();
+        tile_green: '#4a7a4a',
     };
 
-    if (tileLayout === 'diagonal') {
-        ctx.save();
-        ctx.translate(texSize / 2, texSize / 2);
-        ctx.rotate(Math.PI / 4);
-        ctx.translate(-texSize / 2, -texSize / 2);
-        for (let y = -texSize; y < texSize * 2; y += pitchY) {
-            for (let x = -texSize; x < texSize * 2; x += pitchX) {
-                drawTile(x, y);
+    const baseColor =
+        tileColors[tileType] ||
+        '#8a8a8a';
+
+    const joint =
+        jointColor ||
+        '#666666';
+
+    const tilePx =
+        isMobile ? 48 : 80;
+
+    const jointPx =
+        isMobile ? 3 : 4;
+
+    const totalPx =
+        tilePx +
+        jointPx;
+
+    const cols =
+        Math.ceil(
+            texWidth /
+            totalPx
+        ) + 1;
+
+    const rows =
+        Math.ceil(
+            texHeight /
+            totalPx
+        ) + 1;
+
+    ctx.fillStyle =
+        joint;
+
+    ctx.fillRect(
+        0,
+        0,
+        texWidth,
+        texHeight
+    );
+
+    let row = 0;
+    let col = 0;
+
+    let resolveTexture = null;
+
+    const promise =
+        new Promise(
+            (resolve) => {
+
+                resolveTexture =
+                    resolve;
+
+                function drawNextTile() {
+
+                    if (row >= rows) {
+
+                        const texture =
+                            new THREE.CanvasTexture(
+                                canvas
+                            );
+
+                        texture.minFilter =
+                            THREE.LinearFilter;
+
+                        texture.magFilter =
+                            THREE.LinearFilter;
+
+                        texture.anisotropy =
+                            isMobile ? 1 : 2;
+
+                        resolveTexture(
+                            texture
+                        );
+
+                        return;
+                    }
+
+                    const offset =
+                        row % 2 === 0
+                            ? 0
+                            : tilePx / 2;
+
+                    const x =
+                        col *
+                        totalPx +
+                        offset;
+
+                    const y =
+                        row *
+                        totalPx;
+
+                    if (
+                        x <= texWidth &&
+                        y <= texHeight
+                    ) {
+
+                        const brightness =
+                            0.85 +
+                            Math.random() *
+                            0.3;
+
+                        const color =
+                            new THREE.Color(
+                                baseColor
+                            );
+
+                        const r =
+                            Math.round(
+                                Math.min(
+                                    255,
+                                    color.r *
+                                    255 *
+                                    brightness
+                                )
+                            );
+
+                        const g =
+                            Math.round(
+                                Math.min(
+                                    255,
+                                    color.g *
+                                    255 *
+                                    brightness
+                                )
+                            );
+
+                        const b =
+                            Math.round(
+                                Math.min(
+                                    255,
+                                    color.b *
+                                    255 *
+                                    brightness
+                                )
+                            );
+
+                        ctx.fillStyle =
+                            `rgb(${r}, ${g}, ${b})`;
+
+                        const radius =
+                            isMobile
+                                ? 1
+                                : 2;
+
+                        const px = x;
+                        const py = y;
+                        const w = tilePx;
+                        const h = tilePx;
+
+                        ctx.beginPath();
+
+                        ctx.moveTo(
+                            px + radius,
+                            py
+                        );
+
+                        ctx.lineTo(
+                            px + w - radius,
+                            py
+                        );
+
+                        ctx.quadraticCurveTo(
+                            px + w,
+                            py,
+                            px + w,
+                            py + radius
+                        );
+
+                        ctx.lineTo(
+                            px + w,
+                            py + h - radius
+                        );
+
+                        ctx.quadraticCurveTo(
+                            px + w,
+                            py + h,
+                            px + w - radius,
+                            py + h
+                        );
+
+                        ctx.lineTo(
+                            px + radius,
+                            py + h
+                        );
+
+                        ctx.quadraticCurveTo(
+                            px,
+                            py + h,
+                            px,
+                            py + h - radius
+                        );
+
+                        ctx.lineTo(
+                            px,
+                            py + radius
+                        );
+
+                        ctx.quadraticCurveTo(
+                            px,
+                            py,
+                            px + radius,
+                            py
+                        );
+
+                        ctx.closePath();
+
+                        ctx.fill();
+
+                        addStoneNoiseToTile(
+                            ctx,
+                            px,
+                            py,
+                            w,
+                            h
+                        );
+
+                        const grad =
+                            ctx.createLinearGradient(
+                                px,
+                                py,
+                                px,
+                                py + h
+                            );
+
+                        grad.addColorStop(
+                            0,
+                            'rgba(0,0,0,0.08)'
+                        );
+
+                        grad.addColorStop(
+                            0.5,
+                            'rgba(0,0,0,0)'
+                        );
+
+                        grad.addColorStop(
+                            1,
+                            'rgba(0,0,0,0.08)'
+                        );
+
+                        ctx.fillStyle =
+                            grad;
+
+                        ctx.fillRect(
+                            px,
+                            py,
+                            w,
+                            h
+                        );
+                    }
+
+                    col++;
+
+                    if (col >= cols) {
+                        col = 0;
+                        row++;
+                    }
+
+                    if (
+                        (row * cols + col) %
+                        5 === 0
+                    ) {
+
+                        requestAnimationFrame(
+                            drawNextTile
+                        );
+
+                    } else {
+
+                        drawNextTile();
+                    }
+                }
+
+                requestAnimationFrame(
+                    drawNextTile
+                );
             }
-        }
-        ctx.restore();
-    } else if (isHerringbone) {
-        // Схематичная «ёлочка»: вытянутые элементы чередуют ориентацию,
-        // чтобы рисунок заметно отличался от прямой и кирпичной раскладки.
-        const cell = tilePx + jointPx;
-        for (let y = -cell * 2; y < texSize + cell * 2; y += cell * 2) {
-            for (let x = -cell * 2; x < texSize + cell * 2; x += cell * 2) {
-                drawTile(x, y, tileW, tileH, 0);
-                drawTile(x + cell, y, tileW, tileH, Math.PI / 2);
-                drawTile(x, y + cell, tileW, tileH, Math.PI / 2);
-                drawTile(x + cell, y + cell, tileW, tileH, 0);
-            }
-        }
-    } else {
-        for (let row = -1; row <= Math.ceil(texSize / pitchY) + 1; row++) {
-            const offset = tileLayout === 'brick' && row % 2 !== 0 ? pitchX / 2 : 0;
-            for (let col = -1; col <= Math.ceil(texSize / pitchX) + 1; col++) {
-                drawTile(col * pitchX + offset, row * pitchY);
-            }
-        }
+        );
+
+    return promise;
+}
+
+// ============================================================
+// ⭐ ШУМ КАМНЯ ДЛЯ ПЛИТКИ
+// ============================================================
+
+function addStoneNoiseToTile(
+    ctx,
+    x,
+    y,
+    w,
+    h
+) {
+    if (
+        w < 2 ||
+        h < 2
+    ) {
+        return;
     }
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = isMobile ? 1 : 8;
-    texture.generateMipmaps = true;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
+    try {
 
-    // Возвращаем физический шаг рисунка: repeat рассчитывается по фактическому
-    // количеству элементов в текстуре, а не повторяет их ещё раз на каждый сантиметр.
-    const cols = Math.max(1, Math.floor(texSize / pitchX));
-    const rows = Math.max(1, Math.floor(texSize / pitchY));
-    const physicalTileSize = Math.max(0.05, Number(tileSize) || (surfaceType === 'slab' ? 0.6 : 0.3));
-    texture.userData = {
-        tilesAcross: cols,
-        tilesDown: rows,
-        tileWidthMeters: isSlab ? 0.6 : physicalTileSize,
-        tileHeightMeters: isSlab ? 0.4 : (isHerringbone ? physicalTileSize / 2 : physicalTileSize)
-    };
-    return texture;
+        let imageData;
+
+        try {
+
+            imageData =
+                ctx.getImageData(
+                    Math.round(x),
+                    Math.round(y),
+                    Math.round(w),
+                    Math.round(h),
+                    {
+                        willReadFrequently:
+                            true
+                    }
+                );
+
+        } catch (e) {
+
+            imageData =
+                ctx.getImageData(
+                    Math.round(x),
+                    Math.round(y),
+                    Math.round(w),
+                    Math.round(h)
+                );
+        }
+
+        const data =
+            imageData.data;
+
+        const intensity =
+            window.innerWidth < 768
+                ? 6
+                : 10;
+
+        for (
+            let i = 0;
+            i < data.length;
+            i += 4
+        ) {
+
+            const noise =
+                (Math.random() - 0.5) *
+                intensity;
+
+            data[i] =
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        data[i] + noise
+                    )
+                );
+
+            data[i + 1] =
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        data[i + 1] + noise
+                    )
+                );
+
+            data[i + 2] =
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        data[i + 2] + noise
+                    )
+                );
+        }
+
+        ctx.putImageData(
+            imageData,
+            Math.round(x),
+            Math.round(y)
+        );
+
+    } catch (e) {}
 }
 
 // ============================================================
@@ -1095,35 +1402,29 @@ export async function createPathBetweenGraveAndFence(
             rangeY > 0
         ) {
 
-            // Верх получает UV в пределах 0..1, боковые грани —
-            // отдельную развёртку с вертикальной координатой по глубине экструзии.
-            const depth = Math.max(0.001, topThickness);
-            const sideVertices = new Set();
-            for (const group of geometry.groups) {
-                if (group.materialIndex !== 1) continue;
-                for (let i = group.start; i < group.start + group.count; i++) {
-                    sideVertices.add(i);
-                }
+            for (
+                let i = 0;
+                i < pos.count;
+                i++
+            ) {
+
+                const x =
+                    pos.getX(i);
+
+                const y =
+                    pos.getY(i);
+
+                uv.setXY(
+                    i,
+                    (x - minX) /
+                        rangeX,
+                    (y - minY) /
+                        rangeY
+                );
             }
 
-            for (let i = 0; i < pos.count; i++) {
-                const x = pos.getX(i);
-                const y = pos.getY(i);
-                const z = pos.getZ(i);
-
-                if (sideVertices.has(i)) {
-                    const normalX = geometry.attributes.normal?.getX(i) || 0;
-                    const normalY = geometry.attributes.normal?.getY(i) || 0;
-                    const alongEdge = Math.abs(normalX) > Math.abs(normalY)
-                        ? (y - minY) / Math.max(0.001, rangeY)
-                        : (x - minX) / Math.max(0.001, rangeX);
-                    uv.setXY(i, alongEdge, Math.max(0, Math.min(1, z / depth)));
-                } else {
-                    uv.setXY(i, (x - minX) / rangeX, (y - minY) / rangeY);
-                }
-            }
-
-            uv.needsUpdate = true;
+            uv.needsUpdate =
+                true;
         }
     }
 
@@ -1137,41 +1438,49 @@ export async function createPathBetweenGraveAndFence(
 
     if (isTile) {
 
-        // Плитка крупнее брусчатки; схема укладки применяется к текстуре,
-        // а физический шаг рисунка рассчитывается в метрах.
-        const tileSize = pathSurfaceType === 'slab'
-            ? 0.4
-            : Math.max(0.1, Number(pathTileSize) || 0.3);
-        const layout = pathSurfaceType === 'slab'
-            ? 'straight'
-            : (pathTileLayout || 'brick');
+        const texturePromise =
+            createPavingTexture(
+                pathTileSize || 0.3,
+                pathMaterial,
+                pathJointColor ||
+                    '#666666'
+            );
 
-        const texture = createPavingTexture(
-            tileSize,
-            pathMaterial,
-            pathJointColor || '#666666',
-            layout,
-            pathSurfaceType
-        );
+        const tileSize =
+            pathTileSize || 0.3;
+
+        const repeatX =
+            totalWidth /
+            tileSize;
+
+        const repeatY =
+            totalLength /
+            tileSize;
+
+        const texture =
+            await texturePromise;
 
         if (texture) {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            const tilesAcross = texture.userData?.tilesAcross || 1;
-            const tilesDown = texture.userData?.tilesDown || 1;
+
+            texture.wrapS =
+                THREE.RepeatWrapping;
+
+            texture.wrapT =
+                THREE.RepeatWrapping;
+
             texture.repeat.set(
-                totalWidth / ((texture.userData?.tileWidthMeters || tileSize) * tilesAcross),
-                totalLength / ((texture.userData?.tileHeightMeters || tileSize) * tilesDown)
+                repeatX,
+                repeatY
             );
-            texture.needsUpdate = true;
         }
 
-        material = new THREE.MeshStandardMaterial({
-            map: texture || null,
-            roughness: 0.6,
-            metalness: 0.05,
-            side: THREE.DoubleSide,
-        });
+        material =
+            new THREE.MeshStandardMaterial({
+                map: texture || null,
+                roughness: 0.6,
+                metalness: 0.05,
+                side: THREE.DoubleSide,
+            });
 
     } else {
 
@@ -1227,21 +1536,10 @@ export async function createPathBetweenGraveAndFence(
     assembly.userData.surfaceMaterial = pathMaterial || 'tile_gray';
     assembly.userData.surfaceType = pathSurfaceType;
 
-    const sideTexture = isTile && material.map ? material.map.clone() : null;
-    if (sideTexture) {
-        sideTexture.wrapS = THREE.RepeatWrapping;
-        sideTexture.wrapT = THREE.ClampToEdgeWrapping;
-        // На вертикальных гранях показываем фактуру торца, не растягивая её
-        // в несколько десятков повторов по толщине покрытия.
-        sideTexture.repeat.set(1, 1);
-        sideTexture.needsUpdate = true;
-    }
     const sideMaterial = new THREE.MeshStandardMaterial({
-        map: sideTexture,
-        color: isTile ? 0xb0b0b0 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
+        color: isTile ? 0x777777 : (pathMaterial === 'sand' ? 0xc8ad73 : pathMaterial === 'grass' ? 0x6b5138 : 0x66645f),
         roughness: 0.9,
-        metalness: 0,
-        side: THREE.DoubleSide
+        metalness: 0
     });
     const mesh = new THREE.Mesh(geometry, [material, sideMaterial]);
     mesh.rotation.x = -Math.PI / 2;
