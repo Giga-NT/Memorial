@@ -1118,6 +1118,18 @@ export function createDecals(params, steleObj) {
 
 export async function createStele(params, decalsGroup) {
 
+    // Декали хранятся в отдельной группе, а координаты у них рассчитаны
+    // относительно текущего положения стелы. При изменении размеров основания
+    // стела пересобирается и сдвигается по Z, поэтому старые декали нельзя
+    // оставлять в группе: иначе они зависают на прежнем месте.
+    if (decalsGroup) {
+        const oldDecals = [...decalsGroup.children];
+        oldDecals.forEach(child => {
+            decalsGroup.remove(child);
+            disposeObject3D(child);
+        });
+    }
+
     const pedestalHeight =
         params.pedestalEnabled === false
             ? 0
