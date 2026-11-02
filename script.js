@@ -4625,7 +4625,7 @@ function addDecalsToCustomStele(center, frontZ, backZ, modelType = 'custom_stl')
 let prices = {};
 let priceFlags = {};
 let priceSettings = {};
-let rombakRetailPrices = {};
+let materialPriceRows = [];
 
 async function loadPrices() {
     try {
@@ -4635,16 +4635,12 @@ async function loadPrices() {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        try {
-            const rombakResponse = await fetch('/api/rombak-retail-prices', { cache: 'no-store' });
-            if (rombakResponse.ok) {
-                const rombakData = await rombakResponse.json();
-                rombakRetailPrices = rombakData?.prices && typeof rombakData.prices === 'object'
-                    ? rombakData.prices : {};
-            }
-        } catch (rombakError) {
-            console.warn('Не удалось загрузить розничный прайс РОМБАК:', rombakError.message);
-            rombakRetailPrices = {};
+        const materialResponse = await fetch('/api/material-prices', { cache: 'no-store' });
+        if (materialResponse.ok) {
+            const materialData = await materialResponse.json();
+            materialPriceRows = Array.isArray(materialData.rows) ? materialData.rows : [];
+        } else {
+            materialPriceRows = [];
         }
         const validated = {};
         const sourcePrices =
@@ -4698,6 +4694,27 @@ function updateAdminPrices() {
             }, '*');
         }
     } catch(e) {}
+}
+
+// Размер каждого измерения округляется вверх отдельно до 100 мм.
+function roundDimensionUp100(mm) {
+    const value = Math.max(0, Number(mm) || 0);
+    return value === 0 ? 0 : Math.ceil(value / 100) * 100;
+}
+function findMaterialPrice(product, material, dimensions = {}, finish = '') {
+    const target = {
+        width_mm: roundDimensionUp100(dimensions.width_mm),
+        height_mm: roundDimensionUp100(dimensions.height_mm),
+        depth_mm: roundDimensionUp100(dimensions.depth_mm),
+        thickness_mm: roundDimensionUp100(dimensions.thickness_mm)
+    };
+    const candidates = materialPriceRows.filter(row =>
+        row.material === material && row.product === product &&
+        ['width_mm','height_mm','depth_mm','thickness_mm'].every(key =>
+            Number(row[key] || 0) === target[key]
+        ) && String(row.finish || '') === String(finish || '')
+    );
+    return candidates.length === 1 ? { price: Number(candidates[0].price), dimensions: target } : null;
 }
 
 // ============================================================
@@ -4817,36 +4834,48 @@ function buildPriceBreakdown() {
     };
 
     const monuments = getPricingMonuments();
-    const pedestalPrice = getPriceValue('pedestal_price');
     const steleParts = [];
     const pedestalParts = [];
     let steleTotal = 0;
     let pedestalCount = 0;
     let pedestalTotal = 0;
+    const missingCatalogPrices = [];
 
     monuments.forEach((monument, index) => {
         const material = monument.material || 'granite';
-        const materialPrice = getPriceValue(material);
         const width = Number(monument.width) || 0.6;
         const height = Number(monument.height) || 1.2;
-        const steleArea = width * height;
-        const depth = Math.max(0.07, Number(monument.depth) || 0.07);
-        const thicknessFactor = depth / 0.07;
-        const stelePrice = steleArea * materialPrice * thicknessFactor;
-        const label = `№${index + 1}: ${Math.round(width * 100)}×` +
-            `${Math.round(height * 100)} см (${steleArea.toFixed(2)} м²), ` +
-            `${materialPriceLabels[material] || material} ${materialPrice} ₽/м², ` +
-            `толщина ×${thicknessFactor.toFixed(2)}`;
-
-        steleTotal += stelePrice;
-        steleParts.push(label);
+        const depth = Math.max(0.001, Number(monument.depth) || 0.07);
+        const dimensions = {
+            width_mm: width * 1000,
+            height_mm: height * 1000,
+            depth_mm: depth * 1000,
+            thickness_mm: depth * 1000
+        };
+        const match = findMaterialPrice('stele', material, dimensions, monument.steleFinish || '');
+        if (match) {
+            steleTotal += match.price;
+            steleParts.push(`№${index + 1}: ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм, ${materialPriceLabels[material] || material}, ${match.price} ₽`);
+        } else {
+            missingCatalogPrices.push(`Стела №${index + 1}: ${material}, ${roundDimensionUp100(dimensions.width_mm)}×${roundDimensionUp100(dimensions.height_mm)}×${roundDimensionUp100(dimensions.depth_mm)} мм`);
+        }
 
         if (monument.pedestalEnabled !== false) {
             pedestalCount++;
-            pedestalTotal += pedestalPrice;
-            pedestalParts.push(
-                `№${index + 1}: ${materialPriceLabels[monument.pedestalMaterial] || monument.pedestalMaterial || '—'}`
-            );
+            const pedestalMaterial = monument.pedestalMaterial || material;
+            const pedestalDimensions = {
+                width_mm: (Number(monument.pedestalWidth) || 0) * 1000,
+                height_mm: (Number(monument.pedestalHeight) || 0) * 1000,
+                depth_mm: (Number(monument.pedestalDepth) || 0) * 1000,
+                thickness_mm: (Number(monument.pedestalThickness) || 0) * 1000
+            };
+            const pedestalMatch = findMaterialPrice('pedestal', pedestalMaterial, pedestalDimensions, monument.pedestalFinish || '');
+            if (pedestalMatch) {
+                pedestalTotal += pedestalMatch.price;
+                pedestalParts.push(`№${index + 1}: ${pedestalMaterial}, ${pedestalMatch.price} ₽`);
+            } else {
+                missingCatalogPrices.push(`Тумба №${index + 1}: ${pedestalMaterial}, требуется точный размер в настройках`);
+            }
         }
     });
 
@@ -4855,12 +4884,14 @@ function buildPriceBreakdown() {
         steleParts.join('; '),
         steleTotal
     );
-
     addRow(
         pedestalCount === 1 ? '🧱 Тумба' : `🧱 Тумбы (${pedestalCount} шт)`,
         pedestalParts.join('; '),
         pedestalTotal
     );
+    if (missingCatalogPrices.length) {
+        rows.push({ name: '⚠️ Не найдена цена в прайсе', desc: missingCatalogPrices.join('; '), price: 0, missing: true });
+    }
 
     const backgroundPricePerM2 = getPriceValue('background_price_per_m2');
     let backgroundAreaTotal = 0;
