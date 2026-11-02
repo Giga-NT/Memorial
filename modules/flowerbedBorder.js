@@ -80,55 +80,25 @@ export async function createFlowerbedBorder(params = {}) {
         borderHeight / 2;
 
     const pieces = [
-
+        // Две продольные балки, задними торцами примыкающие к тумбе.
+        {
+            width: borderWidth,
+            length: flowerLength + borderWidth - overlap,
+            x: -(flowerWidth / 2 + borderWidth / 2 - overlap),
+            z: borderWidth / 2
+        },
+        {
+            width: borderWidth,
+            length: flowerLength + borderWidth - overlap,
+            x: flowerWidth / 2 + borderWidth / 2 - overlap,
+            z: borderWidth / 2
+        },
+        // Одна поперечная балка на переднем торце.
         {
             width: outerWidth,
             length: borderWidth,
             x: 0,
-            z:
-                -(
-                    flowerLength / 2 +
-                    borderWidth / 2 -
-                    overlap
-                )
-        },
-
-        {
-            width: outerWidth,
-            length: borderWidth,
-            x: 0,
-            z:
-                flowerLength / 2 +
-                borderWidth / 2 -
-                overlap
-        },
-
-        {
-            width: borderWidth,
-            length:
-                flowerLength +
-                borderWidth * 2 -
-                overlap * 2,
-            x:
-                -(
-                    flowerWidth / 2 +
-                    borderWidth / 2 -
-                    overlap
-                ),
-            z: 0
-        },
-
-        {
-            width: borderWidth,
-            length:
-                flowerLength +
-                borderWidth * 2 -
-                overlap * 2,
-            x:
-                flowerWidth / 2 +
-                borderWidth / 2 -
-                overlap,
-            z: 0
+            z: flowerLength / 2 + borderWidth / 2 - overlap
         }
     ];
 
