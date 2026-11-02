@@ -13,6 +13,7 @@ import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 // ⭐ КАРТА ТЕКСТУР
 const TEXTURE_PATHS = {
     'granite': './textures/gabbro/color.webp',
+    'rombak': './textures/rombak/color.svg',
     'black_galaxy': './textures/black_galaxy/color.webp',
     'ninimyaki': './textures/ninimyaki/color.webp',
     'marble': './textures/marble/color.webp',
@@ -23,6 +24,7 @@ const TEXTURE_PATHS = {
 
 const FALLBACK_COLORS = {
     'granite': 0x1a1a1a,
+    'rombak': 0x090909,
     'black_galaxy': 0x111111,
     'ninimyaki': 0x1a2a1a,
     'marble': 0xf5f5f5,
