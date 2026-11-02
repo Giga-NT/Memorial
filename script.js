@@ -5340,7 +5340,7 @@ function loadFromURL() {
     }
     
     if (params.get('m')) {
-        const allowedMaterials = ['granite', 'black_galaxy', 'ninimyaki', 'marble', 'red_granite', 'beige_granite', 'gray_granite'];
+        const allowedMaterials = ['granite', 'black_galaxy', 'ninimyaki', 'rombak', 'marble', 'red_granite', 'beige_granite', 'gray_granite'];
         const material = params.get('m');
         if (allowedMaterials.includes(material)) {
             state.material = material;
