@@ -1337,11 +1337,9 @@ async function initDB() {
             const [category, thicknesses] = definition;
             for (const [thickness, sizeRows] of Object.entries(thicknesses)) {
                 for (let rowIndex = 0; rowIndex < sizeRows.length; rowIndex++) {
-                    for (let sideIndex = 0; sideIndex < 3; sideIndex++) {
-                        const sides = [1, 2, 5][sideIndex];
-                        const itemKey = `rombak_${slug}_${thickness.replace(/\\./g, '_')}_${rombakWidths[rowIndex]}_400_50_${sides}`;
-                        await dbRun('INSERT OR IGNORE INTO rombak_price_items (item_key, category, thickness, size, sides, supplier_price) VALUES (?, ?, ?, ?, ?, ?)', [itemKey, category, thickness, `${rombakWidths[rowIndex]}×400×50`, sides, sizeRows[rowIndex][sideIndex]]);
-                    }
+                    const sides = 5;
+                    const itemKey = `rombak_${slug}_${thickness.replace(/\\./g, '_')}_${rombakWidths[rowIndex]}_400_50_5`;
+                    await dbRun('INSERT OR IGNORE INTO rombak_price_items (item_key, category, thickness, size, sides, supplier_price) VALUES (?, ?, ?, ?, ?, ?)', [itemKey, category, thickness, `${rombakWidths[rowIndex]}×400×50`, sides, sizeRows[rowIndex][2]]);
                 }
             }
         }
@@ -1349,6 +1347,9 @@ async function initDB() {
 
 
     // ========================================
+    // В расчёте используется только полировка с пяти сторон.
+    await dbRun('DELETE FROM rombak_price_items WHERE sides <> 5');
+
     // КАТАЛОГ СТЕЛ
     // ========================================
 
@@ -2379,7 +2380,7 @@ app.post(
 app.get('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
     try {
         const [items, setting] = await Promise.all([
-            dbAll('SELECT item_key, category, thickness, size, sides, supplier_price, retail_override FROM rombak_price_items ORDER BY category, CAST(thickness AS REAL), CAST(size AS REAL), sides'),
+            dbAll('SELECT item_key, category, thickness, size, supplier_price, retail_override FROM rombak_price_items WHERE sides = 5 ORDER BY category, CAST(thickness AS REAL), CAST(size AS REAL)'),
             dbGet("SELECT value FROM rombak_price_settings WHERE key = 'markup_percent'")
         ]);
         res.json({ success: true, markupPercent: Number(setting?.value ?? 100), items });
@@ -2403,7 +2404,7 @@ app.post('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
                 const key = String(item?.itemKey || '');
                 const supplier = Number(item?.supplierPrice);
                 const override = item?.retailOverride === '' || item?.retailOverride === null || item?.retailOverride === undefined ? null : Number(item.retailOverride);
-                if (!/^[a-z0-9_]+$/.test(key) || !Number.isFinite(supplier) || supplier < 0 || supplier > 100000000 || (override !== null && (!Number.isFinite(override) || override < 0 || override > 100000000))) throw new Error('Некорректная строка прайса');
+                if (!/^[a-z0-9_]+_5$/.test(key) || Number(item.sides) !== 5 || !Number.isFinite(supplier) || supplier < 0 || supplier > 100000000 || (override !== null && (!Number.isFinite(override) || override < 0 || override > 100000000))) throw new Error('Некорректная строка прайса');
                 await dbRun(`INSERT INTO rombak_price_items (item_key, category, thickness, size, sides, supplier_price, retail_override, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     ON CONFLICT(item_key) DO UPDATE SET supplier_price=excluded.supplier_price, retail_override=excluded.retail_override, updated_at=CURRENT_TIMESTAMP`,
@@ -2421,13 +2422,14 @@ app.post('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
 app.get('/api/rombak-retail-prices', async (req, res) => {
     try {
         const [items, setting] = await Promise.all([
-            dbAll('SELECT item_key, supplier_price, retail_override FROM rombak_price_items'),
+            dbAll('SELECT item_key, supplier_price, retail_override FROM rombak_price_items WHERE sides = 5'),
             dbGet("SELECT value FROM rombak_price_settings WHERE key = 'markup_percent'")
         ]);
         const markup = Number(setting?.value ?? 100);
         const prices = {};
         for (const item of items) {
-            prices[item.item_key] = Math.round(item.retail_override !== null && item.retail_override !== undefined
+            const publicKey = item.item_key.replace(/_5$/, '');
+            prices[publicKey] = Math.round(item.retail_override !== null && item.retail_override !== undefined
                 ? Number(item.retail_override)
                 : Number(item.supplier_price) * (1 + markup / 100));
         }
