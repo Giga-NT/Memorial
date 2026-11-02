@@ -28,6 +28,7 @@ import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 
 const stoneMaterials = {
     granite: { color: 0x1a1a1a, roughness: 0.2, metalness: 0.05 },
+    rombak: { color: 0x090909, roughness: 0.16, metalness: 0.06 },
     black_galaxy: { color: 0x111111, roughness: 0.15, metalness: 0.08 },
     ninimyaki: { color: 0x1a2a1a, roughness: 0.25, metalness: 0.03 },
     marble: { color: 0xf5f5f5, roughness: 0.15, metalness: 0.02 },
