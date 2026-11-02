@@ -1310,25 +1310,24 @@
 
 
 
-        <section class="price-category open" id="rombak-pricing">
+        <section class="price-category open" id="material-pricing">
             <button type="button" class="category-header" onclick="toggleCategory(this)">
-                <span class="category-title"><span class="category-arrow">▶</span> 🪨 РОМБАК — закупка и розничная цена</span>
-                <span class="category-count">поставщик Мирокамень</span>
+                <span class="category-title"><span class="category-arrow">▶</span> 🪨 Клиентский прайс по материалам</span>
+                <span class="category-count">редактируемые цены</span>
             </button>
             <div class="category-content" style="padding:16px">
-                <p class="intro">Закупочная цена видна только администратору. Розница рассчитывается с наценкой, если не задана вручную.</p>
-                <div class="price-row">
-                    <label class="price-name" for="rombak-markup">Наценка, %</label>
-                    <input id="rombak-markup" type="number" min="0" max="10000" step="1" value="100" style="max-width:180px">
+                <p class="intro">Здесь задаются только цены, которые увидит клиент. Выберите материал и добавьте строки для изделий, размеров, толщины и обработки. Размеры указываются в миллиметрах.</p>
+                <div id="material-tabs" class="material-tabs" role="tablist"></div>
+                <div class="material-price-toolbar">
+                    <strong id="material-current-label">Материал</strong>
+                    <button type="button" id="material-add-row">＋ Добавить позицию</button>
                 </div>
-                <div class="actions" style="margin:12px 0">
-                    <button type="button" class="secondary" id="rombak-reload">Обновить РОМБАК</button>
-                    <button type="button" id="rombak-save">Сохранить РОМБАК</button>
+                <div id="material-price-table-wrap" style="overflow-x:auto"></div>
+                <p id="material-price-message" role="status" class="flag-hint"></p>
+                <div class="actions" style="position:static;box-shadow:none;margin-top:12px">
+                    <button type="button" class="secondary" id="material-reload">Обновить таблицу</button>
+                    <button type="button" id="material-save">Сохранить клиентские цены</button>
                 </div>
-                <div id="rombak-table-wrap" style="overflow-x:auto">
-                    <p>Загрузка позиций...</p>
-                </div>
-                <p id="rombak-message" role="status"></p>
             </div>
         </section>
 
@@ -1645,12 +1644,7 @@
                 'success'
             );
 
-            try {
-                await loadRombakPrices();
-            } catch (rombakError) {
-                const rombakMessage = document.getElementById('rombak-message');
-                if (rombakMessage) rombakMessage.textContent = 'Прайс РОМБАК: ' + rombakError.message;
-            }
+            await loadMaterialPrices();
 
         } catch (error) {
 
@@ -1998,58 +1992,83 @@
     // РОМБАК: отдельный закрытый прайс поставщика
     // =========================================
     let rombakItems = [];
-    const rombakTableWrap = document.getElementById('rombak-table-wrap');
-    const rombakMessage = document.getElementById('rombak-message');
-    const rombakMarkup = document.getElementById('rombak-markup');
-
-    function renderRombakItems() {
-        if (!rombakItems.length) {
-            rombakTableWrap.innerHTML = '<p>Каталог пока пуст. После загрузки исходных позиций здесь появятся строки.</p>';
-            return;
-        }
-        const table = document.createElement('table');
-        table.style.cssText = 'width:100%;border-collapse:collapse;min-width:760px';
-        table.innerHTML = '<thead><tr><th>Категория</th><th>Толщина</th><th>Размер</th><th>Закупка, ₽</th><th>Розница вручную, ₽</th><th>Розница по наценке, ₽</th></tr></thead>';
-        const tbody = document.createElement('tbody');
-        rombakItems.forEach((item, index) => {
-            const tr = document.createElement('tr');
-            const retail = item.retail_override === null || item.retail_override === '' ? Math.round(Number(item.supplier_price) * (1 + Number(rombakMarkup.value || 100) / 100)) : Number(item.retail_override);
-            const values = [item.category, item.thickness, item.size];
-            values.forEach(value => { const td=document.createElement('td'); td.textContent=value; td.style.padding='7px'; tr.appendChild(td); });
-            const supplierTd=document.createElement('td'); const supplier=document.createElement('input'); supplier.type='number'; supplier.min='0'; supplier.step='1'; supplier.value=item.supplier_price; supplier.dataset.index=index; supplier.dataset.field='supplier_price'; supplier.style.width='110px'; supplierTd.appendChild(supplier); supplierTd.style.padding='7px'; tr.appendChild(supplierTd);
-            const overrideTd=document.createElement('td'); const override=document.createElement('input'); override.type='number'; override.min='0'; override.step='1'; override.placeholder='авто'; override.value=item.retail_override ?? ''; override.dataset.index=index; override.dataset.field='retail_override'; override.style.width='110px'; overrideTd.appendChild(override); overrideTd.style.padding='7px'; tr.appendChild(overrideTd);
-            const retailTd=document.createElement('td'); retailTd.textContent=retail.toLocaleString('ru-RU')+' ₽'; retailTd.style.padding='7px'; tr.appendChild(retailTd);
-            tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        rombakTableWrap.replaceChildren(table);
-        rombakTableWrap.querySelectorAll('input').forEach(input => input.addEventListener('input', () => {
-            const item=rombakItems[Number(input.dataset.index)];
-            item[input.dataset.field]=input.value === '' ? (input.dataset.field==='retail_override' ? null : 0) : Number(input.value);
-        }));
+    // =========================================
+    // КЛИЕНТСКИЙ ПРАЙС ПО МАТЕРИАЛАМ
+    // =========================================
+    const MATERIALS = [
+        ['granite','Габбро-Диабаз'],['black_galaxy','Black Galaxy'],['ninimyaki','Нинимяки'],
+        ['marble','Мрамор'],['red_granite','Красный гранит'],['beige_granite','Бежевый гранит'],
+        ['gray_granite','Серый гранит']
+    ];
+    const PRODUCTS = [
+        ['stele','Стела'],['pedestal','Тумба'],['flowerbed','Цветник'],
+        ['grave_slab','Надгробная плита'],['tile','Плитка'],['curb','Бордюр'],['other','Другое изделие']
+    ];
+    let materialRows = [];
+    let activeMaterial = MATERIALS[0][0];
+    const materialTabs = document.getElementById('material-tabs');
+    const materialWrap = document.getElementById('material-price-table-wrap');
+    const materialMessage = document.getElementById('material-price-message');
+    const escText = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    async function loadMaterialPrices() {
+        const response = await fetch('/api/admin/material-prices',{credentials:'include',cache:'no-store'});
+        const result = await response.json();
+        if(!response.ok || !result.success) throw new Error(result.message || 'Не удалось загрузить таблицу');
+        materialRows = Array.isArray(result.rows) ? result.rows : [];
+        renderMaterialPriceEditor();
+        materialMessage.textContent = 'Строк в прайсе: '+materialRows.length;
     }
-
-    async function loadRombakPrices() {
-        const response=await fetch('/api/admin/rombak-prices',{credentials:'include'});
-        const result=await response.json();
-        if(!response.ok || !result.success) throw new Error(result.message || 'Не удалось загрузить РОМБАК');
-        rombakItems=result.items || [];
-        rombakMarkup.value=result.markupPercent ?? 100;
-        renderRombakItems();
-        rombakMessage.textContent='Позиций: '+rombakItems.length;
+    function renderMaterialPriceEditor() {
+        materialTabs.innerHTML = MATERIALS.map(([key,label]) =>
+            '<button type="button" class="'+(key===activeMaterial?'active':'')+'" data-material="'+key+'">'+label+'</button>'
+        ).join('');
+        document.getElementById('material-current-label').textContent = MATERIALS.find(x=>x[0]===activeMaterial)?.[1] || activeMaterial;
+        const rows = materialRows.map((r,i)=>({...r,_index:i})).filter(r=>r.material===activeMaterial);
+        const productOptions = PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
+        materialWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм</th><th>Толщина, мм</th><th>Обработка / исполнение</th><th>Цена для клиента, ₽</th><th></th></tr></thead><tbody>'+
+            rows.map(r=>'<tr data-index="'+r._index+'"><td><select data-field="product">'+productOptions+'</select></td>'+
+            ['width_mm','height_mm','depth_mm','thickness_mm'].map(k=>'<td><input type="number" min="0" step="1" data-field="'+k+'" value="'+Number(r[k]||0)+'"></td>').join('')+
+            '<td><input type="text" maxlength="100" data-field="finish" value="'+escText(r.finish||'')+'" placeholder="Например, полировка 5 сторон"></td>'+
+            '<td><input type="number" min="0" step="1" data-field="price" value="'+Number(r.price||0)+'"></td>'+
+            '<td><button type="button" class="delete-row" data-delete="'+r._index+'">Удалить</button></td></tr>').join('')+
+            '</tbody></table>';
+        rows.forEach(r=>{const select=materialWrap.querySelector('tr[data-index="'+r._index+'"] select');if(select)select.value=r.product;});
     }
-    document.getElementById('rombak-reload').addEventListener('click', async () => {
-        try { await loadRombakPrices(); } catch(error) { rombakMessage.textContent=error.message; }
+    materialTabs.addEventListener('click',event=>{
+        const button=event.target.closest('[data-material]');if(!button)return;
+        activeMaterial=button.dataset.material;renderMaterialPriceEditor();
     });
-    rombakMarkup.addEventListener('input', renderRombakItems);
-    document.getElementById('rombak-save').addEventListener('click', async () => {
-        const button=document.getElementById('rombak-save'); button.disabled=true;
-        try {
-            const response=await fetch('/api/admin/rombak-prices',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({markupPercent:Number(rombakMarkup.value),items:rombakItems.map(item=>({itemKey:item.item_key,category:item.category,thickness:item.thickness,size:item.size,sides:item.sides,supplierPrice:Number(item.supplier_price),retailOverride:item.retail_override}))})});
-            const result=await response.json(); if(!response.ok || !result.success) throw new Error(result.message || 'Ошибка сохранения');
-            await loadRombakPrices(); rombakMessage.textContent='Прайс РОМБАК сохранён';
-        } catch(error) { rombakMessage.textContent=error.message; }
-        finally { button.disabled=false; }
+    document.getElementById('material-add-row').addEventListener('click',()=>{
+        materialRows.push({material:activeMaterial,product:'stele',width_mm:0,height_mm:0,depth_mm:0,thickness_mm:0,finish:'',price:0});
+        renderMaterialPriceEditor();
+        materialWrap.querySelector('tbody tr:last-child input')?.focus();
+    });
+    materialWrap.addEventListener('input',event=>{
+        const tr=event.target.closest('tr[data-index]');if(!tr)return;
+        const row=materialRows[Number(tr.dataset.index)];if(!row)return;
+        const field=event.target.dataset.field;if(!field)return;
+        row[field]=field==='finish'?event.target.value:Number(event.target.value);
+    });
+    materialWrap.addEventListener('change',event=>{
+        const tr=event.target.closest('tr[data-index]');if(!tr)return;
+        const row=materialRows[Number(tr.dataset.index)];if(!row)return;
+        if(event.target.dataset.field)row[event.target.dataset.field]=event.target.value;
+    });
+    materialWrap.addEventListener('click',event=>{
+        const button=event.target.closest('[data-delete]');if(!button)return;
+        materialRows.splice(Number(button.dataset.delete),1);renderMaterialPriceEditor();
+    });
+    document.getElementById('material-reload').addEventListener('click',async()=>{
+        try{await loadMaterialPrices();}catch(error){materialMessage.textContent=error.message;}
+    });
+    document.getElementById('material-save').addEventListener('click',async()=>{
+        const button=document.getElementById('material-save');button.disabled=true;
+        try{
+            const response=await fetch('/api/admin/material-prices',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:materialRows})});
+            const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||'Не удалось сохранить');
+            materialRows=result.rows||materialRows;renderMaterialPriceEditor();materialMessage.textContent='Сохранено строк: '+result.saved;
+        }catch(error){materialMessage.textContent=error.message;}
+        finally{button.disabled=false;}
     });
 
     // =========================================
