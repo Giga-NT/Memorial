@@ -1307,7 +1307,27 @@ async function initDB() {
 
 
     // ========================================
-    // ПРАЙС РОМБАК (закупочные данные доступны только администратору)
+    // ЕДИНЫЙ КАТАЛОГ КЛИЕНТСКИХ ЦЕН ПО МАТЕРИАЛАМ
+    // ========================================
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS material_price_rows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            material TEXT NOT NULL,
+            product TEXT NOT NULL,
+            width_mm INTEGER NOT NULL DEFAULT 0,
+            height_mm INTEGER NOT NULL DEFAULT 0,
+            depth_mm INTEGER NOT NULL DEFAULT 0,
+            thickness_mm INTEGER NOT NULL DEFAULT 0,
+            finish TEXT NOT NULL DEFAULT '',
+            price REAL NOT NULL CHECK(price >= 0),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+        )
+    `);
+
+    // ========================================
+    // ПРАЙС РОМБАК (историческая таблица БД; не используется в интерфейсе или расчёте)
+
     // ========================================
     await dbRun(`
         CREATE TABLE IF NOT EXISTS rombak_price_items (
@@ -2374,70 +2394,82 @@ app.post(
 
 
 // ============================================
-// API: ПРАЙС РОМБАК
-// Закупка, наценка и ручная розница никогда не уходят в публичный ответ.
+// API: КЛИЕНТСКИЙ ПРАЙС ПО МАТЕРИАЛАМ
 // ============================================
-app.get('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
+app.get('/api/admin/material-prices', requireAdmin, async (req, res) => {
     try {
-        const [items, setting] = await Promise.all([
-            dbAll('SELECT item_key, category, thickness, size, supplier_price, retail_override FROM rombak_price_items WHERE sides = 5 ORDER BY category, CAST(thickness AS REAL), CAST(size AS REAL)'),
-            dbGet("SELECT value FROM rombak_price_settings WHERE key = 'markup_percent'")
-        ]);
-        res.json({ success: true, markupPercent: Number(setting?.value ?? 100), items });
-    } catch (error) {
-        console.error('Ошибка загрузки прайса РОМБАК:', error);
-        res.status(500).json({ success: false, message: 'Не удалось загрузить прайс РОМБАК' });
-    }
-});
-
-app.post('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
-    try {
-        const markup = Number(req.body?.markupPercent);
-        const items = req.body?.items;
-        if (!Number.isFinite(markup) || markup < 0 || markup > 10000 || !Array.isArray(items) || items.length > 1000) {
-            return res.status(400).json({ success: false, message: 'Некорректные данные прайса' });
-        }
-        await dbRun('BEGIN TRANSACTION');
-        try {
-            await dbRun("UPDATE rombak_price_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = 'markup_percent'", [markup]);
-            for (const item of items) {
-                const key = String(item?.itemKey || '');
-                const supplier = Number(item?.supplierPrice);
-                const override = item?.retailOverride === '' || item?.retailOverride === null || item?.retailOverride === undefined ? null : Number(item.retailOverride);
-                if (!/^[a-z0-9_]+_5$/.test(key) || Number(item.sides) !== 5 || !Number.isFinite(supplier) || supplier < 0 || supplier > 100000000 || (override !== null && (!Number.isFinite(override) || override < 0 || override > 100000000))) throw new Error('Некорректная строка прайса');
-                await dbRun(`INSERT INTO rombak_price_items (item_key, category, thickness, size, sides, supplier_price, retail_override, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(item_key) DO UPDATE SET supplier_price=excluded.supplier_price, retail_override=excluded.retail_override, updated_at=CURRENT_TIMESTAMP`,
-                    [key, String(item.category), String(item.thickness), String(item.size), Number(item.sides), supplier, override]);
-            }
-            await dbRun('COMMIT');
-        } catch (error) { await dbRun('ROLLBACK'); throw error; }
-        res.json({ success: true, message: 'Прайс РОМБАК сохранён', saved: items.length });
-    } catch (error) {
-        console.error('Ошибка сохранения прайса РОМБАК:', error);
-        res.status(400).json({ success: false, message: error.message || 'Ошибка сохранения прайса' });
-    }
-});
-
-app.get('/api/rombak-retail-prices', async (req, res) => {
-    try {
-        const [items, setting] = await Promise.all([
-            dbAll('SELECT item_key, supplier_price, retail_override FROM rombak_price_items WHERE sides = 5'),
-            dbGet("SELECT value FROM rombak_price_settings WHERE key = 'markup_percent'")
-        ]);
-        const markup = Number(setting?.value ?? 100);
-        const prices = {};
-        for (const item of items) {
-            const publicKey = item.item_key.replace(/_5$/, '');
-            prices[publicKey] = Math.round(item.retail_override !== null && item.retail_override !== undefined
-                ? Number(item.retail_override)
-                : Number(item.supplier_price) * (1 + markup / 100));
-        }
+        const rows = await dbAll(`
+            SELECT id, material, product, width_mm, height_mm, depth_mm,
+                   thickness_mm, finish, price
+            FROM material_price_rows
+            ORDER BY material, product, width_mm, height_mm, depth_mm, thickness_mm, finish
+        `);
         res.set('Cache-Control', 'no-store');
-        res.json({ prices });
+        res.json({ success: true, rows });
     } catch (error) {
-        console.error('Ошибка выдачи розничного прайса РОМБАК:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        console.error('Ошибка загрузки клиентского прайса:', error);
+        res.status(500).json({ success: false, message: 'Не удалось загрузить прайс' });
+    }
+});
+
+app.post('/api/admin/material-prices', requireAdmin, async (req, res) => {
+    const rows = req.body?.rows;
+    const allowedMaterials = /^[a-z0-9_-]{1,64}$/;
+    const allowedProducts = new Set(['stele', 'pedestal', 'flowerbed', 'grave_slab', 'tile', 'curb', 'other']);
+    if (!Array.isArray(rows) || rows.length > 5000) {
+        return res.status(400).json({ success: false, message: 'Некорректный список цен' });
+    }
+    const normalized = [];
+    const seen = new Set();
+    for (const row of rows) {
+        const material = String(row?.material || '').trim();
+        const product = String(row?.product || '').trim();
+        const finish = String(row?.finish || '').trim().slice(0, 100);
+        const dims = ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'].map(k => Number(row?.[k] || 0));
+        const price = Number(row?.price);
+        if (!allowedMaterials.test(material) || !allowedProducts.has(product) ||
+            dims.some(v => !Number.isInteger(v) || v < 0 || v > 10000) ||
+            !Number.isFinite(price) || price < 0 || price > 100000000) {
+            return res.status(400).json({ success: false, message: 'Проверьте материал, изделие, размеры и цену' });
+        }
+        const item = { material, product, width_mm:dims[0], height_mm:dims[1], depth_mm:dims[2], thickness_mm:dims[3], finish, price };
+        const key = [material,product,...dims,finish].join('|');
+        if (seen.has(key)) return res.status(400).json({ success:false, message:'Есть повторяющиеся строки прайса' });
+        seen.add(key);
+        normalized.push(item);
+    }
+    try {
+        await dbRun('BEGIN TRANSACTION');
+        await dbRun('DELETE FROM material_price_rows');
+        for (const row of normalized) {
+            await dbRun(`INSERT INTO material_price_rows
+                (material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [row.material,row.product,row.width_mm,row.height_mm,row.depth_mm,row.thickness_mm,row.finish,row.price]);
+        }
+        await dbRun('COMMIT');
+        res.set('Cache-Control', 'no-store');
+        res.json({ success:true, rows:normalized, saved:normalized.length });
+    } catch (error) {
+        try { await dbRun('ROLLBACK'); } catch (_) {}
+        console.error('Ошибка сохранения клиентского прайса:', error);
+        res.status(500).json({ success:false, message:'Не удалось сохранить прайс' });
+    }
+});
+
+app.get('/api/material-prices', async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT material, product, width_mm, height_mm, depth_mm,
+                   thickness_mm, finish, price
+            FROM material_price_rows
+            ORDER BY material, product
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ rows });
+    } catch (error) {
+        console.error('Ошибка выдачи клиентского прайса:', error);
+        res.status(500).json({ error:'Ошибка сервера' });
     }
 });
 
