@@ -4816,21 +4816,29 @@ function buildPriceBreakdown() {
         rows.push({ name, desc, price: amount });
     };
 
-    const addStoneLikeCharges = (name, workName, material, area, scale) => {
+    const missingCatalogPrices = [];
+    const addCatalogComponent = (name, product, material, dimensions, finish = '', count = 1) => {
+        const match = findMaterialPrice(product, material, dimensions, finish);
+        if (!match) {
+            const d = match?.dimensions || Object.fromEntries(
+                Object.entries(dimensions).map(([key,value]) => [key, roundDimensionUp100(value)])
+            );
+            missingCatalogPrices.push(`${name}: ${material}, ${d.width_mm || 0}×${d.height_mm || 0}×${d.depth_mm || 0} мм, толщина ${d.thickness_mm || 0} мм${finish ? ', ' + finish : ''}`);
+            return 0;
+        }
+        addRow(name, `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽ × ${count}`, match.price * count);
+        return match.price * count;
+    };
+    const addStoneLikeCharges = (name, workName, material, area, scale, dimensions = {}) => {
         const safeScale = Number(scale) > 0 ? Number(scale) : 1;
-        const materialPrice = getPriceValue(material);
-        const materialTotal = area * materialPrice * safeScale * safeScale;
-        const workTotal = getPriceValue('stele_work') * safeScale;
-        addRow(
-            name,
-            `${materialPriceLabels[material] || material}, ${area.toFixed(2)} м² × ${materialPrice} ₽/м² × ${safeScale.toFixed(2)}²`,
-            materialTotal
-        );
-        addRow(
-            workName,
-            safeScale === 1 ? 'Фиксированная цена' : `Фиксированная цена × ${safeScale.toFixed(2)}`,
-            workTotal
-        );
+        const baseDimensions = {
+            width_mm: dimensions.width_mm || Math.sqrt(Math.max(0, area)) * 1000,
+            height_mm: dimensions.height_mm || Math.sqrt(Math.max(0, area)) * 1000,
+            depth_mm: dimensions.depth_mm || 50,
+            thickness_mm: dimensions.thickness_mm || 50
+        };
+        addCatalogComponent(name, 'grave_slab', material, baseDimensions, dimensions.finish || '', safeScale);
+        addRow(workName, safeScale === 1 ? 'Фиксированная цена' : `Фиксированная цена × ${safeScale.toFixed(2)}`, getPriceValue('stele_work') * safeScale);
     };
 
     const monuments = getPricingMonuments();
@@ -4839,8 +4847,6 @@ function buildPriceBreakdown() {
     let steleTotal = 0;
     let pedestalCount = 0;
     let pedestalTotal = 0;
-    const missingCatalogPrices = [];
-
     monuments.forEach((monument, index) => {
         const material = monument.material || 'granite';
         const width = Number(monument.width) || 0.6;
@@ -4864,10 +4870,10 @@ function buildPriceBreakdown() {
             pedestalCount++;
             const pedestalMaterial = monument.pedestalMaterial || material;
             const pedestalDimensions = {
-                width_mm: (Number(monument.pedestalWidth) || 0) * 1000,
-                height_mm: (Number(monument.pedestalHeight) || 0) * 1000,
-                depth_mm: (Number(monument.pedestalDepth) || 0) * 1000,
-                thickness_mm: (Number(monument.pedestalThickness) || 0) * 1000
+                width_mm: (Number(monument.pedestalWidth) || (Number(monument.graveWidth) || 0.9) + 0.18) * 1000,
+                height_mm: (Number(monument.pedestalHeight) || Number(monument.baseHeight) || 0.15) * 1000,
+                depth_mm: (Number(monument.pedestalDepth) || Number(monument.depth) || 0.07) * 1000,
+                thickness_mm: (Number(monument.pedestalThickness) || Number(monument.baseHeight) || 0.15) * 1000
             };
             const pedestalMatch = findMaterialPrice('pedestal', pedestalMaterial, pedestalDimensions, monument.pedestalFinish || '');
             if (pedestalMatch) {
@@ -5011,15 +5017,17 @@ function buildPriceBreakdown() {
                 '🔧 Изготовление плиты',
                 slabMaterial,
                 flowerArea,
-                slabScale
+                slabScale,
+                { width_mm: Number(monument.flowerWidth) * 1000, height_mm: Number(monument.flowerLength) * 1000, depth_mm: 50, thickness_mm: 50 }
             );
         } else {
-            const flowerPrice = getPriceValue(state.flowerbedType);
-            addRow(
-                '🌿 Цветник',
-                `${flowerbedPriceLabels[state.flowerbedType] || state.flowerbedType}, ${flowerArea.toFixed(2)} м² × ${flowerPrice} ₽/м²`,
-                flowerArea * flowerPrice
-            );
+            const flowerMaterial = monument.borderMaterial || monument.baseMaterial || monument.material || 'granite';
+            addCatalogComponent('🌿 Цветник', 'flowerbed', flowerMaterial, {
+                width_mm: Number(monument.flowerWidth) * 1000,
+                height_mm: Number(monument.flowerLength) * 1000,
+                depth_mm: 50,
+                thickness_mm: 50
+            }, monument.flowerbedFinish || '');
         }
     }
 
@@ -5221,22 +5229,32 @@ function buildPriceBreakdown() {
     );
 
     const vases = window.vasesManager?.vases || [];
-    const vaseBasePrice = getPriceValue('vase_base_price');
+    const vaseBasePrice = getPriceValue('vase_base_price'); // legacy fallback is not used for catalog-priced vases
     const vaseGroups = new Map();
     vases.forEach(vase => {
         const material = vase.material || 'marble';
         const scale = Number(vase.scale) > 0 ? Number(vase.scale) : 1;
         const unitPrice = vaseBasePrice * scale;
+        const vaseMatch = findMaterialPrice('other', material, {
+            width_mm: 0,
+            height_mm: Number(vase.config?.defaultHeight || 0.5) * 1000 * scale,
+            depth_mm: 0,
+            thickness_mm: 0
+        }, `vase:${vase.vaseType || 'standard'}`);
+        if (!vaseMatch) {
+            missingCatalogPrices.push(`Ваза ${vase.config?.name || vase.vaseType || ''}: нет цены для материала ${material}, типа ${vase.vaseType || 'standard'}`);
+        }
+        const effectiveVasePrice = vaseMatch ? vaseMatch.price : 0;
         const key = `${material}|${scale}`;
         const group = vaseGroups.get(key) || {
             material,
             scale,
             count: 0,
-            unitPrice,
+            unitPrice: effectiveVasePrice,
             total: 0
         };
         group.count++;
-        group.total += unitPrice;
+        group.total += effectiveVasePrice;
         vaseGroups.set(key, group);
     });
     const vaseSummaryParts = [];
