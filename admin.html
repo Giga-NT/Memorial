@@ -2009,12 +2009,12 @@
         }
         const table = document.createElement('table');
         table.style.cssText = 'width:100%;border-collapse:collapse;min-width:760px';
-        table.innerHTML = '<thead><tr><th>Категория</th><th>Толщина</th><th>Размер</th><th>Обработка</th><th>Закупка, ₽</th><th>Розница вручную, ₽</th><th>Розница по наценке, ₽</th></tr></thead>';
+        table.innerHTML = '<thead><tr><th>Категория</th><th>Толщина</th><th>Размер</th><th>Закупка, ₽</th><th>Розница вручную, ₽</th><th>Розница по наценке, ₽</th></tr></thead>';
         const tbody = document.createElement('tbody');
         rombakItems.forEach((item, index) => {
             const tr = document.createElement('tr');
             const retail = item.retail_override === null || item.retail_override === '' ? Math.round(Number(item.supplier_price) * (1 + Number(rombakMarkup.value || 100) / 100)) : Number(item.retail_override);
-            const values = [item.category, item.thickness, item.size, item.sides + ' сторон'];
+            const values = [item.category, item.thickness, item.size];
             values.forEach(value => { const td=document.createElement('td'); td.textContent=value; td.style.padding='7px'; tr.appendChild(td); });
             const supplierTd=document.createElement('td'); const supplier=document.createElement('input'); supplier.type='number'; supplier.min='0'; supplier.step='1'; supplier.value=item.supplier_price; supplier.dataset.index=index; supplier.dataset.field='supplier_price'; supplier.style.width='110px'; supplierTd.appendChild(supplier); supplierTd.style.padding='7px'; tr.appendChild(supplierTd);
             const overrideTd=document.createElement('td'); const override=document.createElement('input'); override.type='number'; override.min='0'; override.step='1'; override.placeholder='авто'; override.value=item.retail_override ?? ''; override.dataset.index=index; override.dataset.field='retail_override'; override.style.width='110px'; overrideTd.appendChild(override); overrideTd.style.padding='7px'; tr.appendChild(overrideTd);
