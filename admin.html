@@ -1645,6 +1645,13 @@
                 'success'
             );
 
+            try {
+                await loadRombakPrices();
+            } catch (rombakError) {
+                const rombakMessage = document.getElementById('rombak-message');
+                if (rombakMessage) rombakMessage.textContent = 'Прайс РОМБАК: ' + rombakError.message;
+            }
+
         } catch (error) {
 
             console.error('Ошибка загрузки цен:', error);
