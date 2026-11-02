@@ -4625,6 +4625,7 @@ function addDecalsToCustomStele(center, frontZ, backZ, modelType = 'custom_stl')
 let prices = {};
 let priceFlags = {};
 let priceSettings = {};
+let rombakRetailPrices = {};
 
 async function loadPrices() {
     try {
@@ -4634,6 +4635,17 @@ async function loadPrices() {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
+        try {
+            const rombakResponse = await fetch('/api/rombak-retail-prices', { cache: 'no-store' });
+            if (rombakResponse.ok) {
+                const rombakData = await rombakResponse.json();
+                rombakRetailPrices = rombakData?.prices && typeof rombakData.prices === 'object'
+                    ? rombakData.prices : {};
+            }
+        } catch (rombakError) {
+            console.warn('Не удалось загрузить розничный прайс РОМБАК:', rombakError.message);
+            rombakRetailPrices = {};
+        }
         const validated = {};
         const sourcePrices =
             data?.prices && typeof data.prices === 'object'
