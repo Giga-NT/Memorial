@@ -1309,6 +1309,29 @@
         </div>
 
 
+
+        <section class="price-category open" id="rombak-pricing">
+            <button type="button" class="category-header" onclick="toggleCategory(this)">
+                <span class="category-title"><span class="category-arrow">▶</span> 🪨 РОМБАК — закупка и розничная цена</span>
+                <span class="category-count">поставщик Мирокамень</span>
+            </button>
+            <div class="category-content" style="padding:16px">
+                <p class="intro">Закупочная цена видна только администратору. Розница рассчитывается с наценкой, если не задана вручную.</p>
+                <div class="price-row">
+                    <label class="price-name" for="rombak-markup">Наценка, %</label>
+                    <input id="rombak-markup" type="number" min="0" max="10000" step="1" value="100" style="max-width:180px">
+                </div>
+                <div class="actions" style="margin:12px 0">
+                    <button type="button" class="secondary" id="rombak-reload">Обновить РОМБАК</button>
+                    <button type="button" id="rombak-save">Сохранить РОМБАК</button>
+                </div>
+                <div id="rombak-table-wrap" style="overflow-x:auto">
+                    <p>Загрузка позиций...</p>
+                </div>
+                <p id="rombak-message" role="status"></p>
+            </div>
+        </section>
+
         <!-- =====================================
              ACTIONS
         ====================================== -->
@@ -1962,6 +1985,65 @@
 
     });
 
+
+
+    // =========================================
+    // РОМБАК: отдельный закрытый прайс поставщика
+    // =========================================
+    let rombakItems = [];
+    const rombakTableWrap = document.getElementById('rombak-table-wrap');
+    const rombakMessage = document.getElementById('rombak-message');
+    const rombakMarkup = document.getElementById('rombak-markup');
+
+    function renderRombakItems() {
+        if (!rombakItems.length) {
+            rombakTableWrap.innerHTML = '<p>Каталог пока пуст. После загрузки исходных позиций здесь появятся строки.</p>';
+            return;
+        }
+        const table = document.createElement('table');
+        table.style.cssText = 'width:100%;border-collapse:collapse;min-width:760px';
+        table.innerHTML = '<thead><tr><th>Категория</th><th>Толщина</th><th>Размер</th><th>Обработка</th><th>Закупка, ₽</th><th>Розница вручную, ₽</th><th>Розница по наценке, ₽</th></tr></thead>';
+        const tbody = document.createElement('tbody');
+        rombakItems.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            const retail = item.retail_override === null || item.retail_override === '' ? Math.round(Number(item.supplier_price) * (1 + Number(rombakMarkup.value || 100) / 100)) : Number(item.retail_override);
+            const values = [item.category, item.thickness, item.size, item.sides + ' сторон'];
+            values.forEach(value => { const td=document.createElement('td'); td.textContent=value; td.style.padding='7px'; tr.appendChild(td); });
+            const supplierTd=document.createElement('td'); const supplier=document.createElement('input'); supplier.type='number'; supplier.min='0'; supplier.step='1'; supplier.value=item.supplier_price; supplier.dataset.index=index; supplier.dataset.field='supplier_price'; supplier.style.width='110px'; supplierTd.appendChild(supplier); supplierTd.style.padding='7px'; tr.appendChild(supplierTd);
+            const overrideTd=document.createElement('td'); const override=document.createElement('input'); override.type='number'; override.min='0'; override.step='1'; override.placeholder='авто'; override.value=item.retail_override ?? ''; override.dataset.index=index; override.dataset.field='retail_override'; override.style.width='110px'; overrideTd.appendChild(override); overrideTd.style.padding='7px'; tr.appendChild(overrideTd);
+            const retailTd=document.createElement('td'); retailTd.textContent=retail.toLocaleString('ru-RU')+' ₽'; retailTd.style.padding='7px'; tr.appendChild(retailTd);
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        rombakTableWrap.replaceChildren(table);
+        rombakTableWrap.querySelectorAll('input').forEach(input => input.addEventListener('input', () => {
+            const item=rombakItems[Number(input.dataset.index)];
+            item[input.dataset.field]=input.value === '' ? (input.dataset.field==='retail_override' ? null : 0) : Number(input.value);
+        }));
+    }
+
+    async function loadRombakPrices() {
+        const response=await fetch('/api/admin/rombak-prices',{credentials:'include'});
+        const result=await response.json();
+        if(!response.ok || !result.success) throw new Error(result.message || 'Не удалось загрузить РОМБАК');
+        rombakItems=result.items || [];
+        rombakMarkup.value=result.markupPercent ?? 100;
+        renderRombakItems();
+        rombakMessage.textContent='Позиций: '+rombakItems.length;
+    }
+    document.getElementById('rombak-reload').addEventListener('click', async () => {
+        try { await loadRombakPrices(); } catch(error) { rombakMessage.textContent=error.message; }
+    });
+    rombakMarkup.addEventListener('input', renderRombakItems);
+    document.getElementById('rombak-save').addEventListener('click', async () => {
+        const button=document.getElementById('rombak-save'); button.disabled=true;
+        try {
+            const response=await fetch('/api/admin/rombak-prices',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({markupPercent:Number(rombakMarkup.value),items:rombakItems.map(item=>({itemKey:item.item_key,category:item.category,thickness:item.thickness,size:item.size,sides:item.sides,supplierPrice:Number(item.supplier_price),retailOverride:item.retail_override}))})});
+            const result=await response.json(); if(!response.ok || !result.success) throw new Error(result.message || 'Ошибка сохранения');
+            await loadRombakPrices(); rombakMessage.textContent='Прайс РОМБАК сохранён';
+        } catch(error) { rombakMessage.textContent=error.message; }
+        finally { button.disabled=false; }
+    });
 
     // =========================================
     // СТАРТ
