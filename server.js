@@ -1307,6 +1307,30 @@ async function initDB() {
 
 
     // ========================================
+    // ПРАЙС РОМБАК (закупочные данные доступны только администратору)
+    // ========================================
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS rombak_price_items (
+            item_key TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            thickness TEXT NOT NULL,
+            size TEXT NOT NULL,
+            sides INTEGER NOT NULL,
+            supplier_price REAL NOT NULL DEFAULT 0,
+            retail_override REAL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS rombak_price_settings (
+            key TEXT PRIMARY KEY,
+            value REAL NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await dbRun(`INSERT OR IGNORE INTO rombak_price_settings (key, value) VALUES ('markup_percent', 100)`);
+
+    // ========================================
     // КАТАЛОГ СТЕЛ
     // ========================================
 
@@ -2328,6 +2352,74 @@ app.post(
         }
     }
 );
+
+
+// ============================================
+// API: ПРАЙС РОМБАК
+// Закупка, наценка и ручная розница никогда не уходят в публичный ответ.
+// ============================================
+app.get('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
+    try {
+        const [items, setting] = await Promise.all([
+            dbAll('SELECT item_key, category, thickness, size, sides, supplier_price, retail_override FROM rombak_price_items ORDER BY category, CAST(thickness AS REAL), CAST(size AS REAL), sides'),
+            dbGet("SELECT value FROM rombak_price_settings WHERE key = 'markup_percent'")
+        ]);
+        res.json({ success: true, markupPercent: Number(setting?.value ?? 100), items });
+    } catch (error) {
+        console.error('Ошибка загрузки прайса РОМБАК:', error);
+        res.status(500).json({ success: false, message: 'Не удалось загрузить прайс РОМБАК' });
+    }
+});
+
+app.post('/api/admin/rombak-prices', requireAdmin, async (req, res) => {
+    try {
+        const markup = Number(req.body?.markupPercent);
+        const items = req.body?.items;
+        if (!Number.isFinite(markup) || markup < 0 || markup > 10000 || !Array.isArray(items) || items.length > 1000) {
+            return res.status(400).json({ success: false, message: 'Некорректные данные прайса' });
+        }
+        await dbRun('BEGIN TRANSACTION');
+        try {
+            await dbRun("UPDATE rombak_price_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = 'markup_percent'", [markup]);
+            for (const item of items) {
+                const key = String(item?.itemKey || '');
+                const supplier = Number(item?.supplierPrice);
+                const override = item?.retailOverride === '' || item?.retailOverride === null || item?.retailOverride === undefined ? null : Number(item.retailOverride);
+                if (!/^[a-z0-9_]+$/.test(key) || !Number.isFinite(supplier) || supplier < 0 || supplier > 100000000 || (override !== null && (!Number.isFinite(override) || override < 0 || override > 100000000))) throw new Error('Некорректная строка прайса');
+                await dbRun(`INSERT INTO rombak_price_items (item_key, category, thickness, size, sides, supplier_price, retail_override, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(item_key) DO UPDATE SET supplier_price=excluded.supplier_price, retail_override=excluded.retail_override, updated_at=CURRENT_TIMESTAMP`,
+                    [key, String(item.category), String(item.thickness), String(item.size), Number(item.sides), supplier, override]);
+            }
+            await dbRun('COMMIT');
+        } catch (error) { await dbRun('ROLLBACK'); throw error; }
+        res.json({ success: true, message: 'Прайс РОМБАК сохранён', saved: items.length });
+    } catch (error) {
+        console.error('Ошибка сохранения прайса РОМБАК:', error);
+        res.status(400).json({ success: false, message: error.message || 'Ошибка сохранения прайса' });
+    }
+});
+
+app.get('/api/rombak-retail-prices', async (req, res) => {
+    try {
+        const [items, setting] = await Promise.all([
+            dbAll('SELECT item_key, supplier_price, retail_override FROM rombak_price_items'),
+            dbGet("SELECT value FROM rombak_price_settings WHERE key = 'markup_percent'")
+        ]);
+        const markup = Number(setting?.value ?? 100);
+        const prices = {};
+        for (const item of items) {
+            prices[item.item_key] = Math.round(item.retail_override !== null && item.retail_override !== undefined
+                ? Number(item.retail_override)
+                : Number(item.supplier_price) * (1 + markup / 100));
+        }
+        res.set('Cache-Control', 'no-store');
+        res.json({ prices });
+    } catch (error) {
+        console.error('Ошибка выдачи розничного прайса РОМБАК:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
 
 
 // ============================================
