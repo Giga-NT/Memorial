@@ -4827,10 +4827,21 @@ function buildPriceBreakdown() {
             return 0;
         }
         const amount = match.price * count;
+        const unit = product === 'curb'
+            ? 'п.м.'
+            : product === 'tile'
+                ? 'м²'
+                : finish === 'site_fill'
+                    ? 'м²'
+                    : finish.startsWith('site_layer:geotextile')
+                        ? 'м²'
+                        : finish.startsWith('site_layer:')
+                            ? 'м³'
+                            : 'шт.';
         total += amount;
         rows.push({
             name,
-            desc: `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽ × ${count}`,
+            desc: `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽/${unit} × ${Number(count).toFixed(2)} ${unit}`,
             price: amount
         });
         return amount;
