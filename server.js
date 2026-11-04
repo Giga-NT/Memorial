@@ -657,7 +657,9 @@ async function getPrices() {
     const result = {};
 
     rows.forEach(row => {
-        result[row.key] = Number(row.value);
+        if (ALLOWED_PRICE_KEYS.has(row.key)) {
+            result[row.key] = Number(row.value);
+        }
     });
 
     return result;
@@ -677,6 +679,7 @@ async function getPriceFlags() {
     const result = {};
 
     rows.forEach(row => {
+        if (!ALLOWED_PRICE_KEYS.has(row.key)) return;
         if (!result[row.key]) {
             result[row.key] = {};
         }
@@ -2606,8 +2609,30 @@ app.post('/api/order', async (req, res) => {
     const backPosY = data.backPosY || 0.64;
     const backPosZ = data.backPosZ || -0.69;
     
-    // --- СТОИМОСТЬ ---
-    const total = data.totalPrice || 0;
+    // --- ДЕТАЛЬНАЯ СМЕТА ---
+    const priceBreakdown = data.priceBreakdown && typeof data.priceBreakdown === 'object'
+        ? data.priceBreakdown
+        : { total: Number(data.totalPrice) || 0, rows: [], missingCatalogPrices: [] };
+    const breakdownRows = Array.isArray(priceBreakdown.rows) ? priceBreakdown.rows.slice(0, 500) : [];
+    const missingCatalogPrices = Array.isArray(priceBreakdown.missingCatalogPrices)
+        ? priceBreakdown.missingCatalogPrices.slice(0, 200)
+        : [];
+    const hasMissingPrices = missingCatalogPrices.length > 0 || breakdownRows.some(row => row?.missing === true);
+    const total = Number.isFinite(Number(priceBreakdown.total))
+        ? Number(priceBreakdown.total)
+        : (Number(data.totalPrice) || 0);
+    const formatMoney = value => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+    const breakdownRowsHtml = breakdownRows.map(row => {
+        const name = String(row?.name || 'Позиция');
+        const description = String(row?.desc || '');
+        const missing = row?.missing === true;
+        const amount = Number(row?.price);
+        const priceText = missing ? 'Цена не задана' : formatMoney(Number.isFinite(amount) ? amount : 0) + ' ₽';
+        return `<tr><td>${name}</td><td>${description}</td><td>${priceText}</td></tr>`;
+    }).join('');
+    const missingPricesHtml = missingCatalogPrices.length
+        ? `<p class="warning">Не заданы цены каталога: ${missingCatalogPrices.join('; ')}</p>`
+        : '';
     
     // ============================================================
     // 2. ФОРМИРУЕМ ПУТИ К ФАЙЛАМ
@@ -2734,6 +2759,7 @@ app.post('/api/order', async (req, res) => {
         backPosY: backPosY,
         backPosZ: backPosZ,
         totalPrice: total,
+        priceBreakdown: priceBreakdown,
         clientName: clientName,
         clientPhone: clientPhone,
         clientEmail: clientEmail,
@@ -2774,6 +2800,7 @@ app.post('/api/order', async (req, res) => {
             th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
             th { background-color: #f2f2f2; font-weight: bold; }
             .price-total { font-size: 28px; font-weight: bold; color: #00a896; }
+            .warning { color: #a33; background: #fff3cd; padding: 10px; border: 1px solid #e2c46d; }
             .detail-item { margin: 5px 0; }
             .highlight { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0; }
             .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -2880,8 +2907,14 @@ app.post('/api/order', async (req, res) => {
             <tr><th>Показывать мебель</th><td>${showFurniture ? '✅ Да' : '❌ Нет'}</td><th>Показывать вазы</th><td>${showVases ? '✅ Да' : '❌ Нет'}</td></tr>
         </table>
 
-        <h2>💰 СТОИМОСТЬ</h2>
-        <div class="price-total">${total.toLocaleString('ru-RU')} ₽</div>
+        <h2>💰 ДЕТАЛЬНАЯ СМЕТА</h2>
+        <table>
+            <thead><tr><th>Позиция</th><th>Описание / материал / размер / количество</th><th>Стоимость</th></tr></thead>
+            <tbody>${breakdownRowsHtml || '<tr><td colspan="3">Детализация не передана</td></tr>'}</tbody>
+        </table>
+        ${missingPricesHtml}
+        <h2>${hasMissingPrices ? 'ПРЕДВАРИТЕЛЬНЫЙ ИТОГ' : 'ИТОГО'}</h2>
+        <div class="price-total">${formatMoney(total)} ₽</div>
 
         <p style="margin-top: 30px; color: #888; font-size: 12px;">
             *Срок изготовления: 7-14 рабочих дней. Предоплата 50%.<br>
@@ -2925,7 +2958,7 @@ app.post('/api/order', async (req, res) => {
             from: EMAIL_USER,
             to: EMAIL_USER,
             subject: `🪦 ${projectName} - Смета на памятник + JSON проект`,
-            text: `Уважаемый клиент!\n\nПроект: ${projectName}\nКлиент: ${clientName}\nСтелa: ${steleName} (${steleW}×${steleH} м, ${steleMat})\nШрифт: ${fontFamily}\nСтоимость: ${total.toLocaleString('ru-RU')} ₽\n\nВо вложении:\n1. Смета.pdf — полный отчёт по заказу.\n2. project.json — проект для открытия в 3D конструкторе.\n\nС уважением, Giga-NT.`,
+            text: `Уважаемый клиент!\n\nПроект: ${projectName}\nКлиент: ${clientName}\nСтелa: ${steleName} (${steleW}×${steleH} м, ${steleMat})\nШрифт: ${fontFamily}\nСтоимость: ${formatMoney(total)} ₽${hasMissingPrices ? ' (предварительный расчёт: есть позиции без цены)' : ''}\n\nВо вложении:\n1. Смета.pdf — полный отчёт по заказу.\n2. project.json — проект для открытия в 3D конструкторе.\n\nС уважением, Giga-NT.`,
             attachments: [
                 {
                     filename: `Смета_${projectName.replace(/\s+/g, '_')}_${timestamp}.pdf`,
