@@ -4826,8 +4826,14 @@ function buildPriceBreakdown() {
             missingCatalogPrices.push(`${name}: ${material}, ${d.width_mm || 0}×${d.height_mm || 0}×${d.depth_mm || 0} мм, толщина ${d.thickness_mm || 0} мм${finish ? ', ' + finish : ''}`);
             return 0;
         }
-        addRow(name, `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽ × ${count}`, match.price * count);
-        return match.price * count;
+        const amount = match.price * count;
+        total += amount;
+        rows.push({
+            name,
+            desc: `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽ × ${count}`,
+            price: amount
+        });
+        return amount;
     };
     const addStoneLikeCharges = (name, workName, material, area, scale, dimensions = {}) => {
         const safeScale = Number(scale) > 0 ? Number(scale) : 1;
