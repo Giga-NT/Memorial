@@ -1596,6 +1596,8 @@ export async function updateMainMonument(
                 ? Number(state.baseHeight)
                 : 0.15,
 
+        baseEnabled: state.baseEnabled !== false,
+
 		// Материал стелы
 		material:
 			state.material || 'granite',
@@ -2019,8 +2021,9 @@ export async function updateMainMonument(
 		}
 	);
 
-	const base =
-		await createBase(baseParams);
+	const base = params.baseEnabled === false
+		? null
+		: await createBase(baseParams);
 
 	if (base) {
 		monumentGroup.add(base);
@@ -2351,6 +2354,8 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         baseHeight:
             data.baseHeight || 0.15,
 
+        baseEnabled: data.baseEnabled !== false,
+
         // ========================================================
         // СТЕЛА
         // ========================================================
@@ -2487,8 +2492,9 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         material: params.baseMaterial
     };
 
-    const base =
-        await createBase(baseParams);
+    const base = params.baseEnabled === false
+        ? null
+        : await createBase(baseParams);
 
     if (base) {
         group.add(base);
