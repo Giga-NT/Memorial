@@ -3867,6 +3867,14 @@ document.getElementById('fenceLength')?.addEventListener('input', function(e) {
 });
 
 // ⭐ ОБРАБОТЧИКИ ДЛЯ ГАЛОЧЕК ОТКЛЮЧЕНИЯ
+document.getElementById('baseEnabled')?.addEventListener('change', function(e) {
+    state.baseEnabled = e.target.checked;
+    const controls = document.getElementById('baseControls');
+    if (controls) controls.style.display = state.baseEnabled ? 'block' : 'none';
+    throttledUpdate();
+    calculatePrice();
+});
+
 document.getElementById('fenceEnabled')?.addEventListener('change', function(e) {
     state.fenceEnabled = e.target.checked;
     throttledUpdate();
