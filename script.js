@@ -4895,10 +4895,6 @@ function buildPriceBreakdown() {
         pedestalParts.join('; '),
         pedestalTotal
     );
-    if (missingCatalogPrices.length) {
-        rows.push({ name: '⚠️ Не найдена цена в прайсе', desc: missingCatalogPrices.join('; '), price: 0, missing: true });
-    }
-
     const backgroundPricePerM2 = getPriceValue('background_price_per_m2');
     let backgroundAreaTotal = 0;
     const backgroundParts = [];
@@ -5247,26 +5243,30 @@ function buildPriceBreakdown() {
     );
 
     const vases = window.vasesManager?.vases || [];
-    const vaseBasePrice = getPriceValue('vase_base_price'); // legacy fallback is not used for catalog-priced vases
     const vaseGroups = new Map();
     vases.forEach(vase => {
-        const material = vase.material || 'marble';
+        const material = vase.material || vase.config?.defaultMaterial || 'marble';
         const scale = Number(vase.scale) > 0 ? Number(vase.scale) : 1;
-        const unitPrice = vaseBasePrice * scale;
-        const vaseMatch = findMaterialPrice('other', material, {
+        const vaseType = vase.vaseType || 'standard';
+        const heightMm = Number(vase.config?.defaultHeight || 0.5) * 1000 * scale;
+        const vaseDimensions = {
             width_mm: 0,
-            height_mm: Number(vase.config?.defaultHeight || 0.5) * 1000 * scale,
+            height_mm: heightMm,
             depth_mm: 0,
             thickness_mm: 0
-        }, `vase:${vase.vaseType || 'standard'}`);
+        };
+        const vaseMatch = findMaterialPrice('other', material, vaseDimensions, `vase:${vaseType}`);
         if (!vaseMatch) {
-            missingCatalogPrices.push(`Ваза ${vase.config?.name || vase.vaseType || ''}: нет цены для материала ${material}, типа ${vase.vaseType || 'standard'}`);
+            missingCatalogPrices.push(
+                `Ваза ${vase.config?.name || vaseType}: материал ${material}, высота ${roundDimensionUp100(heightMm)} мм, тип vase:${vaseType}`
+            );
         }
         const effectiveVasePrice = vaseMatch ? vaseMatch.price : 0;
-        const key = `${material}|${scale}`;
+        const key = `${material}|${scale}|${vaseType}`;
         const group = vaseGroups.get(key) || {
             material,
             scale,
+            vaseType,
             count: 0,
             unitPrice: effectiveVasePrice,
             total: 0
@@ -5280,7 +5280,7 @@ function buildPriceBreakdown() {
         const materialName = materialPriceLabels[group.material] || group.material;
         addRow(
             '🏺 Вазы',
-            `${group.count} шт × ${group.unitPrice.toFixed(0)} ₽ (типовая 15×15×25 см, ${materialName}, масштаб ${group.scale.toFixed(1)})`,
+            `${group.count} шт × ${group.unitPrice.toFixed(0)} ₽ (${group.vaseType}, ${materialName}, масштаб ${group.scale.toFixed(1)})`,
             group.total
         );
         vaseSummaryParts.push(`${group.count} шт. (${materialName}, масштаб ${group.scale.toFixed(1)})`);
@@ -5321,12 +5321,22 @@ function buildPriceBreakdown() {
         }
     }
 
+    if (missingCatalogPrices.length) {
+        rows.push({
+            name: '⚠️ Не найдена цена в прайсе',
+            desc: [...new Set(missingCatalogPrices)].join('; '),
+            price: 0,
+            missing: true
+        });
+    }
+
     return {
         total,
         rows,
         details: rows.map(row => `${row.name}: ${row.price.toFixed(0)} ₽`),
         vaseCount: vases.length,
-        vaseSummary: vaseSummaryParts.join('; ')
+        vaseSummary: vaseSummaryParts.join('; '),
+        missingCatalogPrices: [...new Set(missingCatalogPrices)]
     };
 }
 
