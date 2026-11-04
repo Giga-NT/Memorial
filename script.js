@@ -4917,30 +4917,33 @@ function buildPriceBreakdown() {
 
     const tileWorkPrice = getPriceValue('tile_work_per_m2');
     let tileAreaTotal = 0;
-    let tileTotal = 0;
     const tileParts = [];
 
     monuments.forEach((monument, index) => {
         const area = monument.flowerEnabled !== false
             ? (Number(monument.flowerWidth) || 0) * (Number(monument.flowerLength) || 0)
             : 0;
-        const tileKey = getTilePriceKey(monument.tileMaterial);
-        if (!tileKey || area <= 0) return;
+        if (!['marble', 'gabbro', 'other'].includes(monument.tileMaterial) || area <= 0) return;
 
-        const tilePrice = getPriceValue(tileKey);
         tileAreaTotal += area;
-        tileTotal += area * (tilePrice + tileWorkPrice);
-        tileParts.push(
-            `№${index + 1}: ${tileMaterialLabels[monument.tileMaterial] || monument.tileMaterial}, ` +
-            `${area.toFixed(2)} м² × (${tilePrice} материал + ${tileWorkPrice} работа)`
+        addCatalogComponent(
+            `🧱 Плитка облицовки №${index + 1}`,
+            'tile',
+            monument.tileMaterial,
+            { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
+            'flowerbed_cladding',
+            area
         );
+        tileParts.push(`№${index + 1}: ${tileMaterialLabels[monument.tileMaterial] || monument.tileMaterial}, ${area.toFixed(2)} м²`);
     });
 
-    addRow(
-        '🧱 Плитка облицовки (верхняя плоскость)',
-        `Площадь: ${tileAreaTotal.toFixed(2)} м²; ${tileParts.join('; ')}`,
-        tileTotal
-    );
+    if (tileAreaTotal > 0) {
+        addRow(
+            '🔧 Работа по облицовке плиткой',
+            `Площадь: ${tileAreaTotal.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
+            tileAreaTotal * tileWorkPrice
+        );
+    }
 
     let engravingPriceTotal = 0;
     let engravingCount = 0;
@@ -5088,39 +5091,43 @@ function buildPriceBreakdown() {
             flowers: 'Цветы', marble_chips: 'Мраморная крошка'
         };
         if (tileMaterials) {
-            const tileMaterialPrice = surfaceType === 'slab'
-                ? (getPriceValue('path_slab_material_per_m2') || getPriceValue('path_tile_material_per_m2'))
-                : getPriceValue('path_tile_material_per_m2');
+            const catalogMaterial = surfaceType === 'slab'
+                ? (state.pathSlabMaterial || material)
+                : (state.pathPaverMaterial || material);
+            const tileSize = Math.max(0.01, Number(state.pathTileSize) || 0.3);
+            const tileDepthMm = surfaceType === 'slab' ? 60 : 60;
+            const tileCount = coverageArea / (tileSize * tileSize);
+            addCatalogComponent(
+                `🛤️ Покрытие площадки — ${surfaceLabel}`,
+                'tile',
+                catalogMaterial,
+                {
+                    width_mm: tileSize * 1000,
+                    height_mm: tileSize * 1000,
+                    depth_mm: tileDepthMm,
+                    thickness_mm: tileDepthMm
+                },
+                surfaceType,
+                tileCount
+            );
             const tileWorkPrice = surfaceType === 'slab'
                 ? (getPriceValue('path_slab_work_per_m2') || getPriceValue('path_tile_work_per_m2'))
                 : getPriceValue('path_tile_work_per_m2');
-            if (tileMaterialPrice > 0 || tileWorkPrice > 0) {
-                addRow(
-                    `🛤️ Покрытие площадки — ${surfaceLabel} (материал)`,
-                    `${materialLabels[material] || material}, ${coverageArea.toFixed(2)} м² × ${tileMaterialPrice} ₽/м²`,
-                    coverageArea * tileMaterialPrice
-                );
-                addRow(
-                    `🔧 Укладка ${surfaceLabel}`,
-                    `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
-                    coverageArea * tileWorkPrice
-                );
-            } else {
-                const legacyPrice = getPriceValue('bruschatka_per_m2');
-                addRow(
-                    `🛤️ ${surfaceLabel} — материал + укладка`,
-                    `${coverageArea.toFixed(2)} м² × ${legacyPrice} ₽/м² (старая единая ставка)`,
-                    coverageArea * legacyPrice
-                );
-            }
-        } else {
-            const materialPrice = getPriceValue(material);
-            const workPrice = getPriceValue('site_fill_work_per_m2');
             addRow(
-                `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
-                `${coverageArea.toFixed(2)} м² × ${materialPrice} ₽/м² материала`,
-                coverageArea * materialPrice
+                `🔧 Укладка ${surfaceLabel}`,
+                `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
+                coverageArea * tileWorkPrice
             );
+        } else {
+            addCatalogComponent(
+                `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
+                'other',
+                material,
+                { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
+                'site_fill',
+                coverageArea
+            );
+            const workPrice = getPriceValue('site_fill_work_per_m2');
             addRow(
                 '🔧 Устройство отсыпки / покрытия',
                 `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
@@ -5148,21 +5155,21 @@ function buildPriceBreakdown() {
 
         for (const layer of layerTotals.layers) {
             const thicknessCm = (layer.thickness * 100).toFixed(1);
-            if (layer.kind === 'sand') {
-                const rate = getPriceValue('site_sand_material_per_m3');
-                addRow(`🟨 ${layer.label} — материал`,
-                    `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
-                    layer.volume * rate);
-            } else if (layer.kind === 'gravel' || layer.kind === 'screenings') {
-                const rate = getPriceValue('site_crushed_stone_material_per_m3');
-                addRow(`🪨 ${layer.label} — материал`,
-                    `${layer.volume.toFixed(3)} м³ (${thicknessCm} см) × ${rate} ₽/м³`,
-                    layer.volume * rate);
-            } else if (layer.kind === 'geotextile') {
-                const rate = getPriceValue('site_geotextile_material_per_m2');
-                addRow(`🧵 ${layer.label} — материал`,
-                    `${layer.area.toFixed(2)} м² × ${rate} ₽/м²`,
-                    layer.area * rate);
+            if (layer.kind === 'sand' || layer.kind === 'gravel' || layer.kind === 'screenings' || layer.kind === 'geotextile') {
+                const isGeotextile = layer.kind === 'geotextile';
+                const materialKey = isGeotextile ? 'geotextile' : (layer.kind === 'sand' ? 'sand' : 'gravel');
+                const quantity = isGeotextile ? layer.area : layer.volume;
+                const unit = isGeotextile ? 'м²' : 'м³';
+                addCatalogComponent(
+                    `📦 ${layer.label} — материал`,
+                    'other',
+                    materialKey,
+                    { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
+                    `site_layer:${materialKey}`,
+                    quantity
+                );
+                void thicknessCm;
+                void unit;
             }
         }
         const compactionRate = getPriceValue('site_compaction_per_m3');
@@ -5186,25 +5193,22 @@ function buildPriceBreakdown() {
         const gateOpening = Math.min(requestedGateWidth, Math.max(0, gateSpan - curbWidth * 2));
         const perimeter = 2 * (width + length);
         const curbLength = Math.max(0, perimeter - gateOpening);
-        const materialKeys = {
-            granite: 'site_curb_granite_per_m',
-            black_galaxy: 'site_curb_black_galaxy_per_m',
-            red_granite: 'site_curb_red_granite_per_m',
-            beige_granite: 'site_curb_beige_granite_per_m',
-            gray_granite: 'site_curb_gray_granite_per_m',
-            concrete: 'site_curb_concrete_per_m',
-            marble: 'site_curb_marble_per_m',
-            brick: 'site_curb_brick_per_m'
-        };
-        const materialLabels = {
-            granite: 'Чёрный гранит', black_galaxy: 'Гранит Black Galaxy',
-            red_granite: 'Красный гранит', beige_granite: 'Бежевый гранит',
-            gray_granite: 'Серый гранит', concrete: 'Бетон', marble: 'Мрамор', brick: 'Кирпич'
-        };
-        const materialPrice = getPriceValue(materialKeys[state.curbMaterial] || materialKeys.granite);
-        addRow('🧱 Бордюр площадки — материал',
-            `${materialLabels[state.curbMaterial] || 'Гранит'}, ${curbLength.toFixed(2)} п.м. × ${materialPrice} ₽/п.м.`,
-            curbLength * materialPrice);
+        const curbMaterial = state.curbMaterial || 'granite';
+        const curbHeightMm = Number(state.curbHeight) * 1000;
+        const curbWidthMm = curbWidth * 1000;
+        addCatalogComponent(
+            '🧱 Бордюр площадки — материал',
+            'curb',
+            curbMaterial,
+            {
+                width_mm: 1000,
+                height_mm: curbHeightMm,
+                depth_mm: curbWidthMm,
+                thickness_mm: curbWidthMm
+            },
+            '',
+            curbLength
+        );
         if (state.curbInstallEnabled !== false) {
             const installPrice = getPriceValue('site_curb_install_per_m');
             addRow('🔧 Установка бордюра площадки',
@@ -6880,8 +6884,8 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         }
         
         // --- 12. СТОИМОСТЬ ---
-        const totalPriceEl = document.getElementById('totalPriceDisplay');
-        const totalPrice = parseInt(totalPriceEl?.textContent?.replace(/\D/g, '')) || 0;
+        const priceBreakdown = buildPriceBreakdown();
+        const totalPrice = priceBreakdown.total;
         
         // ============================================================
         // ФОРМИРУЕМ ДАННЫЕ ДЛЯ ОТПРАВКИ
@@ -7003,8 +7007,9 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             backPosY: 0.64,
             backPosZ: -0.69,
             
-            // Стоимость
-            totalPrice: totalPrice
+            // Стоимость — один и тот же расчёт используется в интерфейсе, заказе и PDF
+            totalPrice: totalPrice,
+            priceBreakdown: priceBreakdown
         };
         
         // ============================================================
