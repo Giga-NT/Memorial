@@ -4771,13 +4771,6 @@ const tileMaterialLabels = {
     other: 'Другое'
 };
 
-function getTilePriceKey(material) {
-    if (material === 'marble') return 'tile_marble_per_m2';
-    if (material === 'gabbro') return 'tile_gabbro_per_m2';
-    if (material === 'other') return 'tile_other_per_m2';
-    return '';
-}
-
 function getPricingMonuments() {
     const manager = window.multiMonumentManager;
     const duplicates = Array.isArray(manager?.monuments)
