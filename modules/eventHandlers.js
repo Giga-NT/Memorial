@@ -25,6 +25,14 @@ export function initFenceHandlers() {
 // ============================================================
 
 export function initCheckboxHandlers() {
+    document.getElementById('baseEnabled')?.addEventListener('change', function(e) {
+        window.state.baseEnabled = e.target.checked;
+        const controls = document.getElementById('baseControls');
+        if (controls) controls.style.display = window.state.baseEnabled ? 'block' : 'none';
+        window.throttledUpdate();
+        window.calculatePrice();
+    });
+
     document.getElementById('fenceEnabled')?.addEventListener('change', function(e) {
         window.state.fenceEnabled = e.target.checked;
         window.throttledUpdate();
