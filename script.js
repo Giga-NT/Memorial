@@ -5007,29 +5007,47 @@ function buildPriceBreakdown() {
         /* расчёт добавим позже */
     }
 
-    if (state.flowerEnabled) {
-        const flowerArea = state.flowerWidth * state.flowerLength;
-        if (state.flowerbedMode === 'slab') {
-            const slabMaterial = state.graveSlabMaterial || 'granite';
-            const slabScale = Number(state.graveSlabScale) > 0 ? Number(state.graveSlabScale) : 1;
+    monuments.forEach((monument, index) => {
+        if (monument.flowerEnabled === false) return;
+        const flowerWidth = Number(monument.flowerWidth) || 0;
+        const flowerLength = Number(monument.flowerLength) || 0;
+        if (flowerWidth <= 0 || flowerLength <= 0) return;
+
+        const flowerArea = flowerWidth * flowerLength;
+        if ((monument.flowerbedMode || state.flowerbedMode) === 'slab') {
+            const slabMaterial = monument.graveSlabMaterial || state.graveSlabMaterial || monument.material || 'granite';
+            const slabScale = Number(monument.graveSlabScale ?? state.graveSlabScale) > 0
+                ? Number(monument.graveSlabScale ?? state.graveSlabScale)
+                : 1;
             addStoneLikeCharges(
-                '🪦 Надгробная плита',
-                '🔧 Изготовление плиты',
+                `🪦 Надгробная плита №${index + 1}`,
+                `🔧 Изготовление плиты №${index + 1}`,
                 slabMaterial,
                 flowerArea,
                 slabScale,
-                { width_mm: Number(monument.flowerWidth) * 1000, height_mm: Number(monument.flowerLength) * 1000, depth_mm: 50, thickness_mm: 50 }
+                {
+                    width_mm: flowerWidth * 1000,
+                    height_mm: flowerLength * 1000,
+                    depth_mm: 50,
+                    thickness_mm: 50
+                }
             );
         } else {
             const flowerMaterial = monument.borderMaterial || monument.baseMaterial || monument.material || 'granite';
-            addCatalogComponent('🌿 Цветник', 'flowerbed', flowerMaterial, {
-                width_mm: Number(monument.flowerWidth) * 1000,
-                height_mm: Number(monument.flowerLength) * 1000,
-                depth_mm: 50,
-                thickness_mm: 50
-            }, monument.flowerbedFinish || '');
+            addCatalogComponent(
+                `🌿 Цветник №${index + 1}`,
+                'flowerbed',
+                flowerMaterial,
+                {
+                    width_mm: flowerWidth * 1000,
+                    height_mm: flowerLength * 1000,
+                    depth_mm: 50,
+                    thickness_mm: 50
+                },
+                monument.flowerbedFinish || ''
+            );
         }
-    }
+    });
 
     if (state.fenceEnabled && state.fenceType !== 'none') {
         const fenceWidth = Number(state.fenceWidth) || 0;
