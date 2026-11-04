@@ -391,8 +391,7 @@ const ALLOWED_PRICE_KEYS = new Set([
     'site_compaction_per_m3', 'path_tile_work_per_m2',
     'path_slab_work_per_m2', 'site_curb_install_per_m',
     'install_full_set', 'install_flowerbed_base', 'install_pedestal_percent',
-    'tile_work_per_m2', 'stele_base_price', 'stele_thickness_factor',
-    'pedestal_price', 'decoration_volume', 'decoration_engraving'
+    'tile_work_per_m2', 'decoration_volume', 'decoration_engraving'
 ]);
 
 
@@ -445,9 +444,6 @@ const DEFAULT_PRICES = {
     install_flowerbed_base: 25000,
     install_pedestal_percent: 10,
     tile_work_per_m2: 1000,
-    stele_base_price: 0,
-    stele_thickness_factor: 1,
-    pedestal_price: 0,
     decoration_volume: 0,
     decoration_engraving: 0
 };
