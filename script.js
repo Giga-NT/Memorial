@@ -7242,12 +7242,11 @@ function generateEstimatePDF() {
         const row = tableRows[i];
         const safeName = escapeHTML(row.name);
         const safeDesc = escapeHTML(row.desc);
-        html += `<tr><td>${safeName}</td><td style="font-size:13px;color:#555;">${safeDesc}</td><td class="price">${row.price.toFixed(0)} ₽</td></tr>`;
+        const priceLabel = row.missing === true
+            ? '<strong style="color:#a15c00;">Цена не задана</strong>'
+            : `${Number(row.price || 0).toFixed(0)} ₽`;
+        html += `<tr><td>${safeName}</td><td style="font-size:13px;color:#555;">${safeDesc}</td><td class="price">${priceLabel}</td></tr>`;
     }
-
-    (missingCatalogPrices || []).forEach((item) => {
-        html += `<tr><td>${escapeHTML(item)}</td><td style="font-size:13px;color:#a15c00;">Требуется добавить позицию в каталог материалов</td><td class="price" style="color:#a15c00;font-weight:bold;">Цена не задана</td></tr>`;
-    });
 
     const hasMissingPrices = Array.isArray(missingCatalogPrices) && missingCatalogPrices.length > 0;
     html += `
