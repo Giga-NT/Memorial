@@ -7062,7 +7062,8 @@ function generateEstimatePDF() {
         total,
         rows: tableRows,
         vaseCount,
-        vaseSummary
+        vaseSummary,
+        missingCatalogPrices
     } = buildPriceBreakdown();
     
     // ========== 11. ДЕЛАЕМ СКРИНШОТЫ ==========
@@ -7238,9 +7239,14 @@ function generateEstimatePDF() {
         const safeDesc = escapeHTML(row.desc);
         html += `<tr><td>${safeName}</td><td style="font-size:13px;color:#555;">${safeDesc}</td><td class="price">${row.price.toFixed(0)} ₽</td></tr>`;
     }
-    
+
+    (missingCatalogPrices || []).forEach((item) => {
+        html += `<tr><td>${escapeHTML(item)}</td><td style="font-size:13px;color:#a15c00;">Требуется добавить позицию в каталог материалов</td><td class="price" style="color:#a15c00;font-weight:bold;">Цена не задана</td></tr>`;
+    });
+
+    const hasMissingPrices = Array.isArray(missingCatalogPrices) && missingCatalogPrices.length > 0;
     html += `
-                <tr class="total-row"><td colspan="2" style="font-size:20px;">ИТОГО:</td><td class="price"><span class="total-amount">${total.toFixed(0)} ₽</span></td></tr>
+                <tr class="total-row"><td colspan="2" style="font-size:20px;">${hasMissingPrices ? 'ПРЕДВАРИТЕЛЬНЫЙ ИТОГ:' : 'ИТОГО:'}</td><td class="price"><span class="total-amount">${total.toFixed(0)} ₽</span></td></tr>
             </tbody>
         </table>
     </div>
