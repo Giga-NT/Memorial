@@ -832,6 +832,7 @@ const state = {
     graveWidth: 0.9,
     graveLength: 1.5,
     baseHeight: 0.15,
+    baseEnabled: true,
     flowerWidth: 0.6,
     flowerLength: 0.9,
 	flowerLength: 0.9,
@@ -5080,6 +5081,7 @@ function buildPriceBreakdown() {
     if (state.pathEnabled) {
         const siteArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
         const monumentsArea = monuments.reduce((sum, monument) => {
+            if (monument.baseEnabled === false) return sum;
             const baseWidth = Number(monument.graveWidth) || 0.9;
             const baseLength = Number(monument.graveLength) || 1.5;
             return sum + baseWidth * baseLength;
@@ -6936,6 +6938,7 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             graveWidth,
             graveLength,
             baseHeight,
+            baseEnabled: state.baseEnabled !== false,
             
             // Цветник
             flowerEnabled,
@@ -7212,7 +7215,7 @@ function generateEstimatePDF() {
         <div class="params-grid">
             <div class="item"><span class="label">Стела:</span><span class="value">${state.width.toFixed(1)}×${state.height.toFixed(1)} м</span></div>
             <div class="item"><span class="label">Материал:</span><span class="value">${safeMaterial}</span></div>
-            <div class="item"><span class="label">Основание:</span><span class="value">${state.graveWidth.toFixed(1)}×${state.graveLength.toFixed(1)} м</span></div>
+            <div class="item"><span class="label">Основание:</span><span class="value">${state.baseEnabled === false ? 'Нет' : state.graveWidth.toFixed(1)+'×'+state.graveLength.toFixed(1)+' м'}</span></div>
             <div class="item"><span class="label">Цветник:</span><span class="value">${state.flowerEnabled ? state.flowerWidth.toFixed(1)+'×'+state.flowerLength.toFixed(1)+' м ('+safeFlowerbed+')' : 'Нет'}</span></div>
             <div class="item"><span class="label">Оградка:</span><span class="value">${safeFenceType} (высота ${state.fenceHeight.toFixed(1)} м)</span></div>
             <div class="item"><span class="label">Вход:</span><span class="value">${state.fenceGateSide !== 'none' ? state.fenceGateSide : 'Нет'}</span></div>
