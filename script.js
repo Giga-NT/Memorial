@@ -86,7 +86,7 @@ import {
 
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+    document.addEventListener('DOMContentLoaded', initSteleTypeHandlers);\n    document.addEventListener('DOMContentLoaded', initSteleSizeHandlers);\n    document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
     document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
     initPhotoScaleHandler();
