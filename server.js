@@ -2444,12 +2444,18 @@ app.post('/api/admin/supplier-catalog/import', requireAdmin, async (req, res) =>
         const supplierPrice = rawPrice === null || rawPrice === undefined || rawPrice === ''
             ? null : Number(rawPrice);
         const markup = Number(row?.markup_percent ?? defaultMarkup);
+        const appProduct = String(row?.app_product || '').trim();
+        const appMaterial = String(row?.app_material || '').trim();
+        const appFinish = String(row?.app_finish || '').trim().slice(0, 255);
+        const isAppItem = row?.is_app_item === true || row?.is_app_item === 1;
+        const allowedAppProducts = new Set(['stele', 'pedestal', 'flowerbed', 'grave_slab', 'tile', 'curb', 'other']);
         if (!externalKey || !name || !allowedCategories.has(category) ||
             !allowedCurrencies.has(currency) ||
             dimensions.some(value => !Number.isInteger(value) || value < 0 || value > 10000) ||
             (supplierPrice !== null && (!Number.isFinite(supplierPrice) || supplierPrice < 0 || supplierPrice > 1000000000)) ||
-            !Number.isFinite(markup) || markup < 0 || markup > 1000) {
-            return res.status(400).json({ success: false, message: 'Проверьте артикул/ключ, категорию, название, валюту, размеры и цену' });
+            !Number.isFinite(markup) || markup < 0 || markup > 1000 ||
+            (isAppItem && (!allowedAppProducts.has(appProduct) || !/^[a-z0-9_-]{1,64}$/.test(appMaterial) || currency !== 'RUB' || supplierPrice === null))) {
+            return res.status(400).json({ success: false, message: 'Проверьте артикул/ключ, категорию, название, валюту, размеры, цену и привязку к конструктору' });
         }
         if (currency !== 'RUB' && supplierPrice !== null && row?.customer_price !== null && row?.customer_price !== undefined) {
             return res.status(400).json({ success: false, message: 'Клиентская цена для валютной позиции рассчитывается только после конвертации в рубли' });
@@ -2468,10 +2474,7 @@ app.post('/api/admin/supplier-catalog/import', requireAdmin, async (req, res) =>
             finish: String(row?.finish || '').trim().slice(0, 255),
             unit: String(row?.unit || 'шт.').trim().slice(0, 24) || 'шт.',
             supplierPrice, currency, markup, customerPrice,
-            appProduct: String(row?.app_product || '').trim().slice(0, 64),
-            appMaterial: String(row?.app_material || '').trim().slice(0, 64),
-            appFinish: String(row?.app_finish || '').trim().slice(0, 255),
-            isAppItem: row?.is_app_item === true || row?.is_app_item === 1 ? 1 : 0,
+            appProduct, appMaterial, appFinish, isAppItem: isAppItem ? 1 : 0,
             sourcePage: Number.isInteger(Number(row?.source_page)) && Number(row?.source_page) > 0 ? Number(row.source_page) : null
         });
     }
