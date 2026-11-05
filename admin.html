@@ -1973,7 +1973,11 @@
         if (!row || !field) return;
         if (field === 'price_status') {
             row.price_status = event.target.value;
-            if (row.price_status !== 'priced') row.price = null;
+            if (row.price_status !== 'priced') {
+                row.price = null;
+                const priceInput = tr.querySelector('[data-field="price"]');
+                if (priceInput) priceInput.value = '';
+            }
         } else if (field === 'material') {
             if (event.target.value === '__custom__') {
                 const custom = prompt('Введите название материала');
@@ -1993,7 +1997,6 @@
         } else if (['width_mm','height_mm','depth_mm','thickness_mm'].includes(field)) {
             row[field] = Number(event.target.value);
         } else row[field] = event.target.value;
-        renderSupplierCatalog();
     });
 
     supplierCatalogWrap.addEventListener('click', event => {
