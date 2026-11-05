@@ -4785,16 +4785,8 @@ const tileMaterialLabels = {
 };
 
 function getPricingMonuments() {
-    const manager = window.multiMonumentManager;
-    const duplicates = Array.isArray(manager?.monuments)
-        ? manager.monuments.map((monument, index) => {
-            const pending = manager.pendingIndex === index ? manager.pendingChanges : null;
-            return pending
-                ? { ...(monument.data || {}), ...pending }
-                : (monument.data || {});
-        })
-        : [];
-    return [state, ...duplicates];
+    // Пока рассчитываем только основной памятник.
+    return [state];
 }
 
 function getActivePricingMonument() {
@@ -4881,12 +4873,24 @@ function buildPriceBreakdown() {
             depth_mm: 0,
             thickness_mm: depth * 1000
         };
-        const match = findMaterialPrice('stele', material, dimensions, monument.steleFinish || '');
-        if (match) {
-            steleTotal += match.price;
-            steleParts.push(`№${index + 1}: ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.thickness_mm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}, ${match.price} ₽`);
+        const baseRow = materialPriceRows.find(row =>
+            row.material === material &&
+            row.product === 'stele' &&
+            Number(row.width_mm) > 0 &&
+            Number(row.height_mm) > 0 &&
+            Number(row.thickness_mm) > 0 &&
+            Number(row.price) > 0
+        );
+        if (baseRow) {
+            const baseVolume = Number(baseRow.width_mm) * Number(baseRow.height_mm) * Number(baseRow.thickness_mm);
+            const currentVolume = dimensions.width_mm * dimensions.height_mm * dimensions.thickness_mm;
+            const calculatedPrice = baseVolume > 0
+                ? Number(baseRow.price) * currentVolume / baseVolume
+                : 0;
+            steleTotal += calculatedPrice;
+            steleParts.push(`Основной памятник: ${dimensions.width_mm}×${dimensions.height_mm}×${dimensions.thickness_mm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}; базовая цена ${Number(baseRow.price)} ₽ за ${baseRow.width_mm}×${baseRow.height_mm}×${baseRow.thickness_mm} мм; расчётная цена ${Math.round(calculatedPrice)} ₽`);
         } else {
-            missingCatalogPrices.push(`Стела №${index + 1}: ${material}, ${roundDimensionUp100(dimensions.width_mm)}×${roundDimensionUp100(dimensions.height_mm)}×${roundDimensionUp100(dimensions.thickness_mm)} мм (Ш×В×Т)`);
+            missingCatalogPrices.push(`Стела: в прайсе не задана базовая цена для материала ${material}`);
         }
 
         if (monument.pedestalEnabled !== false) {
