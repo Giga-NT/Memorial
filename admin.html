@@ -364,23 +364,6 @@
             font-size: 12px;
         }
 
-        .supplier-catalog-toolbar {
-            display:flex; flex-wrap:wrap; align-items:center; gap:10px;
-            margin:12px 0;
-        }
-        .supplier-catalog-toolbar select { width:auto; min-width:180px; }
-        .supplier-catalog-table { width:100%; border-collapse:collapse; min-width:1450px; }
-        .supplier-catalog-table th,.supplier-catalog-table td {
-            padding:8px; border-bottom:1px solid #e8e9eb; text-align:left; vertical-align:middle;
-        }
-        .supplier-catalog-table th { background:#f7f8fa; font-size:12px; white-space:nowrap; }
-        .supplier-catalog-table input,.supplier-catalog-table select { min-width:90px; padding:8px; }
-        .supplier-catalog-table .wide-input { min-width:170px; }
-        .supplier-catalog-note { color:#666; font-size:13px; line-height:1.45; }
-        .supplier-catalog-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
-        .supplier-catalog-tabs button.active { background:#222; color:#fff; }
-        .supplier-status { min-width:145px; }
-        
         /* =========================================
            FOOTER ACTIONS
         ========================================= */
@@ -1034,41 +1017,13 @@
 
 
 
-        <section class="price-category open" id="supplier-catalog">
-            <button type="button" class="category-header" onclick="toggleCategory(this)">
-                <span class="category-title"><span class="category-arrow">▶</span> 📦 Закупочные материалы и поставщики</span>
-                <span class="category-count">новый каталог</span>
-            </button>
-            <div class="category-content" style="padding:16px">
-                <p class="supplier-catalog-note">
-                    Здесь хранятся закупочные цены отдельно от клиентских цен. Стеллы — только прямые заготовки с полировкой 5 сторон.
-                    Цветники и тумбы — готовые изделия без доработки. Цена «по запросу» не подменяется нулём.
-                </p>
-                <div id="supplier-catalog-tabs" class="supplier-catalog-tabs">
-                    <button type="button" class="active" data-catalog-category="stele_blank">Стеллы-заготовки</button>
-                    <button type="button" data-catalog-category="flowerbed">Готовые цветники</button>
-                    <button type="button" data-catalog-category="pedestal">Готовые тумбы</button>
-                </div>
-                <div class="supplier-catalog-toolbar">
-                    <strong id="supplier-catalog-current">Стеллы-заготовки</strong>
-                    <button type="button" id="supplier-catalog-add">＋ Добавить позицию</button>
-                    <button type="button" class="secondary" id="supplier-catalog-reload">Обновить</button>
-                </div>
-                <div id="supplier-catalog-table-wrap" style="overflow-x:auto"></div>
-                <p id="supplier-catalog-message" role="status" class="flag-hint"></p>
-                <div class="actions" style="position:static;box-shadow:none;margin-top:12px">
-                    <button type="button" id="supplier-catalog-save">Сохранить закупочный каталог</button>
-                </div>
-            </div>
-        </section>
-
         <section class="price-category open" id="material-pricing">
             <button type="button" class="category-header" onclick="toggleCategory(this)">
-                <span class="category-title"><span class="category-arrow">▶</span> 🧾 Дополнительный клиентский прайс (старый)</span>
+                <span class="category-title"><span class="category-arrow">▶</span> 🪨 Клиентский прайс по материалам</span>
                 <span class="category-count">редактируемые цены</span>
             </button>
             <div class="category-content" style="padding:16px">
-                <p class="intro">Это прежняя таблица клиентских цен, сохранённая для совместимости с действующим расчётом. Новые закупочные цены поставщиков редактируются в разделе выше.</p>
+                <p class="intro">Здесь задаются единственные клиентские цены материалов и изделий. Добавьте строки по материалу, изделию, размерам, толщине и обработке. Размеры указываются в миллиметрах; при поиске расчёт округляет размеры вверх до ближайших 100 мм. Для плитки цена задаётся за м², для бордюра — за погонный метр, для штучных изделий — за штуку.</p>
                 <div id="material-tabs" class="material-tabs" role="tablist"></div>
                 <div class="material-price-toolbar">
                     <strong id="material-current-label">Материал</strong>
@@ -1775,7 +1730,6 @@
         materialRows = Array.isArray(result.rows) ? result.rows : [];
         renderMaterialPriceEditor();
         materialMessage.textContent = 'Строк в прайсе: '+materialRows.length;
-        await loadSupplierCatalog();
     }
     function renderMaterialPriceEditor() {
         materialTabs.innerHTML = MATERIALS.map(([key,label]) =>
@@ -1828,213 +1782,6 @@
             materialRows=result.rows||materialRows;renderMaterialPriceEditor();materialMessage.textContent='Сохранено строк: '+result.saved;
         }catch(error){materialMessage.textContent=error.message;}
         finally{button.disabled=false;}
-    });
-
-    // =========================================
-    // НОВЫЙ ЗАКУПОЧНЫЙ КАТАЛОГ
-    // =========================================
-    const supplierCategoryNames = {
-        stele_blank: 'Стеллы-заготовки',
-        flowerbed: 'Готовые цветники',
-        pedestal: 'Готовые тумбы'
-    };
-    const supplierMaterialOptions = [
-        'Габбро-Диабаз','Дымовский','Амфиболит','Абсолют Блэк','Шанси-Блэк',
-        'Тан Браун','Визаж Блю','Габбро Китай','Роял Вайт','Кордай','Пироксенит',
-        'Империал Ред','Сибирский','Жельтау','Мансуровский','Исетский',
-        'Диорит (серый гранит)','Красный гранит','Песчаник','Другой материал'
-    ];
-    let supplierCatalogRows = [];
-    let activeSupplierCategory = 'stele_blank';
-    const supplierCatalogWrap = document.getElementById('supplier-catalog-table-wrap');
-    const supplierCatalogMessage = document.getElementById('supplier-catalog-message');
-    const supplierEsc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[ch]));
-
-    async function loadSupplierCatalog() {
-        const response = await fetch('/api/admin/supplier-catalog', {
-            credentials: 'include', cache: 'no-store'
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-            throw new Error(result.message || 'Не удалось загрузить закупочный каталог');
-        }
-        supplierCatalogRows = Array.isArray(result.rows) ? result.rows : [];
-        renderSupplierCatalog();
-        supplierCatalogMessage.textContent = 'Закупочных позиций: ' + supplierCatalogRows.length;
-    }
-
-    function renderSupplierCatalog() {
-        document.querySelectorAll('[data-catalog-category]').forEach(button => {
-            button.classList.toggle('active', button.dataset.catalogCategory === activeSupplierCategory);
-        });
-        document.getElementById('supplier-catalog-current').textContent =
-            supplierCategoryNames[activeSupplierCategory];
-
-        const rows = supplierCatalogRows.map((row, index) => ({...row, _index:index}))
-            .filter(row => row.category === activeSupplierCategory);
-        const materials = supplierMaterialOptions.map(value =>
-            '<option value="' + supplierEsc(value) + '">' + supplierEsc(value) + '</option>'
-        ).join('');
-        const statuses = [
-            ['priced','Цена указана'],
-            ['on_request','Запросить цену'],
-            ['not_listed','Нет в прайсе']
-        ].map(([value,label]) => '<option value="' + value + '">' + label + '</option>').join('');
-
-        supplierCatalogWrap.innerHTML =
-            '<table class="supplier-catalog-table"><thead><tr>' +
-            '<th>Поставщик</th><th>Артикул</th><th>Модель / изделие</th>' +
-            '<th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм</th><th>Толщина, мм</th>' +
-            '<th>Материал</th><th>Закупочная цена, ₽</th><th>Статус цены</th><th>Вес, кг</th><th>Примечание</th><th></th>' +
-            '</tr></thead><tbody>' +
-            rows.map(row => {
-                const price = row.price == null ? '' : Number(row.price);
-                return '<tr data-supplier-index="' + row._index + '">' +
-                    '<td><input class="wide-input" data-field="supplier" value="' + supplierEsc(row.supplier) + '" placeholder="Поставщик"></td>' +
-                    '<td><input data-field="article" value="' + supplierEsc(row.article) + '" placeholder="Артикул"></td>' +
-                    '<td><input class="wide-input" data-field="product_name" value="' + supplierEsc(row.product_name) + '" placeholder="Название / модель"></td>' +
-                    ['width_mm','height_mm','depth_mm','thickness_mm'].map(key =>
-                        '<td><input type="number" min="0" step="1" data-field="' + key + '" value="' + Number(row[key] || 0) + '"></td>'
-                    ).join('') +
-                    '<td><select data-field="material">' + materials + '<option value="__custom__">Другое…</option></select></td>' +
-                    '<td><input type="number" min="0" step="0.01" data-field="price" value="' + price + '" placeholder="—"></td>' +
-                    '<td><select class="supplier-status" data-field="price_status">' + statuses + '</select></td>' +
-                    '<td><input type="number" min="0" step="0.01" data-field="weight_kg" value="' + (row.weight_kg ?? '') + '"></td>' +
-                    '<td><input class="wide-input" data-field="notes" value="' + supplierEsc(row.notes) + '" placeholder="Примечание"></td>' +
-                    '<td><button type="button" class="danger" data-supplier-delete="' + row._index + '">Удалить</button></td>' +
-                    '</tr>';
-            }).join('') +
-            '</tbody></table>';
-
-        rows.forEach(row => {
-            const tr = supplierCatalogWrap.querySelector('tr[data-supplier-index="' + row._index + '"]');
-            const materialSelect = tr?.querySelector('[data-field="material"]');
-            if (materialSelect) {
-                if (supplierMaterialOptions.includes(row.material)) materialSelect.value = row.material;
-                else {
-                    materialSelect.value = '__custom__';
-                    const custom = document.createElement('option');
-                    custom.value = row.material;
-                    custom.textContent = row.material;
-                    materialSelect.appendChild(custom);
-                    materialSelect.value = row.material;
-                }
-            }
-            const statusSelect = tr?.querySelector('[data-field="price_status"]');
-            if (statusSelect) statusSelect.value = row.price_status || 'not_listed';
-        });
-    }
-
-    document.getElementById('supplier-catalog-tabs').addEventListener('click', event => {
-        const button = event.target.closest('[data-catalog-category]');
-        if (!button) return;
-        activeSupplierCategory = button.dataset.catalogCategory;
-        renderSupplierCatalog();
-    });
-
-    document.getElementById('supplier-catalog-add').addEventListener('click', () => {
-        supplierCatalogRows.push({
-            category: activeSupplierCategory,
-            supplier: activeSupplierCategory === 'stele_blank' || activeSupplierCategory === 'flowerbed' || activeSupplierCategory === 'pedestal'
-                ? 'Глобал Стоун' : '',
-            article: '',
-            product_name: '',
-            width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0,
-            material: 'Габбро-Диабаз',
-            price: null, price_status: 'not_listed', weight_kg: null, notes: ''
-        });
-        renderSupplierCatalog();
-        supplierCatalogWrap.querySelector('tbody tr:last-child input')?.focus();
-    });
-
-    supplierCatalogWrap.addEventListener('input', event => {
-        const tr = event.target.closest('tr[data-supplier-index]');
-        if (!tr) return;
-        const row = supplierCatalogRows[Number(tr.dataset.supplierIndex)];
-        const field = event.target.dataset.field;
-        if (!row || !field) return;
-        if (field === 'price' || field === 'weight_kg') {
-            row[field] = event.target.value.trim() === '' ? null : Number(event.target.value);
-        } else if (['width_mm','height_mm','depth_mm','thickness_mm'].includes(field)) {
-            row[field] = Number(event.target.value);
-        } else {
-            row[field] = event.target.value;
-        }
-        if (field === 'price') {
-            row.price_status = row.price != null && row.price > 0 ? 'priced' : 'not_listed';
-            const statusSelect = tr.querySelector('[data-field="price_status"]');
-            if (statusSelect) statusSelect.value = row.price_status;
-        }
-    });
-
-    supplierCatalogWrap.addEventListener('change', event => {
-        const tr = event.target.closest('tr[data-supplier-index]');
-        if (!tr) return;
-        const row = supplierCatalogRows[Number(tr.dataset.supplierIndex)];
-        const field = event.target.dataset.field;
-        if (!row || !field) return;
-        if (field === 'price_status') {
-            row.price_status = event.target.value;
-            if (row.price_status !== 'priced') {
-                row.price = null;
-                const priceInput = tr.querySelector('[data-field="price"]');
-                if (priceInput) priceInput.value = '';
-            }
-        } else if (field === 'material') {
-            if (event.target.value === '__custom__') {
-                const custom = prompt('Введите название материала');
-                if (custom && custom.trim()) {
-                    row.material = custom.trim();
-                    const option = document.createElement('option');
-                    option.value = row.material;
-                    option.textContent = row.material;
-                    event.target.appendChild(option);
-                    event.target.value = row.material;
-                } else {
-                    event.target.value = row.material;
-                }
-            } else row.material = event.target.value;
-        } else if (field === 'price' || field === 'weight_kg') {
-            row[field] = event.target.value.trim() === '' ? null : Number(event.target.value);
-        } else if (['width_mm','height_mm','depth_mm','thickness_mm'].includes(field)) {
-            row[field] = Number(event.target.value);
-        } else row[field] = event.target.value;
-    });
-
-    supplierCatalogWrap.addEventListener('click', event => {
-        const button = event.target.closest('[data-supplier-delete]');
-        if (!button) return;
-        supplierCatalogRows.splice(Number(button.dataset.supplierDelete), 1);
-        renderSupplierCatalog();
-    });
-
-    document.getElementById('supplier-catalog-reload').addEventListener('click', async () => {
-        try { await loadSupplierCatalog(); }
-        catch (error) { supplierCatalogMessage.textContent = error.message; }
-    });
-
-    document.getElementById('supplier-catalog-save').addEventListener('click', async () => {
-        const button = document.getElementById('supplier-catalog-save');
-        button.disabled = true;
-        try {
-            const response = await fetch('/api/admin/supplier-catalog', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({rows:supplierCatalogRows})
-            });
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Не удалось сохранить каталог');
-            supplierCatalogRows = result.rows || supplierCatalogRows;
-            renderSupplierCatalog();
-            supplierCatalogMessage.textContent = 'Сохранено закупочных позиций: ' + result.saved;
-        } catch (error) {
-            supplierCatalogMessage.textContent = error.message;
-        } finally {
-            button.disabled = false;
-        }
     });
 
     // =========================================
