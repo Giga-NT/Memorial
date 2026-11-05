@@ -1212,6 +1212,52 @@ async function initDB() {
     `);
 
     // ========================================
+    // ПОЛНЫЙ КАТАЛОГ ПОСТАВЩИКОВ (не заменяет рабочие строки конфигуратора)
+    // ========================================
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS supplier_catalog_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            supplier TEXT NOT NULL,
+            external_key TEXT NOT NULL,
+            article TEXT NOT NULL DEFAULT '',
+            category TEXT NOT NULL,
+            name TEXT NOT NULL,
+            material TEXT NOT NULL DEFAULT '',
+            width_mm INTEGER NOT NULL DEFAULT 0,
+            height_mm INTEGER NOT NULL DEFAULT 0,
+            depth_mm INTEGER NOT NULL DEFAULT 0,
+            thickness_mm INTEGER NOT NULL DEFAULT 0,
+            finish TEXT NOT NULL DEFAULT '',
+            unit TEXT NOT NULL DEFAULT 'шт.',
+            supplier_price REAL CHECK(supplier_price IS NULL OR supplier_price >= 0),
+            currency TEXT NOT NULL DEFAULT 'RUB',
+            markup_percent REAL NOT NULL DEFAULT 100,
+            customer_price REAL CHECK(customer_price IS NULL OR customer_price >= 0),
+            customer_price_override REAL CHECK(customer_price_override IS NULL OR customer_price_override >= 0),
+            app_product TEXT NOT NULL DEFAULT '',
+            app_material TEXT NOT NULL DEFAULT '',
+            app_finish TEXT NOT NULL DEFAULT '',
+            is_app_item INTEGER NOT NULL DEFAULT 0,
+            source_file TEXT NOT NULL DEFAULT '',
+            source_page INTEGER,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(supplier, external_key)
+        )
+    `);
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS supplier_catalog_imports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            supplier TEXT NOT NULL,
+            source_file TEXT NOT NULL DEFAULT '',
+            imported_rows INTEGER NOT NULL DEFAULT 0,
+            markup_percent REAL NOT NULL DEFAULT 100,
+            imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // ========================================
     // ПРАЙС РОМБАК (историческая таблица БД; не используется в интерфейсе или расчёте)
 
     // ========================================
@@ -2340,6 +2386,159 @@ app.post('/api/admin/material-prices', requireAdmin, async (req, res) => {
         try { await dbRun('ROLLBACK'); } catch (_) {}
         console.error('Ошибка сохранения клиентского прайса:', error);
         res.status(500).json({ success:false, message:'Не удалось сохранить прайс' });
+    }
+});
+
+// ============================================
+// API: ПОЛНЫЙ КАТАЛОГ ТОВАРОВ ПОСТАВЩИКА
+// Импорт выполняется через UPSERT: существующие товары и рабочий прайс не удаляются.
+// ============================================
+app.get('/api/admin/supplier-catalog', requireAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT id, supplier, external_key, article, category, name, material,
+                   width_mm, height_mm, depth_mm, thickness_mm, finish, unit,
+                   supplier_price, currency, markup_percent, customer_price,
+                   customer_price_override, app_product, app_material, app_finish,
+                   is_app_item, source_file, source_page, active, updated_at
+            FROM supplier_catalog_items
+            ORDER BY category, name, article, material, width_mm, height_mm, depth_mm
+        `);
+        const stats = await dbGet(`
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN supplier_price IS NOT NULL THEN 1 ELSE 0 END) AS priced,
+                   SUM(CASE WHEN supplier_price IS NULL THEN 1 ELSE 0 END) AS unpriced,
+                   SUM(CASE WHEN is_app_item = 1 THEN 1 ELSE 0 END) AS app_items
+            FROM supplier_catalog_items
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, rows, stats: stats || {} });
+    } catch (error) {
+        console.error('Ошибка загрузки каталога поставщика:', error);
+        res.status(500).json({ success: false, message: 'Не удалось загрузить каталог' });
+    }
+});
+
+app.post('/api/admin/supplier-catalog/import', requireAdmin, async (req, res) => {
+    const rows = req.body?.rows;
+    const supplier = String(req.body?.supplier || 'global_stone').trim().slice(0, 80);
+    const sourceFile = String(req.body?.source_file || '').trim().slice(0, 255);
+    const defaultMarkup = Number(req.body?.markup_percent ?? 100);
+    const allowedCategories = new Set(['stele', 'pedestal', 'flowerbed', 'grave_slab', 'tile', 'curb', 'vase', 'other']);
+    const allowedCurrencies = new Set(['RUB', 'EUR']);
+    if (!Array.isArray(rows) || rows.length > 10000 || !supplier ||
+        !Number.isFinite(defaultMarkup) || defaultMarkup < 0 || defaultMarkup > 1000) {
+        return res.status(400).json({ success: false, message: 'Некорректный пакет импорта' });
+    }
+
+    const normalized = [];
+    const seen = new Set();
+    for (const row of rows) {
+        const externalKey = String(row?.external_key || '').trim().slice(0, 200);
+        const category = String(row?.category || '').trim();
+        const name = String(row?.name || '').trim().slice(0, 255);
+        const currency = String(row?.currency || 'RUB').trim().toUpperCase();
+        const dimensions = ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm']
+            .map(key => Number(row?.[key] || 0));
+        const rawPrice = row?.supplier_price;
+        const supplierPrice = rawPrice === null || rawPrice === undefined || rawPrice === ''
+            ? null : Number(rawPrice);
+        const markup = Number(row?.markup_percent ?? defaultMarkup);
+        if (!externalKey || !name || !allowedCategories.has(category) ||
+            !allowedCurrencies.has(currency) ||
+            dimensions.some(value => !Number.isInteger(value) || value < 0 || value > 10000) ||
+            (supplierPrice !== null && (!Number.isFinite(supplierPrice) || supplierPrice < 0 || supplierPrice > 1000000000)) ||
+            !Number.isFinite(markup) || markup < 0 || markup > 1000) {
+            return res.status(400).json({ success: false, message: 'Проверьте артикул/ключ, категорию, название, валюту, размеры и цену' });
+        }
+        if (currency !== 'RUB' && supplierPrice !== null && row?.customer_price !== null && row?.customer_price !== undefined) {
+            return res.status(400).json({ success: false, message: 'Клиентская цена для валютной позиции рассчитывается только после конвертации в рубли' });
+        }
+        if (seen.has(externalKey)) {
+            return res.status(400).json({ success: false, message: 'В импорте есть повторяющиеся external_key: ' + externalKey });
+        }
+        seen.add(externalKey);
+        const customerPrice = currency === 'RUB' && supplierPrice !== null
+            ? Math.round(supplierPrice * (1 + markup / 100) * 100) / 100
+            : null;
+        normalized.push({
+            externalKey, article: String(row?.article || '').trim().slice(0, 100),
+            category, name, material: String(row?.material || '').trim().slice(0, 120),
+            width: dimensions[0], height: dimensions[1], depth: dimensions[2], thickness: dimensions[3],
+            finish: String(row?.finish || '').trim().slice(0, 255),
+            unit: String(row?.unit || 'шт.').trim().slice(0, 24) || 'шт.',
+            supplierPrice, currency, markup, customerPrice,
+            appProduct: String(row?.app_product || '').trim().slice(0, 64),
+            appMaterial: String(row?.app_material || '').trim().slice(0, 64),
+            appFinish: String(row?.app_finish || '').trim().slice(0, 255),
+            isAppItem: row?.is_app_item === true || row?.is_app_item === 1 ? 1 : 0,
+            sourcePage: Number.isInteger(Number(row?.source_page)) && Number(row?.source_page) > 0 ? Number(row.source_page) : null
+        });
+    }
+
+    try {
+        await dbRun('BEGIN TRANSACTION');
+        for (const row of normalized) {
+            await dbRun(`
+                INSERT INTO supplier_catalog_items
+                    (supplier, external_key, article, category, name, material,
+                     width_mm, height_mm, depth_mm, thickness_mm, finish, unit,
+                     supplier_price, currency, markup_percent, customer_price,
+                     app_product, app_material, app_finish, is_app_item,
+                     source_file, source_page, active, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(supplier, external_key) DO UPDATE SET
+                    article = excluded.article, category = excluded.category, name = excluded.name,
+                    material = excluded.material, width_mm = excluded.width_mm,
+                    height_mm = excluded.height_mm, depth_mm = excluded.depth_mm,
+                    thickness_mm = excluded.thickness_mm, finish = excluded.finish,
+                    unit = excluded.unit, supplier_price = excluded.supplier_price,
+                    currency = excluded.currency, markup_percent = excluded.markup_percent,
+                    customer_price = CASE
+                        WHEN supplier_catalog_items.customer_price_override IS NOT NULL
+                            THEN supplier_catalog_items.customer_price_override
+                        ELSE excluded.customer_price
+                    END,
+                    app_product = excluded.app_product, app_material = excluded.app_material,
+                    app_finish = excluded.app_finish, is_app_item = excluded.is_app_item,
+                    source_file = excluded.source_file, source_page = excluded.source_page,
+                    active = 1, updated_at = CURRENT_TIMESTAMP
+            `, [
+                supplier, row.externalKey, row.article, row.category, row.name, row.material,
+                row.width, row.height, row.depth, row.thickness, row.finish, row.unit,
+                row.supplierPrice, row.currency, row.markup, row.customerPrice,
+                row.appProduct, row.appMaterial, row.appFinish, row.isAppItem,
+                sourceFile, row.sourcePage
+            ]);
+        }
+        await dbRun(`
+            INSERT INTO supplier_catalog_imports (supplier, source_file, imported_rows, markup_percent)
+            VALUES (?, ?, ?, ?)
+        `, [supplier, sourceFile, normalized.length, defaultMarkup]);
+        await dbRun('COMMIT');
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, imported: normalized.length, supplier, markup_percent: defaultMarkup });
+    } catch (error) {
+        try { await dbRun('ROLLBACK'); } catch (_) {}
+        console.error('Ошибка импорта каталога поставщика:', error);
+        res.status(500).json({ success: false, message: 'Импорт отменён. Данные каталога не изменены.' });
+    }
+});
+
+app.get('/api/supplier-catalog', async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT id, article, category, name, material, width_mm, height_mm,
+                   depth_mm, thickness_mm, finish, unit, customer_price, currency
+            FROM supplier_catalog_items
+            WHERE active = 1 AND is_app_item = 1
+            ORDER BY category, name, article
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ rows });
+    } catch (error) {
+        console.error('Ошибка выдачи каталога товаров:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
