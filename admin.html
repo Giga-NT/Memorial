@@ -1962,10 +1962,10 @@
         } else {
             row[field] = event.target.value;
         }
-        if (field === 'price' && row.price != null) {
-            row.price_status = 'priced';
+        if (field === 'price') {
+            row.price_status = row.price != null && row.price > 0 ? 'priced' : 'not_listed';
             const statusSelect = tr.querySelector('[data-field="price_status"]');
-            if (statusSelect) statusSelect.value = 'priced';
+            if (statusSelect) statusSelect.value = row.price_status;
         }
     });
 
