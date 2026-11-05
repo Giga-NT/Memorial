@@ -4714,14 +4714,18 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
     const target = {
         width_mm: roundDimensionUp100(dimensions.width_mm),
         height_mm: roundDimensionUp100(dimensions.height_mm),
-        depth_mm: roundDimensionUp100(dimensions.depth_mm),
+        // У стелы ровно три размера: ширина, высота и толщина.
+        depth_mm: product === 'stele' ? 0 : roundDimensionUp100(dimensions.depth_mm),
         thickness_mm: roundDimensionUp100(dimensions.thickness_mm)
     };
+    const dimensionKeys = product === 'stele'
+        ? ['width_mm', 'height_mm', 'thickness_mm']
+        : ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'];
     const candidates = materialPriceRows.filter(row =>
         row.material === material && row.product === product &&
-        ['width_mm','height_mm','depth_mm','thickness_mm'].every(key =>
-            Number(row[key] || 0) === target[key]
-        ) && String(row.finish || '') === String(finish || '')
+        dimensionKeys.every(key => Number(row[key] || 0) === target[key]) &&
+        (product !== 'stele' || Number(row.depth_mm || 0) === 0) &&
+        String(row.finish || '') === String(finish || '')
     );
     return candidates.length === 1 ? { price: Number(candidates[0].price), dimensions: target } : null;
 }
@@ -4874,15 +4878,15 @@ function buildPriceBreakdown() {
         const dimensions = {
             width_mm: width * 1000,
             height_mm: height * 1000,
-            depth_mm: depth * 1000,
+            depth_mm: 0,
             thickness_mm: depth * 1000
         };
         const match = findMaterialPrice('stele', material, dimensions, monument.steleFinish || '');
         if (match) {
             steleTotal += match.price;
-            steleParts.push(`№${index + 1}: ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм, ${materialPriceLabels[material] || material}, ${match.price} ₽`);
+            steleParts.push(`№${index + 1}: ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.thickness_mm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}, ${match.price} ₽`);
         } else {
-            missingCatalogPrices.push(`Стела №${index + 1}: ${material}, ${roundDimensionUp100(dimensions.width_mm)}×${roundDimensionUp100(dimensions.height_mm)}×${roundDimensionUp100(dimensions.depth_mm)} мм`);
+            missingCatalogPrices.push(`Стела №${index + 1}: ${material}, ${roundDimensionUp100(dimensions.width_mm)}×${roundDimensionUp100(dimensions.height_mm)}×${roundDimensionUp100(dimensions.thickness_mm)} мм (Ш×В×Т)`);
         }
 
         if (monument.pedestalEnabled !== false) {
