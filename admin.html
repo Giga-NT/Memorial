@@ -1738,14 +1738,23 @@
         document.getElementById('material-current-label').textContent = MATERIALS.find(x=>x[0]===activeMaterial)?.[1] || activeMaterial;
         const rows = materialRows.map((r,i)=>({...r,_index:i})).filter(r=>r.material===activeMaterial);
         const productOptions = PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
-        materialWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм</th><th>Толщина, мм</th><th>Обработка / исполнение</th><th>Цена для клиента, ₽</th><th></th></tr></thead><tbody>'+
+        materialWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм (кроме стелы)</th><th>Толщина, мм</th><th>Обработка / исполнение</th><th>Цена для клиента, ₽</th><th></th></tr></thead><tbody>'+
             rows.map(r=>'<tr data-index="'+r._index+'"><td><select data-field="product">'+productOptions+'</select></td>'+
-            ['width_mm','height_mm','depth_mm','thickness_mm'].map(k=>'<td><input type="number" min="0" step="1" data-field="'+k+'" value="'+Number(r[k]||0)+'"></td>').join('')+
+            ['width_mm','height_mm','depth_mm','thickness_mm'].map(k=>'<td'+(r.product==='stele'&&k==='depth_mm'?' style="display:none"':'')+'><input type="number" min="0" step="1" data-field="'+k+'" value="'+(k==='depth_mm'&&r.product==='stele'?0:Number(r[k]||0))+'"></td>').join('')+
             '<td><input type="text" maxlength="100" data-field="finish" value="'+escText(r.finish||'')+'" placeholder="Например, полировка 5 сторон"></td>'+
             '<td><input type="number" min="0" step="1" data-field="price" value="'+Number(r.price||0)+'"></td>'+
             '<td><button type="button" class="delete-row" data-delete="'+r._index+'">Удалить</button></td></tr>').join('')+
             '</tbody></table>';
         rows.forEach(r=>{const select=materialWrap.querySelector('tr[data-index="'+r._index+'"] select');if(select)select.value=r.product;});
+        materialWrap.querySelectorAll('tr[data-index] select[data-field="product"]').forEach(select=>{
+            select.addEventListener('change',()=>{
+                const row=materialRows[Number(select.closest('tr').dataset.index)];
+                if(!row)return;
+                row.product=select.value;
+                if(row.product==='stele')row.depth_mm=0;
+                renderMaterialPriceEditor();
+            });
+        });
     }
     materialTabs.addEventListener('click',event=>{
         const button=event.target.closest('[data-material]');if(!button)return;
