@@ -2548,6 +2548,29 @@ app.get('/api/material-prices', async (req, res) => {
             SELECT material, product, width_mm, height_mm, depth_mm,
                    thickness_mm, finish, price
             FROM material_price_rows
+            UNION ALL
+            SELECT catalog.app_material AS material,
+                   catalog.app_product AS product,
+                   catalog.width_mm, catalog.height_mm, catalog.depth_mm,
+                   catalog.thickness_mm, catalog.app_finish AS finish,
+                   COALESCE(catalog.customer_price_override, catalog.customer_price) AS price
+            FROM supplier_catalog_items AS catalog
+            WHERE catalog.active = 1
+              AND catalog.is_app_item = 1
+              AND catalog.currency = 'RUB'
+              AND COALESCE(catalog.customer_price_override, catalog.customer_price) IS NOT NULL
+              AND catalog.app_product <> ''
+              AND catalog.app_material <> ''
+              AND NOT EXISTS (
+                  SELECT 1 FROM material_price_rows AS legacy
+                  WHERE legacy.material = catalog.app_material
+                    AND legacy.product = catalog.app_product
+                    AND legacy.width_mm = catalog.width_mm
+                    AND legacy.height_mm = catalog.height_mm
+                    AND legacy.depth_mm = catalog.depth_mm
+                    AND legacy.thickness_mm = catalog.thickness_mm
+                    AND legacy.finish = catalog.app_finish
+              )
             ORDER BY material, product
         `);
         res.set('Cache-Control', 'no-store');
