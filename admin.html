@@ -1962,7 +1962,11 @@
         } else {
             row[field] = event.target.value;
         }
-        if (field === 'price' && row.price != null) row.price_status = 'priced';
+        if (field === 'price' && row.price != null) {
+            row.price_status = 'priced';
+            const statusSelect = tr.querySelector('[data-field="price_status"]');
+            if (statusSelect) statusSelect.value = 'priced';
+        }
     });
 
     supplierCatalogWrap.addEventListener('change', event => {
