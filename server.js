@@ -2315,6 +2315,8 @@ app.post('/api/admin/material-prices', requireAdmin, async (req, res) => {
         const product = String(row?.product || '').trim();
         const finish = String(row?.finish || '').trim().slice(0, 100);
         const dims = ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'].map(k => Number(row?.[k] || 0));
+        // В прайсе стелы используется только ширина, высота и толщина.
+        if (product === 'stele') dims[2] = 0;
         const price = Number(row?.price);
         if (!allowedMaterials.test(material) || !allowedProducts.has(product) ||
             dims.some(v => !Number.isInteger(v) || v < 0 || v > 10000) ||
