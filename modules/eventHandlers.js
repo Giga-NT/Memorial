@@ -82,29 +82,60 @@ export function initSteleTypeHandlers() {
 // ⭐ ОБРАБОТЧИКИ ДЛЯ РАЗМЕРОВ СТЕЛЫ
 // ============================================================
 
+let stelePriceHandlersInitialized = false;
+
 export function initSteleSizeHandlers() {
+    if (stelePriceHandlersInitialized) return;
+    stelePriceHandlersInitialized = true;
+
     const widthRange = document.getElementById('widthRange');
+    const widthInput = document.getElementById('widthInput');
     const heightRange = document.getElementById('heightRange');
-    
-    if (widthRange) {
-        widthRange.addEventListener('input', (e) => {
-            window.state.width = parseFloat(e.target.value);
-            document.getElementById('widthVal').textContent = window.state.width.toFixed(1) + ' м';
-            window.textureCache.invalidateFront();
-            window.throttledUpdate();
-            window.calculatePrice();
-        });
-    }
-    
-    if (heightRange) {
-        heightRange.addEventListener('input', (e) => {
-            window.state.height = parseFloat(e.target.value);
-            document.getElementById('heightVal').textContent = window.state.height.toFixed(1) + ' м';
-            window.textureCache.invalidateFront();
-            window.throttledUpdate();
-            window.calculatePrice();
-        });
-    }
+    const heightInput = document.getElementById('heightInput');
+    const depthSelect = document.getElementById('depthRange');
+    const materialSelect = document.getElementById('materialSelect');
+
+    const refreshPrice = () => {
+        if (typeof window.calculatePrice === 'function') window.calculatePrice();
+    };
+    const refreshScene = () => {
+        window.textureCache?.invalidateFront?.();
+        if (typeof window.throttledUpdate === 'function') window.throttledUpdate();
+        refreshPrice();
+    };
+
+    const bindDimension = (range, input, key, labelId) => {
+        const apply = raw => {
+            const value = Number.parseFloat(raw);
+            if (!Number.isFinite(value) || value <= 0) return;
+            window.state[key] = value;
+            if (range && range.value !== String(value)) range.value = String(value);
+            if (input && input.value !== String(value)) input.value = String(value);
+            const label = document.getElementById(labelId);
+            if (label) label.textContent = value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + ' м';
+            refreshScene();
+        };
+        range?.addEventListener('input', event => apply(event.target.value));
+        input?.addEventListener('input', event => apply(event.target.value));
+        input?.addEventListener('change', event => apply(event.target.value));
+    };
+
+    bindDimension(widthRange, widthInput, 'width', 'widthVal');
+    bindDimension(heightRange, heightInput, 'height', 'heightVal');
+
+    depthSelect?.addEventListener('change', event => {
+        const value = Number.parseFloat(event.target.value);
+        if (!Number.isFinite(value) || value <= 0) return;
+        window.state.depth = value;
+        refreshScene();
+    });
+
+    materialSelect?.addEventListener('change', event => {
+        window.state.material = event.target.value;
+        refreshPrice();
+    });
+
+    refreshPrice();
 }
 
 // ============================================================
