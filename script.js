@@ -86,9 +86,13 @@ import {
 
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSteleTypeHandlers);\n    document.addEventListener('DOMContentLoaded', initSteleSizeHandlers);\n    document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+    document.addEventListener('DOMContentLoaded', initSteleTypeHandlers);
+    document.addEventListener('DOMContentLoaded', initSteleSizeHandlers);
+    document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
     document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
+    initSteleTypeHandlers();
+    initSteleSizeHandlers();
     initPhotoScaleHandler();
     queueMicrotask(initSiteCurbHandlers);
 }
