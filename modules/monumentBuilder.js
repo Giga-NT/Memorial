@@ -10,6 +10,7 @@ import {
     createPathBetweenGraveAndFence 
 } from './sceneBuilders.js';
 import { createFenceGroup } from './fenceBuilder.js';
+import { createSiteCurb } from './siteCurbBuilder.js';
 import {
     applyBackgroundToGroup
 } from './backgrounds.js';
@@ -27,6 +28,7 @@ import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 
 const stoneMaterials = {
     granite: { color: 0x1a1a1a, roughness: 0.2, metalness: 0.05 },
+    rombak: { color: 0x090909, roughness: 0.16, metalness: 0.06 },
     black_galaxy: { color: 0x111111, roughness: 0.15, metalness: 0.08 },
     ninimyaki: { color: 0x1a2a1a, roughness: 0.25, metalness: 0.03 },
     marble: { color: 0xf5f5f5, roughness: 0.15, metalness: 0.02 },
@@ -1118,6 +1120,17 @@ export function createDecals(params, steleObj) {
 
 export async function createStele(params, decalsGroup) {
 
+    // Пересобираем декали вместе со стелой, чтобы фото, гравировки и фон
+    // не оставались на координатах предыдущего размера/положения стелы.
+    // createDecals и applyBackgroundToGroup ниже создадут актуальные элементы заново.
+    if (decalsGroup) {
+        const oldDecals = [...decalsGroup.children];
+        oldDecals.forEach(child => {
+            decalsGroup.remove(child);
+            disposeObject3D(child);
+        });
+    }
+
     const pedestalHeight =
         params.pedestalEnabled === false
             ? 0
@@ -1583,6 +1596,8 @@ export async function updateMainMonument(
                 ? Number(state.baseHeight)
                 : 0.15,
 
+        baseEnabled: state.baseEnabled !== false,
+
 		// Материал стелы
 		material:
 			state.material || 'granite',
@@ -1812,6 +1827,16 @@ export async function updateMainMonument(
                 : 0,
 
         // ========================================================
+        // БОРДЮР ПЛОЩАДКИ
+        // ========================================================
+        curbVisible: state.curbVisible === true,
+        curbMaterial: state.curbMaterial || 'granite',
+        curbWidth: Number(state.curbWidth) || 0.08,
+        curbHeight: Number(state.curbHeight) || 0.12,
+        curbInstallEnabled: state.curbInstallEnabled !== false,
+        curbGateOpeningEnabled: state.curbGateOpeningEnabled === true,
+
+        // ========================================================
         // ДОРОЖКА
         // ========================================================
 
@@ -1827,6 +1852,9 @@ export async function updateMainMonument(
 
         pathMaterial:
             state.pathMaterial || 'tile_gray',
+
+        pathSurfaceType:
+            state.pathSurfaceType || 'paver',
 
         pathTileSize:
             state.pathTileSize !== undefined
@@ -1993,8 +2021,9 @@ export async function updateMainMonument(
 		}
 	);
 
-	const base =
-		await createBase(baseParams);
+	const base = params.baseEnabled === false
+		? null
+		: await createBase(baseParams);
 
 	if (base) {
 		monumentGroup.add(base);
@@ -2222,7 +2251,21 @@ export async function updateMainMonument(
     }
 
     // ============================================================
-    // 9. ДОРОЖКА
+    // 9. БОРДЮР ПЛОЩАДКИ
+    // ============================================================
+    const oldCurbs = monumentGroup.children.filter(child => child.userData?.isSiteCurb === true);
+    oldCurbs.forEach(curb => {
+        disposeObject3D(curb);
+        monumentGroup.remove(curb);
+    });
+    const siteCurb = await createSiteCurb(params);
+    if (siteCurb) {
+        siteCurb.position.set(Number(params.fenceOffsetX) || 0, 0, Number(params.fenceOffsetZ) || 0);
+        monumentGroup.add(siteCurb);
+    }
+
+    // ============================================================
+    // 10. ДОРОЖКА
     // ============================================================
 
     const path =
@@ -2310,6 +2353,8 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
 
         baseHeight:
             data.baseHeight || 0.15,
+
+        baseEnabled: data.baseEnabled !== false,
 
         // ========================================================
         // СТЕЛА
@@ -2420,7 +2465,19 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
             data.pathWidth || 0.5,
 
         pathMaterial:
-            data.pathMaterial || 'concrete'
+            data.pathMaterial || 'concrete',
+        fenceWidth: Number(data.fenceWidth) || 1.5,
+        fenceLength: Number(data.fenceLength) || 2.5,
+        fenceGateSide: data.fenceGateSide || 'none',
+        gateWidth: Number(data.gateWidth) || 0.8,
+        fenceOffsetX: Number(data.fenceOffsetX) || 0,
+        fenceOffsetZ: Number(data.fenceOffsetZ) || 0,
+        curbVisible: data.curbVisible === true,
+        curbMaterial: data.curbMaterial || 'granite',
+        curbWidth: Number(data.curbWidth) || 0.08,
+        curbHeight: Number(data.curbHeight) || 0.12,
+        curbInstallEnabled: data.curbInstallEnabled !== false,
+        curbGateOpeningEnabled: data.curbGateOpeningEnabled === true
     };
 
 
@@ -2435,8 +2492,9 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         material: params.baseMaterial
     };
 
-    const base =
-        await createBase(baseParams);
+    const base = params.baseEnabled === false
+        ? null
+        : await createBase(baseParams);
 
     if (base) {
         group.add(base);
@@ -2541,6 +2599,8 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         }
     }
 
+    // Бордюр площадки создаётся один раз в основной сцене,
+    // а не дублируется вокруг каждого памятника.
 
     // ============================================================
     // ПОЗИЦИЯ ДУБЛИКАТА

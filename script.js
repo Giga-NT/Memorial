@@ -21,6 +21,7 @@ import { getQualitySettings, CONFIG } from './modules/performance-optimized.min.
 import { preloadCriticalTextures } from './modules/textures-optimized.min.js';
 import { loadPBRMaterial, getTextureTypeFromMaterial, loadFlowerbedTexture, loadGrassTexture, clearTextureCache } from './modules/textures.min.js';
 import { TileManager } from './modules/tileManager.min.js';
+import { getSiteSurfaceProfile, getSiteSurfaceLayerTotals } from './modules/siteSurfaceProfiles.js';
 
 // ⭐ МОДУЛИ (обфусцированные .min.js)
 import { EngravingsManager } from './modules/engravings.min.js';
@@ -76,6 +77,7 @@ import {
     initBaseHandlers,
     initFlowerbedHandlers,
     initPathHandlers,
+    initSiteCurbHandlers,
     initFenceOptionsHandlers,
     initTextPositionHandlers,
     initEpitaphPositionHandlers,
@@ -84,9 +86,15 @@ import {
 
 // Запускаем после загрузки DOM
 if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSteleTypeHandlers);
+    document.addEventListener('DOMContentLoaded', initSteleSizeHandlers);
     document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+    document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
+    initSteleTypeHandlers();
+    initSteleSizeHandlers();
     initPhotoScaleHandler();
+    queueMicrotask(initSiteCurbHandlers);
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -441,6 +449,9 @@ if (tempGrassTex) {
 }
 
 const ground = new THREE.Mesh(groundGeo, groundMat);
+// Keep the terrain visually behind the exposed construction layers of the paving.
+groundMat.depthWrite = false;
+ground.renderOrder = -10;
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0;
 if (!isMobile) ground.receiveShadow = true;
@@ -825,6 +836,7 @@ const state = {
     graveWidth: 0.9,
     graveLength: 1.5,
     baseHeight: 0.15,
+    baseEnabled: true,
     flowerWidth: 0.6,
     flowerLength: 0.9,
 	flowerLength: 0.9,
@@ -834,6 +846,9 @@ const state = {
     pathEnabled: true,
     pathWidth: 0.5,
     pathMaterial: 'tile_gray',
+    pathSurfaceType: 'paver',
+    pathSlabMaterial: 'tile_gray',
+    pathPaverMaterial: 'tile_gray',
     pathColor: '#888888',
     pathTileSize: 0.3,
     pathJointColor: '#666666',
@@ -848,6 +863,12 @@ const state = {
     fenceLength: 2.5,
     fenceEnabled: true,
     pathEnabled: true,
+    curbVisible: false,
+    curbMaterial: 'granite',
+    curbWidth: 0.08,
+    curbHeight: 0.12,
+    curbInstallEnabled: true,
+    curbGateOpeningEnabled: false,
 	textAbsoluteX: 0,
 	textAbsoluteY: 0.6,
 	epitaphAbsoluteX: 0,
@@ -3850,6 +3871,14 @@ document.getElementById('fenceLength')?.addEventListener('input', function(e) {
 });
 
 // ⭐ ОБРАБОТЧИКИ ДЛЯ ГАЛОЧЕК ОТКЛЮЧЕНИЯ
+document.getElementById('baseEnabled')?.addEventListener('change', function(e) {
+    state.baseEnabled = e.target.checked;
+    const controls = document.getElementById('baseControls');
+    if (controls) controls.style.display = state.baseEnabled ? 'block' : 'none';
+    throttledUpdate();
+    calculatePrice();
+});
+
 document.getElementById('fenceEnabled')?.addEventListener('change', function(e) {
     state.fenceEnabled = e.target.checked;
     throttledUpdate();
@@ -4609,6 +4638,7 @@ function addDecalsToCustomStele(center, frontZ, backZ, modelType = 'custom_stl')
 let prices = {};
 let priceFlags = {};
 let priceSettings = {};
+let materialPriceRows = [];
 
 async function loadPrices() {
     try {
@@ -4618,6 +4648,13 @@ async function loadPrices() {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
+        const materialResponse = await fetch('/api/material-prices', { cache: 'no-store' });
+        if (materialResponse.ok) {
+            const materialData = await materialResponse.json();
+            materialPriceRows = Array.isArray(materialData.rows) ? materialData.rows : [];
+        } else {
+            materialPriceRows = [];
+        }
         const validated = {};
         const sourcePrices =
             data?.prices && typeof data.prices === 'object'
@@ -4670,6 +4707,31 @@ function updateAdminPrices() {
             }, '*');
         }
     } catch(e) {}
+}
+
+// Размер каждого измерения округляется вверх отдельно до 100 мм.
+function roundDimensionUp100(mm) {
+    const value = Math.max(0, Number(mm) || 0);
+    return value === 0 ? 0 : Math.ceil(value / 100) * 100;
+}
+function findMaterialPrice(product, material, dimensions = {}, finish = '') {
+    const target = {
+        width_mm: roundDimensionUp100(dimensions.width_mm),
+        height_mm: roundDimensionUp100(dimensions.height_mm),
+        // У стелы ровно три размера: ширина, высота и толщина.
+        depth_mm: product === 'stele' ? 0 : roundDimensionUp100(dimensions.depth_mm),
+        thickness_mm: roundDimensionUp100(dimensions.thickness_mm)
+    };
+    const dimensionKeys = product === 'stele'
+        ? ['width_mm', 'height_mm', 'thickness_mm']
+        : ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'];
+    const candidates = materialPriceRows.filter(row =>
+        row.material === material && row.product === product &&
+        dimensionKeys.every(key => Number(row[key] || 0) === target[key]) &&
+        (product !== 'stele' || Number(row.depth_mm || 0) === 0) &&
+        String(row.finish || '') === String(finish || '')
+    );
+    return candidates.length === 1 ? { price: Number(candidates[0].price), dimensions: target } : null;
 }
 
 // ============================================================
@@ -4726,24 +4788,9 @@ const tileMaterialLabels = {
     other: 'Другое'
 };
 
-function getTilePriceKey(material) {
-    if (material === 'marble') return 'tile_marble_per_m2';
-    if (material === 'gabbro') return 'tile_gabbro_per_m2';
-    if (material === 'other') return 'tile_other_per_m2';
-    return '';
-}
-
 function getPricingMonuments() {
-    const manager = window.multiMonumentManager;
-    const duplicates = Array.isArray(manager?.monuments)
-        ? manager.monuments.map((monument, index) => {
-            const pending = manager.pendingIndex === index ? manager.pendingChanges : null;
-            return pending
-                ? { ...(monument.data || {}), ...pending }
-                : (monument.data || {});
-        })
-        : [];
-    return [state, ...duplicates];
+    // Пока рассчитываем только основной памятник.
+    return [state];
 }
 
 function getActivePricingMonument() {
@@ -4771,54 +4818,101 @@ function buildPriceBreakdown() {
         rows.push({ name, desc, price: amount });
     };
 
-    const addStoneLikeCharges = (name, workName, material, area, scale) => {
-        const safeScale = Number(scale) > 0 ? Number(scale) : 1;
-        const materialPrice = getPriceValue(material);
-        const materialTotal = area * materialPrice * safeScale * safeScale;
-        const workTotal = getPriceValue('stele_work') * safeScale;
-        addRow(
+    const missingCatalogPrices = [];
+    const addCatalogComponent = (name, product, material, dimensions, finish = '', count = 1) => {
+        const match = findMaterialPrice(product, material, dimensions, finish);
+        if (!match) {
+            const d = match?.dimensions || Object.fromEntries(
+                Object.entries(dimensions).map(([key,value]) => [key, roundDimensionUp100(value)])
+            );
+            missingCatalogPrices.push(`${name}: ${material}, ${d.width_mm || 0}×${d.height_mm || 0}×${d.depth_mm || 0} мм, толщина ${d.thickness_mm || 0} мм${finish ? ', ' + finish : ''}`);
+            return 0;
+        }
+        const amount = match.price * count;
+        const unit = product === 'curb'
+            ? 'п.м.'
+            : product === 'tile'
+                ? 'м²'
+                : finish === 'site_fill'
+                    ? 'м²'
+                    : finish.startsWith('site_layer:geotextile')
+                        ? 'м²'
+                        : finish.startsWith('site_layer:')
+                            ? 'м³'
+                            : 'шт.';
+        total += amount;
+        rows.push({
             name,
-            `${materialPriceLabels[material] || material}, ${area.toFixed(2)} м² × ${materialPrice} ₽/м² × ${safeScale.toFixed(2)}²`,
-            materialTotal
-        );
-        addRow(
-            workName,
-            safeScale === 1 ? 'Фиксированная цена' : `Фиксированная цена × ${safeScale.toFixed(2)}`,
-            workTotal
-        );
+            desc: `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽/${unit} × ${Number(count).toFixed(2)} ${unit}`,
+            price: amount
+        });
+        return amount;
+    };
+    const addStoneLikeCharges = (name, workName, material, area, scale, dimensions = {}) => {
+        const safeScale = Number(scale) > 0 ? Number(scale) : 1;
+        const baseDimensions = {
+            width_mm: dimensions.width_mm || Math.sqrt(Math.max(0, area)) * 1000,
+            height_mm: dimensions.height_mm || Math.sqrt(Math.max(0, area)) * 1000,
+            depth_mm: dimensions.depth_mm || 50,
+            thickness_mm: dimensions.thickness_mm || 50
+        };
+        addCatalogComponent(name, 'grave_slab', material, baseDimensions, dimensions.finish || '', safeScale);
+        addRow(workName, safeScale === 1 ? 'Фиксированная цена' : `Фиксированная цена × ${safeScale.toFixed(2)}`, getPriceValue('stele_work') * safeScale);
     };
 
     const monuments = getPricingMonuments();
-    const pedestalPrice = getPriceValue('pedestal_price');
     const steleParts = [];
     const pedestalParts = [];
     let steleTotal = 0;
     let pedestalCount = 0;
     let pedestalTotal = 0;
-
     monuments.forEach((monument, index) => {
         const material = monument.material || 'granite';
-        const materialPrice = getPriceValue(material);
         const width = Number(monument.width) || 0.6;
         const height = Number(monument.height) || 1.2;
-        const steleArea = width * height;
-        const depth = Math.max(0.07, Number(monument.depth) || 0.07);
-        const thicknessFactor = depth / 0.07;
-        const stelePrice = steleArea * materialPrice * thicknessFactor;
-        const label = `№${index + 1}: ${Math.round(width * 100)}×` +
-            `${Math.round(height * 100)} см (${steleArea.toFixed(2)} м²), ` +
-            `${materialPriceLabels[material] || material} ${materialPrice} ₽/м², ` +
-            `толщина ×${thicknessFactor.toFixed(2)}`;
-
-        steleTotal += stelePrice;
-        steleParts.push(label);
+        const depth = Math.max(0.001, Number(monument.depth) || 0.07);
+        const dimensions = {
+            width_mm: width * 1000,
+            height_mm: height * 1000,
+            depth_mm: 0,
+            thickness_mm: depth * 1000
+        };
+        const baseRow = materialPriceRows.find(row =>
+            row.material === material &&
+            row.product === 'stele' &&
+            Number(row.width_mm) > 0 &&
+            Number(row.height_mm) > 0 &&
+            Number(row.thickness_mm) > 0 &&
+            Number(row.price) > 0
+        );
+        if (baseRow) {
+            const baseVolume = Number(baseRow.width_mm) * Number(baseRow.height_mm) * Number(baseRow.thickness_mm);
+            const currentVolume = dimensions.width_mm * dimensions.height_mm * dimensions.thickness_mm;
+            const calculatedPrice = baseVolume > 0
+                ? Number(baseRow.price) * currentVolume / baseVolume
+                : 0;
+            steleTotal += calculatedPrice;
+            steleParts.push(`Основной памятник: ${dimensions.width_mm}×${dimensions.height_mm}×${dimensions.thickness_mm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}; базовая цена ${Number(baseRow.price)} ₽ за ${baseRow.width_mm}×${baseRow.height_mm}×${baseRow.thickness_mm} мм; расчётная цена ${Math.round(calculatedPrice)} ₽`);
+        } else {
+            missingCatalogPrices.push(`Стела: в прайсе не задана базовая цена для материала ${material}`);
+        }
 
         if (monument.pedestalEnabled !== false) {
             pedestalCount++;
-            pedestalTotal += pedestalPrice;
-            pedestalParts.push(
-                `№${index + 1}: ${materialPriceLabels[monument.pedestalMaterial] || monument.pedestalMaterial || '—'}`
-            );
+            const pedestalMaterial = monument.pedestalMaterial || material;
+            const pedestalDimensions = {
+                width_mm: (Number(monument.pedestalWidth) || (Number(monument.graveWidth) || 0.9) + 0.18) * 1000,
+                height_mm: (Number(monument.pedestalHeight) || Number(monument.baseHeight) || 0.15) * 1000,
+                depth_mm: (Number(monument.pedestalDepth) || Number(monument.depth) || 0.07) * 1000,
+                thickness_mm: (Number(monument.pedestalThickness) || Number(monument.baseHeight) || 0.15) * 1000
+            };
+            const pedestalMatch = findMaterialPrice('pedestal', pedestalMaterial, pedestalDimensions, monument.pedestalFinish || '');
+            if (pedestalMatch) {
+                pedestalTotal += pedestalMatch.price;
+                pedestalParts.push(`№${index + 1}: ${pedestalMaterial}, ${pedestalMatch.price} ₽`);
+            } else {
+                missingCatalogPrices.push(`Тумба №${index + 1}: ${pedestalMaterial}, требуется точный размер в настройках`);
+            }
         }
     });
 
@@ -4827,13 +4921,11 @@ function buildPriceBreakdown() {
         steleParts.join('; '),
         steleTotal
     );
-
     addRow(
         pedestalCount === 1 ? '🧱 Тумба' : `🧱 Тумбы (${pedestalCount} шт)`,
         pedestalParts.join('; '),
         pedestalTotal
     );
-
     const backgroundPricePerM2 = getPriceValue('background_price_per_m2');
     let backgroundAreaTotal = 0;
     const backgroundParts = [];
@@ -4856,30 +4948,33 @@ function buildPriceBreakdown() {
 
     const tileWorkPrice = getPriceValue('tile_work_per_m2');
     let tileAreaTotal = 0;
-    let tileTotal = 0;
     const tileParts = [];
 
     monuments.forEach((monument, index) => {
         const area = monument.flowerEnabled !== false
             ? (Number(monument.flowerWidth) || 0) * (Number(monument.flowerLength) || 0)
             : 0;
-        const tileKey = getTilePriceKey(monument.tileMaterial);
-        if (!tileKey || area <= 0) return;
+        if (!['marble', 'gabbro', 'other'].includes(monument.tileMaterial) || area <= 0) return;
 
-        const tilePrice = getPriceValue(tileKey);
         tileAreaTotal += area;
-        tileTotal += area * (tilePrice + tileWorkPrice);
-        tileParts.push(
-            `№${index + 1}: ${tileMaterialLabels[monument.tileMaterial] || monument.tileMaterial}, ` +
-            `${area.toFixed(2)} м² × (${tilePrice} материал + ${tileWorkPrice} работа)`
+        addCatalogComponent(
+            `🧱 Плитка облицовки №${index + 1}`,
+            'tile',
+            monument.tileMaterial,
+            { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
+            'flowerbed_cladding',
+            area
         );
+        tileParts.push(`№${index + 1}: ${tileMaterialLabels[monument.tileMaterial] || monument.tileMaterial}, ${area.toFixed(2)} м²`);
     });
 
-    addRow(
-        '🧱 Плитка облицовки (верхняя плоскость)',
-        `Площадь: ${tileAreaTotal.toFixed(2)} м²; ${tileParts.join('; ')}`,
-        tileTotal
-    );
+    if (tileAreaTotal > 0) {
+        addRow(
+            '🔧 Работа по облицовке плиткой',
+            `Площадь: ${tileAreaTotal.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
+            tileAreaTotal * tileWorkPrice
+        );
+    }
 
     let engravingPriceTotal = 0;
     let engravingCount = 0;
@@ -4942,27 +5037,47 @@ function buildPriceBreakdown() {
         /* расчёт добавим позже */
     }
 
-    if (state.flowerEnabled) {
-        const flowerArea = state.flowerWidth * state.flowerLength;
-        if (state.flowerbedMode === 'slab') {
-            const slabMaterial = state.graveSlabMaterial || 'granite';
-            const slabScale = Number(state.graveSlabScale) > 0 ? Number(state.graveSlabScale) : 1;
+    monuments.forEach((monument, index) => {
+        if (monument.flowerEnabled === false) return;
+        const flowerWidth = Number(monument.flowerWidth) || 0;
+        const flowerLength = Number(monument.flowerLength) || 0;
+        if (flowerWidth <= 0 || flowerLength <= 0) return;
+
+        const flowerArea = flowerWidth * flowerLength;
+        if ((monument.flowerbedMode || state.flowerbedMode) === 'slab') {
+            const slabMaterial = monument.graveSlabMaterial || state.graveSlabMaterial || monument.material || 'granite';
+            const slabScale = Number(monument.graveSlabScale ?? state.graveSlabScale) > 0
+                ? Number(monument.graveSlabScale ?? state.graveSlabScale)
+                : 1;
             addStoneLikeCharges(
-                '🪦 Надгробная плита',
-                '🔧 Изготовление плиты',
+                `🪦 Надгробная плита №${index + 1}`,
+                `🔧 Изготовление плиты №${index + 1}`,
                 slabMaterial,
                 flowerArea,
-                slabScale
+                slabScale,
+                {
+                    width_mm: flowerWidth * 1000,
+                    height_mm: flowerLength * 1000,
+                    depth_mm: 50,
+                    thickness_mm: 50
+                }
             );
         } else {
-            const flowerPrice = getPriceValue(state.flowerbedType);
-            addRow(
-                '🌿 Цветник',
-                `${flowerbedPriceLabels[state.flowerbedType] || state.flowerbedType}, ${flowerArea.toFixed(2)} м² × ${flowerPrice} ₽/м²`,
-                flowerArea * flowerPrice
+            const flowerMaterial = monument.borderMaterial || monument.baseMaterial || monument.material || 'granite';
+            addCatalogComponent(
+                `🌿 Цветник №${index + 1}`,
+                'flowerbed',
+                flowerMaterial,
+                {
+                    width_mm: flowerWidth * 1000,
+                    height_mm: flowerLength * 1000,
+                    depth_mm: 50,
+                    thickness_mm: 50
+                },
+                monument.flowerbedFinish || ''
             );
         }
-    }
+    });
 
     if (state.fenceEnabled && state.fenceType !== 'none') {
         const fenceWidth = Number(state.fenceWidth) || 0;
@@ -4983,20 +5098,155 @@ function buildPriceBreakdown() {
         );
     }
 
-    if (state.pathEnabled && state.fenceEnabled && state.fenceType !== 'none') {
-        const fenceArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
+    if (state.pathEnabled) {
+        const siteArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
         const monumentsArea = monuments.reduce((sum, monument) => {
+            if (monument.baseEnabled === false) return sum;
             const baseWidth = Number(monument.graveWidth) || 0.9;
             const baseLength = Number(monument.graveLength) || 1.5;
             return sum + baseWidth * baseLength;
         }, 0);
-        const bruschatkaArea = Math.max(0, fenceArea - monumentsArea);
-        const bruschatkaPrice = getPriceValue('bruschatka_per_m2');
-        addRow(
-            '🛤️ Брусчатка',
-            `${fenceArea.toFixed(2)} м² оградки − ${monumentsArea.toFixed(2)} м² оснований = ${bruschatkaArea.toFixed(2)} м² × ${bruschatkaPrice} ₽/м² (материал + укладка)`,
-            bruschatkaArea * bruschatkaPrice
+        const coverageArea = Math.max(0, siteArea - monumentsArea);
+        const material = state.pathMaterial || 'tile_gray';
+        const surfaceType = state.pathSurfaceType || 'paver';
+        const surfaceLabel = surfaceType === 'slab' ? 'тротуарная плитка' : 'брусчатка';
+        const tileMaterials = material.startsWith('tile_');
+        const materialLabels = {
+            tile_black: surfaceType === 'slab' ? 'Чёрная тротуарная плитка' : 'Чёрная брусчатка',
+            tile_gray: surfaceType === 'slab' ? 'Серая тротуарная плитка' : 'Серая брусчатка',
+            tile_beige: surfaceType === 'slab' ? 'Бежевая тротуарная плитка' : 'Бежевая брусчатка',
+            tile_dark: surfaceType === 'slab' ? 'Тёмная тротуарная плитка' : 'Тёмная брусчатка',
+            tile_light: surfaceType === 'slab' ? 'Светлая тротуарная плитка' : 'Светлая брусчатка',
+            tile_marble: 'Мраморная брусчатка',
+            tile_red: 'Красная тротуарная плитка',
+            gravel: 'Гравий', sand: 'Песок', grass: 'Газон',
+            flowers: 'Цветы', marble_chips: 'Мраморная крошка'
+        };
+        if (tileMaterials) {
+            const catalogMaterial = surfaceType === 'slab'
+                ? (state.pathSlabMaterial || material)
+                : (state.pathPaverMaterial || material);
+            const tileSize = Math.max(0.01, Number(state.pathTileSize) || 0.3);
+            const tileDepthMm = surfaceType === 'slab' ? 60 : 60;
+            const tileCount = coverageArea / (tileSize * tileSize);
+            addCatalogComponent(
+                `🛤️ Покрытие площадки — ${surfaceLabel}`,
+                'tile',
+                catalogMaterial,
+                {
+                    width_mm: tileSize * 1000,
+                    height_mm: tileSize * 1000,
+                    depth_mm: tileDepthMm,
+                    thickness_mm: tileDepthMm
+                },
+                surfaceType,
+                tileCount
+            );
+            const tileWorkPrice = surfaceType === 'slab'
+                ? (getPriceValue('path_slab_work_per_m2') || getPriceValue('path_tile_work_per_m2'))
+                : getPriceValue('path_tile_work_per_m2');
+            addRow(
+                `🔧 Укладка ${surfaceLabel}`,
+                `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
+                coverageArea * tileWorkPrice
+            );
+        } else {
+            addCatalogComponent(
+                `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
+                'other',
+                material,
+                { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
+                'site_fill',
+                coverageArea
+            );
+            const workPrice = getPriceValue('site_fill_work_per_m2');
+            addRow(
+                '🔧 Устройство отсыпки / покрытия',
+                `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
+                coverageArea * workPrice
+            );
+        }
+
+        // Add the underlying construction layers by actual thickness and volume.
+        const layerTotals = getSiteSurfaceLayerTotals(material, coverageArea, state.pathSurfaceType || 'paver');
+        const profile = layerTotals.profile;
+        const excavationDepth = profile.top.thickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
+        const excavationVolume = coverageArea * excavationDepth;
+        const excavationRate = getPriceValue('site_excavation_per_m3');
+        const prepRate = getPriceValue('site_base_preparation_per_m2');
+        if (prepRate > 0) {
+            addRow('🔧 Подготовка и планировка основания',
+                `${coverageArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
+                coverageArea * prepRate);
+        }
+        if (excavationRate > 0) {
+            addRow('🚜 Выемка грунта под конструкцию',
+                `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (общая глубина ${(excavationDepth * 100).toFixed(1)} см)`,
+                excavationVolume * excavationRate);
+        }
+
+        for (const layer of layerTotals.layers) {
+            const thicknessCm = (layer.thickness * 100).toFixed(1);
+            if (layer.kind === 'sand' || layer.kind === 'gravel' || layer.kind === 'screenings' || layer.kind === 'geotextile') {
+                const isGeotextile = layer.kind === 'geotextile';
+                const materialKey = isGeotextile ? 'geotextile' : (layer.kind === 'sand' ? 'sand' : 'gravel');
+                const quantity = isGeotextile ? layer.area : layer.volume;
+                const unit = isGeotextile ? 'м²' : 'м³';
+                addCatalogComponent(
+                    `📦 ${layer.label} — материал`,
+                    'other',
+                    materialKey,
+                    { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
+                    `site_layer:${materialKey}`,
+                    quantity
+                );
+                void thicknessCm;
+                void unit;
+            }
+        }
+        const compactionRate = getPriceValue('site_compaction_per_m3');
+        const compactableVolume = layerTotals.layers
+            .filter(layer => layer.kind === 'sand' || layer.kind === 'gravel' || layer.kind === 'screenings')
+            .reduce((sum, layer) => sum + layer.volume, 0);
+        if (compactionRate > 0 && compactableVolume > 0) {
+            addRow('🔧 Уплотнение песка и щебня',
+                `${compactableVolume.toFixed(3)} м³ × ${compactionRate} ₽/м³`,
+                compactableVolume * compactionRate);
+        }
+    }
+
+    if (state.curbVisible) {
+        const width = Math.max(0.2, Number(state.fenceWidth) || 1.5);
+        const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
+        const gateSide = state.curbGateOpeningEnabled ? (state.fenceGateSide || 'none') : 'none';
+        const requestedGateWidth = gateSide === 'none' ? 0 : Math.max(0, Number(state.gateWidth) || 0);
+        const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
+        const curbWidth = Math.max(0.03, Number(state.curbWidth) || 0.08);
+        const gateOpening = Math.min(requestedGateWidth, Math.max(0, gateSpan - curbWidth * 2));
+        const perimeter = 2 * (width + length);
+        const curbLength = Math.max(0, perimeter - gateOpening);
+        const curbMaterial = state.curbMaterial || 'granite';
+        const curbHeightMm = Number(state.curbHeight) * 1000;
+        const curbWidthMm = curbWidth * 1000;
+        addCatalogComponent(
+            '🧱 Бордюр площадки — материал',
+            'curb',
+            curbMaterial,
+            {
+                width_mm: 1000,
+                height_mm: curbHeightMm,
+                depth_mm: curbWidthMm,
+                thickness_mm: curbWidthMm
+            },
+            '',
+            curbLength
         );
+        if (state.curbInstallEnabled !== false) {
+            const installPrice = getPriceValue('site_curb_install_per_m');
+            addRow('🔧 Установка бордюра площадки',
+                `${curbLength.toFixed(2)} п.м. × ${installPrice} ₽/п.м.`,
+                curbLength * installPrice);
+        }
     }
 
     const furnitureList = window.furniture3DManager?.furniture || [];
@@ -5029,22 +5279,36 @@ function buildPriceBreakdown() {
     );
 
     const vases = window.vasesManager?.vases || [];
-    const vaseBasePrice = getPriceValue('vase_base_price');
     const vaseGroups = new Map();
     vases.forEach(vase => {
-        const material = vase.material || 'marble';
+        const material = vase.material || vase.config?.defaultMaterial || 'marble';
         const scale = Number(vase.scale) > 0 ? Number(vase.scale) : 1;
-        const unitPrice = vaseBasePrice * scale;
-        const key = `${material}|${scale}`;
+        const vaseType = vase.vaseType || 'standard';
+        const heightMm = Number(vase.config?.defaultHeight || 0.5) * 1000 * scale;
+        const vaseDimensions = {
+            width_mm: 0,
+            height_mm: heightMm,
+            depth_mm: 0,
+            thickness_mm: 0
+        };
+        const vaseMatch = findMaterialPrice('other', material, vaseDimensions, `vase:${vaseType}`);
+        if (!vaseMatch) {
+            missingCatalogPrices.push(
+                `Ваза ${vase.config?.name || vaseType}: материал ${material}, высота ${roundDimensionUp100(heightMm)} мм, тип vase:${vaseType}`
+            );
+        }
+        const effectiveVasePrice = vaseMatch ? vaseMatch.price : 0;
+        const key = `${material}|${scale}|${vaseType}`;
         const group = vaseGroups.get(key) || {
             material,
             scale,
+            vaseType,
             count: 0,
-            unitPrice,
+            unitPrice: effectiveVasePrice,
             total: 0
         };
         group.count++;
-        group.total += unitPrice;
+        group.total += effectiveVasePrice;
         vaseGroups.set(key, group);
     });
     const vaseSummaryParts = [];
@@ -5052,7 +5316,7 @@ function buildPriceBreakdown() {
         const materialName = materialPriceLabels[group.material] || group.material;
         addRow(
             '🏺 Вазы',
-            `${group.count} шт × ${group.unitPrice.toFixed(0)} ₽ (типовая 15×15×25 см, ${materialName}, масштаб ${group.scale.toFixed(1)})`,
+            `${group.count} шт × ${group.unitPrice.toFixed(0)} ₽ (${group.vaseType}, ${materialName}, масштаб ${group.scale.toFixed(1)})`,
             group.total
         );
         vaseSummaryParts.push(`${group.count} шт. (${materialName}, масштаб ${group.scale.toFixed(1)})`);
@@ -5093,12 +5357,22 @@ function buildPriceBreakdown() {
         }
     }
 
+    if (missingCatalogPrices.length) {
+        rows.push({
+            name: '⚠️ Не найдена цена в прайсе',
+            desc: [...new Set(missingCatalogPrices)].join('; '),
+            price: 0,
+            missing: true
+        });
+    }
+
     return {
         total,
         rows,
         details: rows.map(row => `${row.name}: ${row.price.toFixed(0)} ₽`),
         vaseCount: vases.length,
-        vaseSummary: vaseSummaryParts.join('; ')
+        vaseSummary: vaseSummaryParts.join('; '),
+        missingCatalogPrices: [...new Set(missingCatalogPrices)]
     };
 }
 
@@ -5191,7 +5465,7 @@ function loadFromURL() {
     }
     
     if (params.get('m')) {
-        const allowedMaterials = ['granite', 'black_galaxy', 'ninimyaki', 'marble', 'red_granite', 'beige_granite', 'gray_granite'];
+        const allowedMaterials = ['granite', 'black_galaxy', 'ninimyaki', 'rombak', 'marble', 'red_granite', 'beige_granite', 'gray_granite'];
         const material = params.get('m');
         if (allowedMaterials.includes(material)) {
             state.material = material;
@@ -6475,9 +6749,17 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         const flowerColor = document.getElementById('flowerColor')?.value || '#4caf50';
         
         // --- 5. ДОРОЖКА ---
-        const pathEnabled = document.getElementById('pathEnabled')?.checked || false;
+        const pathEnabled = document.getElementById('pathEnabled')?.checked ?? state.pathEnabled ?? true;
         const pathWidth = parseFloat(document.getElementById('pathWidth')?.value) || 0.5;
-        const pathMaterial = document.getElementById('pathMaterial')?.value || 'tile_gray';
+        const pathSurfaceType = document.getElementById('pathSurfaceType')?.value || state.pathSurfaceType || 'paver';
+        const pathMaterial = pathSurfaceType === 'slab'
+            ? (document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray')
+            : (document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || 'tile_gray');
+        state.pathSurfaceType = pathSurfaceType;
+        state.pathMaterial = pathMaterial;
+        state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray';
+        state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || 'tile_gray';
+        state.pathEnabled = pathEnabled;
         const pathColor = document.getElementById('pathColor')?.value || '#888888';
         const pathTileSize = parseFloat(document.getElementById('pathTileSize')?.value) || 0.3;
         const pathJointColor = document.getElementById('pathJointColor')?.value || '#666666';
@@ -6634,8 +6916,8 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         }
         
         // --- 12. СТОИМОСТЬ ---
-        const totalPriceEl = document.getElementById('totalPriceDisplay');
-        const totalPrice = parseInt(totalPriceEl?.textContent?.replace(/\D/g, '')) || 0;
+        const priceBreakdown = buildPriceBreakdown();
+        const totalPrice = priceBreakdown.total;
         
         // ============================================================
         // ФОРМИРУЕМ ДАННЫЕ ДЛЯ ОТПРАВКИ
@@ -6676,6 +6958,7 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             graveWidth,
             graveLength,
             baseHeight,
+            baseEnabled: state.baseEnabled !== false,
             
             // Цветник
             flowerEnabled,
@@ -6690,6 +6973,10 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             pathEnabled,
             pathWidth,
             pathMaterial,
+            pathSurfaceType,
+            pathEnabled,
+            pathSlabMaterial: state.pathSlabMaterial,
+            pathPaverMaterial: state.pathPaverMaterial,
             pathColor,
             pathTileSize,
             pathJointColor,
@@ -6753,8 +7040,9 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             backPosY: 0.64,
             backPosZ: -0.69,
             
-            // Стоимость
-            totalPrice: totalPrice
+            // Стоимость — один и тот же расчёт используется в интерфейсе, заказе и PDF
+            totalPrice: totalPrice,
+            priceBreakdown: priceBreakdown
         };
         
         // ============================================================
@@ -6812,7 +7100,8 @@ function generateEstimatePDF() {
         total,
         rows: tableRows,
         vaseCount,
-        vaseSummary
+        vaseSummary,
+        missingCatalogPrices
     } = buildPriceBreakdown();
     
     // ========== 11. ДЕЛАЕМ СКРИНШОТЫ ==========
@@ -6946,7 +7235,7 @@ function generateEstimatePDF() {
         <div class="params-grid">
             <div class="item"><span class="label">Стела:</span><span class="value">${state.width.toFixed(1)}×${state.height.toFixed(1)} м</span></div>
             <div class="item"><span class="label">Материал:</span><span class="value">${safeMaterial}</span></div>
-            <div class="item"><span class="label">Основание:</span><span class="value">${state.graveWidth.toFixed(1)}×${state.graveLength.toFixed(1)} м</span></div>
+            <div class="item"><span class="label">Основание:</span><span class="value">${state.baseEnabled === false ? 'Нет' : state.graveWidth.toFixed(1)+'×'+state.graveLength.toFixed(1)+' м'}</span></div>
             <div class="item"><span class="label">Цветник:</span><span class="value">${state.flowerEnabled ? state.flowerWidth.toFixed(1)+'×'+state.flowerLength.toFixed(1)+' м ('+safeFlowerbed+')' : 'Нет'}</span></div>
             <div class="item"><span class="label">Оградка:</span><span class="value">${safeFenceType} (высота ${state.fenceHeight.toFixed(1)} м)</span></div>
             <div class="item"><span class="label">Вход:</span><span class="value">${state.fenceGateSide !== 'none' ? state.fenceGateSide : 'Нет'}</span></div>
@@ -6986,11 +7275,15 @@ function generateEstimatePDF() {
         const row = tableRows[i];
         const safeName = escapeHTML(row.name);
         const safeDesc = escapeHTML(row.desc);
-        html += `<tr><td>${safeName}</td><td style="font-size:13px;color:#555;">${safeDesc}</td><td class="price">${row.price.toFixed(0)} ₽</td></tr>`;
+        const priceLabel = row.missing === true
+            ? '<strong style="color:#a15c00;">Цена не задана</strong>'
+            : `${Number(row.price || 0).toFixed(0)} ₽`;
+        html += `<tr><td>${safeName}</td><td style="font-size:13px;color:#555;">${safeDesc}</td><td class="price">${priceLabel}</td></tr>`;
     }
-    
+
+    const hasMissingPrices = Array.isArray(missingCatalogPrices) && missingCatalogPrices.length > 0;
     html += `
-                <tr class="total-row"><td colspan="2" style="font-size:20px;">ИТОГО:</td><td class="price"><span class="total-amount">${total.toFixed(0)} ₽</span></td></tr>
+                <tr class="total-row"><td colspan="2" style="font-size:20px;">${hasMissingPrices ? 'ПРЕДВАРИТЕЛЬНЫЙ ИТОГ:' : 'ИТОГО:'}</td><td class="price"><span class="total-amount">${total.toFixed(0)} ₽</span></td></tr>
             </tbody>
         </table>
     </div>

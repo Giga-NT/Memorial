@@ -68,6 +68,7 @@ export class ProjectIO {
             'graveWidth', 'graveLength', 'baseHeight',
             'flowerWidth', 'flowerLength',
             'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
+            'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
             'pathWidth', 'pathTileSize',
             'photoScale', 'furnitureScale', 'vaseScale',
@@ -108,7 +109,10 @@ export class ProjectIO {
             'fenceMaterial',
             'fenceGateSide',
             'pathMaterial',
+            'pathSurfaceType',
+            'slabMaterial',
             'pathTileLayout',
+            'curbMaterial',
             'steleType',
             'steleModel',
             'material',
@@ -127,6 +131,11 @@ export class ProjectIO {
             }
         });
 
+        this.state.pathSurfaceType = document.getElementById('pathSurfaceType')?.value || this.state.pathSurfaceType || 'paver';
+        this.state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || this.state.pathSlabMaterial || 'tile_gray';
+        this.state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || this.state.pathPaverMaterial || 'tile_gray';
+        this.state.pathMaterial = this.state.pathSurfaceType === 'slab' ? this.state.pathSlabMaterial : this.state.pathPaverMaterial;
+
 
         // Название проекта
         const projectName = document.getElementById('projectName');
@@ -141,6 +150,9 @@ export class ProjectIO {
         const checkboxFields = [
             'fenceEnabled',
             'pathEnabled',
+            'curbVisible',
+            'curbInstallEnabled',
+            'curbGateOpeningEnabled',
             'flowerEnabled',
             'showFurniture',
             'showVases'
@@ -1780,8 +1792,10 @@ export class ProjectIO {
                                 ) || 0.5,
 
                             pathMaterial:
-                                ui.pathMaterial ||
-                                'tile_gray',
+                                ui.pathMaterial || 'tile_gray',
+                            pathSurfaceType: ui.pathSurfaceType || 'paver',
+                            pathSlabMaterial: ui.pathSlabMaterial || 'tile_gray',
+                            pathPaverMaterial: ui.pathPaverMaterial || ui.pathMaterial || 'tile_gray',
 
                             graveWidth:
                                 parseFloat(
@@ -2810,11 +2824,18 @@ export class ProjectIO {
         }
 
 
-        setSelect(
-            'pathMaterial',
-            state.pathMaterial ||
-            'tile_gray'
-        );
+        setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');
+        setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
+        setSelect('pathMaterial', state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
+        const pathType = document.getElementById('pathSurfaceType')?.value || 'paver';
+        state.pathSurfaceType = pathType;
+        state.pathSlabMaterial = state.pathSlabMaterial || document.getElementById('slabMaterial')?.value || 'tile_gray';
+        state.pathPaverMaterial = state.pathPaverMaterial || document.getElementById('pathMaterial')?.value || 'tile_gray';
+        state.pathMaterial = pathType === 'slab' ? state.pathSlabMaterial : state.pathPaverMaterial;
+        const slabSettings = document.getElementById('pathSlabSettings');
+        const paverSettings = document.getElementById('pathPaverSettings');
+        if (slabSettings) slabSettings.style.display = pathType === 'slab' ? 'block' : 'none';
+        if (paverSettings) paverSettings.style.display = pathType === 'paver' ? 'block' : 'none';
 
 
         setVal(
@@ -2870,6 +2891,23 @@ export class ProjectIO {
                     : 'none';
         }
 
+
+        // --------------------------------------------------------
+        // БОРДЮР ПЛОЩАДКИ
+        // --------------------------------------------------------
+        setVal('curbVisible', state.curbVisible === true);
+        setSelect('curbMaterial', state.curbMaterial || 'granite');
+        setVal('curbInstallEnabled', state.curbInstallEnabled !== false);
+        setVal('curbGateOpeningEnabled', state.curbGateOpeningEnabled === true);
+        ['curbWidth', 'curbHeight'].forEach(id => {
+            const fallback = id === 'curbWidth' ? 0.08 : 0.12;
+            const value = Number(state[id]) || fallback;
+            setVal(id, value);
+            setVal(`${id}Input`, value);
+            setText(`${id}Val`, value.toFixed(2) + ' м');
+        });
+        const siteCurbControls = document.getElementById('siteCurbControls');
+        if (siteCurbControls) siteCurbControls.style.display = state.curbVisible ? 'block' : 'none';
 
         // --------------------------------------------------------
         // ОГРАДКА
