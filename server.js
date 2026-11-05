@@ -1212,6 +1212,37 @@ async function initDB() {
     `);
 
     // ========================================
+    // ЗАКУПОЧНЫЙ КАТАЛОГ ПОСТАВЩИКОВ
+    // Отдельно от клиентских цен material_price_rows.
+    // ========================================
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS supplier_material_prices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL CHECK(category IN ('stele_blank', 'flowerbed', 'pedestal')),
+            supplier TEXT NOT NULL,
+            article TEXT NOT NULL DEFAULT '',
+            product_name TEXT NOT NULL,
+            width_mm INTEGER NOT NULL DEFAULT 0,
+            height_mm INTEGER NOT NULL DEFAULT 0,
+            depth_mm INTEGER NOT NULL DEFAULT 0,
+            thickness_mm INTEGER NOT NULL DEFAULT 0,
+            material TEXT NOT NULL,
+            price REAL,
+            price_status TEXT NOT NULL DEFAULT 'not_listed'
+                CHECK(price_status IN ('priced', 'on_request', 'not_listed')),
+            weight_kg REAL,
+            notes TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CHECK((price_status = 'priced' AND price IS NOT NULL AND price > 0)
+                OR (price_status <> 'priced' AND price IS NULL))
+        )
+    `);
+    await dbRun(`
+        CREATE INDEX IF NOT EXISTS idx_supplier_material_prices_lookup
+        ON supplier_material_prices(category, supplier, article, material)
+    `);
+
+    // ========================================
     // ПРАЙС РОМБАК (историческая таблица БД; не используется в интерфейсе или расчёте)
 
     // ========================================
@@ -2278,6 +2309,107 @@ app.post(
     }
 );
 
+
+// ============================================
+// API: ЗАКУПОЧНЫЙ КАТАЛОГ ПОСТАВЩИКОВ
+// ============================================
+app.get('/api/admin/supplier-catalog', requireAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT id, category, supplier, article, product_name,
+                   width_mm, height_mm, depth_mm, thickness_mm,
+                   material, price, price_status, weight_kg, notes
+            FROM supplier_material_prices
+            ORDER BY category, supplier, article, product_name, material
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, rows });
+    } catch (error) {
+        console.error('Ошибка загрузки закупочного каталога:', error);
+        res.status(500).json({ success: false, message: 'Не удалось загрузить закупочный каталог' });
+    }
+});
+
+app.post('/api/admin/supplier-catalog', requireAdmin, async (req, res) => {
+    const rows = req.body?.rows;
+    const categories = new Set(['stele_blank', 'flowerbed', 'pedestal']);
+    const statuses = new Set(['priced', 'on_request', 'not_listed']);
+    if (!Array.isArray(rows) || rows.length > 10000) {
+        return res.status(400).json({ success: false, message: 'Некорректный список закупочных позиций' });
+    }
+
+    const normalized = [];
+    const seen = new Set();
+    for (const row of rows) {
+        const category = String(row?.category || '').trim();
+        const supplier = String(row?.supplier || '').trim().slice(0, 120);
+        const article = String(row?.article || '').trim().slice(0, 80);
+        const productName = String(row?.product_name || '').trim().slice(0, 180);
+        const material = String(row?.material || '').trim().slice(0, 120);
+        const notes = String(row?.notes || '').trim().slice(0, 500);
+        const dims = ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm']
+            .map(key => Number(row?.[key] || 0));
+        const status = String(row?.price_status || 'not_listed');
+        const rawPrice = row?.price;
+        const price = rawPrice === null || rawPrice === '' || rawPrice === undefined
+            ? null : Number(rawPrice);
+        const rawWeight = row?.weight_kg;
+        const weight = rawWeight === null || rawWeight === '' || rawWeight === undefined
+            ? null : Number(rawWeight);
+
+        if (!categories.has(category) || !supplier || !productName || !material ||
+            !statuses.has(status) ||
+            dims.some(value => !Number.isInteger(value) || value < 0 || value > 10000) ||
+            (status === 'priced' && (!Number.isFinite(price) || price <= 0 || price > 100000000)) ||
+            (status !== 'priced' && price !== null) ||
+            (weight !== null && (!Number.isFinite(weight) || weight < 0 || weight > 1000000))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Проверьте категорию, поставщика, модель, размеры, материал, статус цены и вес'
+            });
+        }
+
+        const item = {
+            category, supplier, article, product_name: productName,
+            width_mm: dims[0], height_mm: dims[1], depth_mm: dims[2], thickness_mm: dims[3],
+            material, price, price_status: status, weight_kg: weight, notes
+        };
+        const key = [
+            category, supplier.toLowerCase(), article.toLowerCase(), productName.toLowerCase(),
+            ...dims, material.toLowerCase()
+        ].join('|');
+        if (seen.has(key)) {
+            return res.status(400).json({ success: false, message: 'Есть повторяющиеся позиции с одинаковым материалом' });
+        }
+        seen.add(key);
+        normalized.push(item);
+    }
+
+    try {
+        await dbRun('BEGIN TRANSACTION');
+        await dbRun('DELETE FROM supplier_material_prices');
+        for (const row of normalized) {
+            await dbRun(`
+                INSERT INTO supplier_material_prices (
+                    category, supplier, article, product_name,
+                    width_mm, height_mm, depth_mm, thickness_mm,
+                    material, price, price_status, weight_kg, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                row.category, row.supplier, row.article, row.product_name,
+                row.width_mm, row.height_mm, row.depth_mm, row.thickness_mm,
+                row.material, row.price, row.price_status, row.weight_kg, row.notes
+            ]);
+        }
+        await dbRun('COMMIT');
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, rows: normalized, saved: normalized.length });
+    } catch (error) {
+        try { await dbRun('ROLLBACK'); } catch (_) {}
+        console.error('Ошибка сохранения закупочного каталога:', error);
+        res.status(500).json({ success: false, message: 'Не удалось сохранить закупочный каталог' });
+    }
+});
 
 // ============================================
 // API: КЛИЕНТСКИЙ ПРАЙС ПО МАТЕРИАЛАМ
