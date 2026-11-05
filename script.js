@@ -4882,7 +4882,7 @@ function buildPriceBreakdown() {
         const getSteleThicknessMm = row => {
             const savedThickness = Number(row?.thickness_mm);
             if (Number.isFinite(savedThickness) && savedThickness > 0) return savedThickness;
-            const legacyFinishThickness = String(row?.finish ?? '').trim().match(/^(\\d+(?:[.,]\\d+)?)$/);
+            const legacyFinishThickness = String(row?.finish ?? '').trim().match(/^(\d+(?:[.,]\d+)?)$/);
             return legacyFinishThickness ? Number(legacyFinishThickness[1].replace(',', '.')) : 0;
         };
         const baseRow = materialPriceRows.find(row =>
