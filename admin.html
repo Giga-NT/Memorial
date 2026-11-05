@@ -1038,6 +1038,25 @@
             </div>
         </section>
 
+        <section class="price-category open" id="supplier-catalog-admin">
+            <button type="button" class="category-header" onclick="toggleCategory(this)">
+                <span class="category-title"><span class="category-arrow">▶</span> 📦 Каталог поставщика</span>
+                <span class="category-count">импорт без удаления старых цен</span>
+            </button>
+            <div class="category-content" style="padding:16px">
+                <p class="intro">Загружайте подготовленный JSON-файл каталога. Повторный импорт обновляет позиции по ключу поставщик + артикул/вариант, не удаляя другие товары. Рублёвая цена клиента считается с указанной наценкой; EUR остаётся без пересчёта. Позиции связываются с конструктором только при явном заполнении app_product и is_app_item.</p>
+                <div class="material-price-toolbar">
+                    <label>Наценка по умолчанию, % <input id="supplier-markup" type="number" min="0" max="1000" value="100" style="width:90px"></label>
+                    <input id="supplier-json-file" type="file" accept=".json,application/json">
+                    <button type="button" class="secondary" id="supplier-catalog-reload">Обновить каталог</button>
+                    <button type="button" id="supplier-catalog-import">Импортировать JSON</button>
+                </div>
+                <p id="supplier-catalog-message" role="status" class="flag-hint"></p>
+                <div id="supplier-catalog-stats" class="intro"></div>
+                <div id="supplier-catalog-table-wrap" style="overflow-x:auto"></div>
+            </div>
+        </section>
+
         <!-- =====================================
              ACTIONS
         ====================================== -->
@@ -1781,6 +1800,54 @@
             const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||'Не удалось сохранить');
             materialRows=result.rows||materialRows;renderMaterialPriceEditor();materialMessage.textContent='Сохранено строк: '+result.saved;
         }catch(error){materialMessage.textContent=error.message;}
+        finally{button.disabled=false;}
+    });
+
+    // =========================================
+    // КАТАЛОГ ПОСТАВЩИКА
+    // =========================================
+    let supplierImportPayload = null;
+    const supplierMessage = document.getElementById('supplier-catalog-message');
+    const supplierStats = document.getElementById('supplier-catalog-stats');
+    const supplierTable = document.getElementById('supplier-catalog-table-wrap');
+    const supplierEsc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    async function loadSupplierCatalog() {
+        const response = await fetch('/api/admin/supplier-catalog',{credentials:'include',cache:'no-store'});
+        const result = await response.json();
+        if(!response.ok || !result.success) throw new Error(result.message || 'Не удалось загрузить каталог');
+        const rows = Array.isArray(result.rows) ? result.rows : [];
+        const stats = result.stats || {};
+        supplierStats.textContent = 'Всего: '+Number(stats.total||0)+' · с ценой поставщика: '+Number(stats.priced||0)+' · без цены: '+Number(stats.unpriced||0)+' · связано с приложением: '+Number(stats.app_items||0);
+        supplierTable.innerHTML = '<table class="material-price-table"><thead><tr><th>Артикул</th><th>Наименование</th><th>Категория</th><th>Материал</th><th>Размеры, мм</th><th>Обработка</th><th>Поставщик</th><th>Цена поставщика</th><th>Цена клиента</th><th>Валюта</th><th>Страница</th><th>В конструкторе</th></tr></thead><tbody>'+
+            rows.map(row=>'<tr><td>'+supplierEsc(row.article||row.external_key)+'</td><td>'+supplierEsc(row.name)+'</td><td>'+supplierEsc(row.category)+'</td><td>'+supplierEsc(row.material)+'</td><td>'+[row.width_mm,row.height_mm,row.depth_mm,row.thickness_mm].filter(Number).join(' × ')+'</td><td>'+supplierEsc(row.finish)+'</td><td>'+supplierEsc(row.supplier)+'</td><td>'+(row.supplier_price===null?'Цена не задана':Number(row.supplier_price).toLocaleString('ru-RU'))+'</td><td>'+(row.customer_price===null?'Цена не задана':Number(row.customer_price).toLocaleString('ru-RU'))+'</td><td>'+supplierEsc(row.currency)+'</td><td>'+supplierEsc(row.source_page||'—')+'</td><td>'+(Number(row.is_app_item)===1?'Да':'Нет')+'</td></tr>').join('')+
+            '</tbody></table>';
+        supplierMessage.textContent = 'Каталог загружен.';
+    }
+    document.getElementById('supplier-json-file').addEventListener('change',async event=>{
+        supplierImportPayload = null;
+        const file = event.target.files?.[0];
+        if(!file){supplierMessage.textContent='Файл не выбран';return;}
+        try{
+            const parsed = JSON.parse(await file.text());
+            if(!Array.isArray(parsed.rows)) throw new Error('В JSON должен быть массив rows');
+            supplierImportPayload = {supplier:parsed.supplier||'global_stone',source_file:parsed.source_file||file.name,rows:parsed.rows};
+            supplierMessage.textContent = 'Файл прочитан: '+parsed.rows.length+' строк. Перед импортом проверьте категории и привязки к приложению.';
+        }catch(error){supplierMessage.textContent='Ошибка JSON: '+error.message;}
+    });
+    document.getElementById('supplier-catalog-reload').addEventListener('click',async()=>{
+        try{await loadSupplierCatalog();}catch(error){supplierMessage.textContent=error.message;}
+    });
+    document.getElementById('supplier-catalog-import').addEventListener('click',async()=>{
+        if(!supplierImportPayload){supplierMessage.textContent='Сначала выберите корректный JSON-файл.';return;}
+        if(!confirm('Импортировать '+supplierImportPayload.rows.length+' строк? Существующие записи будут обновлены по ключу, остальные останутся.'))return;
+        const button=document.getElementById('supplier-catalog-import');button.disabled=true;
+        try{
+            const response=await fetch('/api/admin/supplier-catalog/import',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({...supplierImportPayload,markup_percent:Number(document.getElementById('supplier-markup').value||100)})});
+            const result=await response.json();
+            if(!response.ok||!result.success)throw new Error(result.message||'Импорт не выполнен');
+            supplierMessage.textContent='Импортировано/обновлено строк: '+result.imported+'.';
+            await loadSupplierCatalog();
+        }catch(error){supplierMessage.textContent=error.message;}
         finally{button.disabled=false;}
     });
 
