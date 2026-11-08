@@ -1023,10 +1023,11 @@
                 <span class="category-count">редактируемые цены</span>
             </button>
             <div class="category-content" style="padding:16px">
-                <p class="intro">Здесь задаются единственные клиентские цены материалов и изделий. Добавьте строки по материалу, изделию, размерам, толщине и обработке. Размеры указываются в миллиметрах; при поиске расчёт округляет размеры вверх до ближайших 100 мм. Для плитки цена задаётся за м², для бордюра — за погонный метр, для штучных изделий — за штуку.</p>
-                <div id="material-tabs" class="material-tabs" role="tablist"></div>
+                <p class="intro">Здесь задаются цены для клиента. Для основной стелы достаточно одной базовой позиции на материал: укажите ширину, высоту, толщину и цену. Стоимость других размеров калькулятор пересчитает по объёму. Дополнительные изделия добавляйте отдельными позициями ниже.</p>
                 <div class="material-price-toolbar">
-                    <strong id="material-current-label">Материал</strong>
+                    <label for="material-select"><strong>Материал</strong></label>
+                    <select id="material-select" aria-label="Выбрать материал" style="min-width:220px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"></select>
+                    <strong id="material-current-label" style="display:none">Материал</strong>
                     <button type="button" id="material-add-row">＋ Добавить позицию</button>
                 </div>
                 <div id="material-price-table-wrap" style="overflow-x:auto"></div>
@@ -1719,7 +1720,7 @@
     ];
     let materialRows = [];
     let activeMaterial = MATERIALS[0][0];
-    const materialTabs = document.getElementById('material-tabs');
+    const materialSelect = document.getElementById('material-select');
     const materialWrap = document.getElementById('material-price-table-wrap');
     const materialMessage = document.getElementById('material-price-message');
     const escText = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -1732,10 +1733,21 @@
         materialMessage.textContent = 'Строк в прайсе: '+materialRows.length;
     }
     function renderMaterialPriceEditor() {
-        materialTabs.innerHTML = MATERIALS.map(([key,label]) =>
-            '<button type="button" class="'+(key===activeMaterial?'active':'')+'" data-material="'+key+'">'+label+'</button>'
+        materialSelect.innerHTML = MATERIALS.map(([key,label]) =>
+            '<option value="'+key+'">'+label+'</option>'
         ).join('');
+        materialSelect.value = activeMaterial;
         document.getElementById('material-current-label').textContent = MATERIALS.find(x=>x[0]===activeMaterial)?.[1] || activeMaterial;
+        // Старые записи могли хранить толщину стелы в поле finish (например, "70").
+        materialRows.forEach(row=>{
+            if(row.material===activeMaterial && row.product==='stele' && !(Number(row.thickness_mm)>0)){
+                const legacy=String(row.finish??'').trim().match(/^(\d+(?:[.,]\d+)?)$/);
+                if(legacy){
+                    row.thickness_mm=Number(legacy[1].replace(',','.'));
+                    row.finish='';
+                }
+            }
+        });
         const rows = materialRows.map((r,i)=>({...r,_index:i})).filter(r=>r.material===activeMaterial);
         const productOptions = PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
         materialWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм (кроме стелы)</th><th>Толщина, мм</th><th>Обработка / исполнение</th><th>Цена для клиента, ₽</th><th></th></tr></thead><tbody>'+
@@ -1756,9 +1768,9 @@
             });
         });
     }
-    materialTabs.addEventListener('click',event=>{
-        const button=event.target.closest('[data-material]');if(!button)return;
-        activeMaterial=button.dataset.material;renderMaterialPriceEditor();
+    materialSelect.addEventListener('change',()=>{
+        activeMaterial=materialSelect.value;
+        renderMaterialPriceEditor();
     });
     document.getElementById('material-add-row').addEventListener('click',()=>{
         materialRows.push({material:activeMaterial,product:'stele',width_mm:0,height_mm:0,depth_mm:0,thickness_mm:0,finish:'',price:0});
