@@ -4734,6 +4734,50 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
     return candidates.length === 1 ? { price: Number(candidates[0].price), dimensions: target } : null;
 }
 
+// Для тумб и отдельных палок цветника выбираем минимальную позицию,
+// которая не меньше требуемого размера ни по одному измерению.
+function findNearestLargerMaterialPrice(product, material, dimensions = {}, finish = '') {
+    const dimensionKeys = product === 'pedestal'
+        ? ['width_mm', 'height_mm', 'depth_mm']
+        : ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'];
+    const target = Object.fromEntries(
+        dimensionKeys.map(key => [key, Math.max(0, Number(dimensions[key]) || 0)])
+    );
+    const candidates = materialPriceRows.filter(row =>
+        row.material === material &&
+        row.product === product &&
+        dimensionKeys.every(key => Number(row[key] || 0) >= target[key]) &&
+        String(row.finish || '') === String(finish || '') &&
+        (product !== 'pedestal' || Number(row.thickness_mm || 0) === 0)
+    );
+    const volume = row => dimensionKeys.reduce(
+        (result, key) => result * Math.max(1, Number(row[key]) || 0),
+        1
+    );
+    const excess = row => dimensionKeys.reduce(
+        (result, key) => result + Number(row[key] || 0) - target[key],
+        0
+    );
+    candidates.sort((a, b) =>
+        volume(a) - volume(b) ||
+        excess(a) - excess(b) ||
+        Number(a.width_mm || 0) - Number(b.width_mm || 0) ||
+        Number(a.height_mm || 0) - Number(b.height_mm || 0) ||
+        Number(a.depth_mm || 0) - Number(b.depth_mm || 0)
+    );
+    if (!candidates.length) return null;
+    const row = candidates[0];
+    return {
+        price: Number(row.price),
+        dimensions: {
+            width_mm: Number(row.width_mm) || 0,
+            height_mm: Number(row.height_mm) || 0,
+            depth_mm: Number(row.depth_mm) || 0,
+            thickness_mm: Number(row.thickness_mm) || 0
+        }
+    };
+}
+
 // ============================================================
 // ⭐ РАСЧЕТ СТОИМОСТИ
 // ============================================================
@@ -4909,18 +4953,41 @@ function buildPriceBreakdown() {
         if (monument.pedestalEnabled !== false) {
             pedestalCount++;
             const pedestalMaterial = monument.pedestalMaterial || material;
+
+            // Размеры тумбы рассчитываются по той же формуле, что и 3D-модель:
+            // ширина стелы + 10% с каждой стороны, высота не менее 120 мм,
+            // глубина не менее 150 мм и 1.875 толщины стелы.
+            const steleWidthMm = (Number(monument.width) || 0.6) * 1000;
+            const steleHeightMm = (Number(monument.height) || 1.2) * 1000;
+            const steleThicknessMm = (Number(monument.depth) || 0.07) * 1000;
+            const sideMarginMm = Number(monument.stelePedestalSideMargin) > 0
+                ? Number(monument.stelePedestalSideMargin) * 1000
+                : steleWidthMm * 0.10;
             const pedestalDimensions = {
-                width_mm: (Number(monument.pedestalWidth) || (Number(monument.graveWidth) || 0.9) + 0.18) * 1000,
-                height_mm: (Number(monument.pedestalHeight) || Number(monument.baseHeight) || 0.15) * 1000,
-                depth_mm: (Number(monument.pedestalDepth) || Number(monument.depth) || 0.07) * 1000,
-                thickness_mm: (Number(monument.pedestalThickness) || Number(monument.baseHeight) || 0.15) * 1000
+                width_mm: steleWidthMm + sideMarginMm * 2,
+                height_mm: Number(monument.stelePedestalHeight) > 0
+                    ? Number(monument.stelePedestalHeight) * 1000
+                    : Math.max(120, steleHeightMm * 0.10),
+                depth_mm: Number(monument.stelePedestalDepth) > 0
+                    ? Number(monument.stelePedestalDepth) * 1000
+                    : Math.max(150, steleThicknessMm * 1.875),
+                thickness_mm: 0
             };
-            const pedestalMatch = findMaterialPrice('pedestal', pedestalMaterial, pedestalDimensions, monument.pedestalFinish || '');
+            const pedestalMatch = findNearestLargerMaterialPrice(
+                'pedestal',
+                pedestalMaterial,
+                pedestalDimensions,
+                monument.pedestalFinish || ''
+            );
             if (pedestalMatch) {
                 pedestalTotal += pedestalMatch.price;
-                pedestalParts.push(`№${index + 1}: ${pedestalMaterial}, ${pedestalMatch.price} ₽`);
+                pedestalParts.push(
+                    `№${index + 1}: требуется ${Math.ceil(pedestalDimensions.width_mm)}×${Math.ceil(pedestalDimensions.height_mm)}×${Math.ceil(pedestalDimensions.depth_mm)} мм; подобрана ${pedestalMatch.dimensions.width_mm}×${pedestalMatch.dimensions.height_mm}×${pedestalMatch.dimensions.depth_mm} мм — ${pedestalMatch.price} ₽`
+                );
             } else {
-                missingCatalogPrices.push(`Тумба №${index + 1}: ${pedestalMaterial}, требуется точный размер в настройках`);
+                missingCatalogPrices.push(
+                    `Тумба №${index + 1}: ${pedestalMaterial}, нет позиции не меньше ${Math.ceil(pedestalDimensions.width_mm)}×${Math.ceil(pedestalDimensions.height_mm)}×${Math.ceil(pedestalDimensions.depth_mm)} мм`
+                );
             }
         }
     });
@@ -5073,17 +5140,53 @@ function buildPriceBreakdown() {
             );
         } else {
             const flowerMaterial = monument.borderMaterial || monument.baseMaterial || monument.material || 'granite';
-            addCatalogComponent(
+            const borderWidthMm = 50;
+            const borderHeightMm = 60;
+            const overlapMm = 10;
+
+            // В 3D-цветнике четыре отдельные балки:
+            // две короткие по внешней ширине и две длинные по внешней длине.
+            const shortBoardLengthMm = flowerWidth * 1000 + borderWidthMm * 2;
+            const longBoardLengthMm = flowerLength * 1000 + borderWidthMm * 2 - overlapMm * 2;
+            const boardSpecs = [
+                { label: '2 короткие палки', length_mm: shortBoardLengthMm, count: 2 },
+                { label: '2 длинные палки', length_mm: longBoardLengthMm, count: 2 }
+            ];
+            const boardPriceParts = [];
+            let flowerbedTotal = 0;
+
+            boardSpecs.forEach(board => {
+                const boardDimensions = {
+                    width_mm: board.length_mm,
+                    height_mm: borderHeightMm,
+                    depth_mm: borderWidthMm,
+                    thickness_mm: borderWidthMm
+                };
+                const boardMatch = findNearestLargerMaterialPrice(
+                    'flowerbed',
+                    flowerMaterial,
+                    boardDimensions,
+                    monument.flowerbedFinish || ''
+                );
+
+                if (!boardMatch) {
+                    missingCatalogPrices.push(
+                        `Цветник №${index + 1}, ${board.label}: ${flowerMaterial}, нет палки не меньше ${Math.ceil(boardDimensions.width_mm)}×${boardDimensions.height_mm}×${boardDimensions.depth_mm} мм`
+                    );
+                    return;
+                }
+
+                const lineTotal = boardMatch.price * board.count;
+                flowerbedTotal += lineTotal;
+                boardPriceParts.push(
+                    `${board.label}: ${boardMatch.dimensions.width_mm}×${boardMatch.dimensions.height_mm}×${boardMatch.dimensions.depth_mm} мм × ${board.count} × ${boardMatch.price} ₽ = ${lineTotal} ₽`
+                );
+            });
+
+            addRow(
                 `🌿 Цветник №${index + 1}`,
-                'flowerbed',
-                flowerMaterial,
-                {
-                    width_mm: flowerWidth * 1000,
-                    height_mm: flowerLength * 1000,
-                    depth_mm: 50,
-                    thickness_mm: 50
-                },
-                monument.flowerbedFinish || ''
+                `${materialPriceLabels[flowerMaterial] || flowerMaterial}; ${boardPriceParts.join('; ')}`,
+                flowerbedTotal
             );
         }
     });
