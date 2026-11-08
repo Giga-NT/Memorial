@@ -5154,6 +5154,7 @@ function buildPriceBreakdown() {
             ];
             const boardPriceParts = [];
             let flowerbedTotal = 0;
+            let missingBoardPrice = false;
 
             boardSpecs.forEach(board => {
                 const boardDimensions = {
@@ -5170,6 +5171,7 @@ function buildPriceBreakdown() {
                 );
 
                 if (!boardMatch) {
+                    missingBoardPrice = true;
                     missingCatalogPrices.push(
                         `Цветник №${index + 1}, ${board.label}: ${flowerMaterial}, нет палки не меньше ${Math.ceil(boardDimensions.width_mm)}×${boardDimensions.height_mm}×${boardDimensions.depth_mm} мм`
                     );
@@ -5183,11 +5185,15 @@ function buildPriceBreakdown() {
                 );
             });
 
-            addRow(
-                `🌿 Цветник №${index + 1}`,
-                `${materialPriceLabels[flowerMaterial] || flowerMaterial}; ${boardPriceParts.join('; ')}`,
-                flowerbedTotal
-            );
+            // Не показываем частичную стоимость: цветник считается только
+            // если найдены цены и для коротких, и для длинных палок.
+            if (!missingBoardPrice) {
+                addRow(
+                    `🌿 Цветник №${index + 1}`,
+                    `${materialPriceLabels[flowerMaterial] || flowerMaterial}; ${boardPriceParts.join('; ')}`,
+                    flowerbedTotal
+                );
+            }
         }
     });
 
