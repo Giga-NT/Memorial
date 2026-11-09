@@ -2813,11 +2813,15 @@ async function createPathBetweenGraveAndFence() {
     const isTile = state.pathMaterial && state.pathMaterial.startsWith('tile_');
     
     if (isTile) {
-        const texturePromise = createPavingTexture(0.2, state.pathMaterial, state.pathJointColor || '#666666');
-        // Один повтор — модуль 400×400 мм из элементов 200×200 и 200×100.
-        const repeatX = totalWidth / 0.4;
-        const repeatY = totalLength / 0.4;
-        const texture = await texturePromise;
+        const isSlab = (state.pathSurfaceType || 'paver') === 'slab';
+        const slabFormat = state.pathSlabFormat || 'square300';
+        const texture = isSlab
+            ? createSlabTexture(slabFormat, state.pathMaterial, state.pathJointColor || '#666666')
+            : await createPavingTexture(0.2, state.pathMaterial, state.pathJointColor || '#666666');
+        // Для плитки повторяем модуль 1,2×1,2 м; для брусчатки — 0,4×0,4 м.
+        const repeatModule = isSlab ? 1.2 : 0.4;
+        const repeatX = totalWidth / repeatModule;
+        const repeatY = totalLength / repeatModule;
         if (texture) {
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
@@ -2863,6 +2867,88 @@ async function createPathBetweenGraveAndFence() {
 // ============================================================
 // ⭐ ТЕКСТУРА БРУСЧАТКИ
 // ============================================================
+// Отдельная раскладка тротуарной плитки: физические размеры привязаны к модулю 1,2 м.
+function createSlabTexture(format, tileType, jointColor) {
+    const size = isMobile ? 512 : 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const colors = {
+        tile_black: '#303030', tile_gray: '#929292', tile_beige: '#c8b99a',
+        tile_dark: '#484848', tile_light: '#d0d0cc', tile_red: '#96534b',
+        tile_marble: '#aaa69c'
+    };
+    const base = colors[tileType] || '#929292';
+    const joint = jointColor || '#666666';
+    const pxPerMm = size / 1200;
+    const gap = isMobile ? 3 : 4;
+    ctx.fillStyle = joint;
+    ctx.fillRect(0, 0, size, size);
+    const drawRect = (x, y, w, h) => {
+        const shade = 0.92 + Math.random() * 0.16;
+        const color = new THREE.Color(base);
+        const rgb = [color.r, color.g, color.b].map(v => Math.max(0, Math.min(255, Math.round(v * 255 * shade))));
+        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        ctx.fillRect(x + gap / 2, y + gap / 2, Math.max(1, w - gap), Math.max(1, h - gap));
+        addStoneNoiseToTile(ctx, x + gap / 2, y + gap / 2, Math.max(1, w - gap), Math.max(1, h - gap));
+    };
+    const drawGrid = (tileW, tileH, stagger = false) => {
+        const w = tileW * pxPerMm, h = tileH * pxPerMm;
+        for (let row = 0, y = 0; y < size; row++, y += h) {
+            const offset = stagger && row % 2 ? w / 2 : 0;
+            for (let x = -offset; x < size; x += w) drawRect(x, y, w, h);
+        }
+    };
+    if (format === 'square500') {
+        drawGrid(600, 600);
+    } else if (format === 'rectangle') {
+        drawGrid(200, 100, true);
+    } else if (format === 'old_city') {
+        const u = 200 * pxPerMm;
+        for (let y = 0; y < size; y += u * 3) {
+            for (let x = 0; x < size; x += u * 3) {
+                drawRect(x, y, u * 2, u);
+                drawRect(x + u * 2, y, u, u);
+                drawRect(x, y + u, u, u);
+                drawRect(x + u, y + u, u, u);
+                drawRect(x + u * 2, y + u, u, u * 2);
+                drawRect(x, y + u * 2, u, u);
+                drawRect(x + u, y + u * 2, u, u);
+            }
+        }
+    } else if (format === 'stone') {
+        const cell = 300 * pxPerMm;
+        for (let y = -cell; y < size + cell; y += cell) {
+            for (let x = -cell; x < size + cell; x += cell) {
+                ctx.beginPath();
+                ctx.moveTo(x + gap, y + cell * 0.12);
+                ctx.lineTo(x + cell * 0.62, y + gap);
+                ctx.lineTo(x + cell - gap, y + cell * 0.28);
+                ctx.lineTo(x + cell * 0.82, y + cell - gap);
+                ctx.lineTo(x + cell * 0.18, y + cell * 0.88);
+                ctx.closePath();
+                const shade = 0.92 + Math.random() * 0.16;
+                const color = new THREE.Color(base);
+                ctx.fillStyle = `rgb(${Math.round(color.r*255*shade)},${Math.round(color.g*255*shade)},${Math.round(color.b*255*shade)})`;
+                ctx.fill();
+                ctx.strokeStyle = joint;
+                ctx.lineWidth = gap;
+                ctx.stroke();
+            }
+        }
+    } else {
+        drawGrid(300, 300);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = isMobile ? 1 : 4;
+    return texture;
+}
+
 function createPavingTexture(tileSize, tileType, jointColor) {
     const texWidth = isMobile ? 256 : 512;
     const texHeight = isMobile ? 256 : 512;
@@ -4927,7 +5013,9 @@ function buildPriceBreakdown() {
         const dimensionsLabel = isSiteLayer || finish === 'site_fill'
             ? ''
             : product === 'tile'
-                ? '200×200 и 200×100 мм, толщина 60 мм'
+                ? (finish === 'slab'
+                    ? `${dimensions.width_mm}×${dimensions.height_mm}×${dimensions.thickness_mm} мм`
+                    : '200×200 и 200×100 мм, толщина 60 мм')
                 : `${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм`;
         const descriptionParts = [
             finishLabel && finish !== 'paver' && finish !== 'slab' ? finishLabel : materialLabel,
@@ -5318,18 +5406,23 @@ function buildPriceBreakdown() {
             const catalogMaterial = surfaceType === 'slab'
                 ? (state.pathSlabMaterial || material)
                 : (state.pathPaverMaterial || material);
-            const tileDepthMm = surfaceType === 'slab' ? 40 : 60;
-            // Каталожная цена плитки/брусчатки хранится за м², а не за отдельный элемент.
+            const slabFormat = state.pathSlabFormat || 'square300';
+            const slabSpecs = {
+                square300: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 },
+                square500: { width_mm: 500, height_mm: 500, depth_mm: 50, thickness_mm: 50 },
+                rectangle: { width_mm: 200, height_mm: 100, depth_mm: 60, thickness_mm: 60 },
+                old_city: { width_mm: 300, height_mm: 300, depth_mm: 60, thickness_mm: 60 },
+                stone: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 }
+            };
+            const tileDimensions = surfaceType === 'slab'
+                ? (slabSpecs[slabFormat] || slabSpecs.square300)
+                : { width_mm: 200, height_mm: 200, depth_mm: 60, thickness_mm: 60 };
+            // Цена плитки и брусчатки хранится за м²; формат/толщина выбирают строку прайса.
             addCatalogComponent(
                 `🛤️ Покрытие площадки — ${surfaceLabel}`,
                 'tile',
                 catalogMaterial,
-                {
-                    width_mm: 200,
-                    height_mm: 200,
-                    depth_mm: tileDepthMm,
-                    thickness_mm: tileDepthMm
-                },
+                tileDimensions,
                 surfaceType,
                 coverageArea
             );
@@ -6970,6 +7063,7 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         const pathTileSize = 0.2;
         const pathJointColor = document.getElementById('pathJointColor')?.value || '#666666';
         const pathTileLayout = document.getElementById('pathTileLayout')?.value || 'brick';
+        state.pathSlabFormat = document.getElementById('pathSlabFormat')?.value || state.pathSlabFormat || 'square300';
         
         // --- 6. ОГРАДКА ---
         const fenceEnabled = document.getElementById('fenceEnabled')?.checked || false;
@@ -7182,6 +7276,7 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             pathSurfaceType,
             pathEnabled,
             pathSlabMaterial: state.pathSlabMaterial,
+            pathSlabFormat: state.pathSlabFormat || 'square300',
             pathPaverMaterial: state.pathPaverMaterial,
             pathColor,
             pathTileSize,
