@@ -144,7 +144,7 @@ function createFrontTexture(params) {
     
     if (params.fullName && params.fullName.trim()) {
         const safeFullName = sanitizeText(params.fullName);
-        const fontSize = (params.nameFontSize || 48) * (isMobile ? 0.8 : 1.5);
+        const fontSize = (params.nameFontSize || 24) * (isMobile ? 0.8 : 1.5);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
         
         const rawLines = safeFullName.split(/\r?\n/);
@@ -162,14 +162,14 @@ function createFrontTexture(params) {
         
         allLines.forEach(line => {
             ctx.fillText(line, canvas.width/2 + offsetX, currentY);
-            currentY += (params.nameFontSize || 48) * (isMobile ? 0.9 : 1.8);
+            currentY += (params.nameFontSize || 24) * (isMobile ? 0.9 : 1.8);
         });
         currentY += isMobile ? 12 : 25;
     }
     
     if (params.dates && params.dates.trim()) {
         const safeDates = sanitizeText(params.dates);
-        const fontSize = (params.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
+        const fontSize = (params.datesFontSize || 24) * (isMobile ? 0.8 : 1.3);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
         ctx.fillText(safeDates, canvas.width/2 + offsetX, currentY);
     }
@@ -1688,17 +1688,17 @@ export async function updateMainMonument(
         nameFontSize:
             state.nameFontSize !== undefined
                 ? Number(state.nameFontSize)
-                : 48,
+                : 24,
 
         datesFontSize:
             state.datesFontSize !== undefined
                 ? Number(state.datesFontSize)
-                : 32,
+                : 24,
 
         epitaphFontSize:
             state.epitaphFontSize !== undefined
                 ? Number(state.epitaphFontSize)
-                : 40,
+                : 24,
 
         textOffsetX:
             state.textOffsetX || 0,
