@@ -4682,6 +4682,39 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
             (Number(row.width_mm) === 200 && Number(row.height_mm) === 100)
         ))
     );
+    // Бордюр подбирается по ближайшему большему типоразмеру:
+    // длина секции должна покрывать запрос, высота и сечение — быть не меньше выбранных.
+    if (product === 'curb') {
+        const targetSection = Math.max(target.depth_mm, target.thickness_mm);
+        const suitable = materialPriceRows.filter(row => {
+            if (row.material !== material || row.product !== 'curb' ||
+                String(row.finish || '') !== String(finish || '')) return false;
+            const rowLength = Number(row.width_mm) || 0;
+            const rowHeight = Number(row.height_mm) || 0;
+            const rowSection = Math.max(Number(row.depth_mm) || 0, Number(row.thickness_mm) || 0);
+            return rowLength >= target.width_mm && rowHeight >= target.height_mm && rowSection >= targetSection;
+        }).sort((a,b) => {
+            const score = row => {
+                const h = Number(row.height_mm)||0;
+                const d = Math.max(Number(row.depth_mm)||0,Number(row.thickness_mm)||0);
+                return (Number(row.width_mm)||0) * h * d;
+            };
+            return score(a)-score(b) || Number(a.price)-Number(b.price);
+        });
+        if (suitable.length) {
+            const row = suitable[0];
+            return {
+                price: Number(row.price),
+                dimensions: {
+                    width_mm: Number(row.width_mm)||0,
+                    height_mm: Number(row.height_mm)||0,
+                    depth_mm: Number(row.depth_mm)||0,
+                    thickness_mm: Number(row.thickness_mm)||0
+                }
+            };
+        }
+        return null;
+    }
     if (product === 'tile' && candidates.length > 0) {
         const uniquePrices = [...new Set(candidates.map(row => Number(row.price)))];
         return uniquePrices.length === 1
@@ -7243,6 +7276,54 @@ function getEstimateCameraFit(bounds) {
     const half=Math.max(0.05,Math.min(vfov,hfov)/2);
     return {center:sphere.center,distance:Math.max(2,sphere.radius/Math.sin(half)*1.45)};
 }
+function getEstimateMonumentRoots() {
+    const manager = window.multiMonumentManager;
+    const roots = [];
+    if (window.monumentGroup?.isObject3D) roots.push({ root: window.monumentGroup, data: state, label: 'Основной памятник' });
+    (manager?.monuments || []).forEach((monument, index) => {
+        if (monument?.group?.isObject3D) roots.push({
+            root: monument.group,
+            data: monument.data || {},
+            label: `Памятник ${index + 2}`
+        });
+    });
+    return roots.filter(item => item.root.visible !== false);
+}
+
+function makeMonumentDetailScreenshot(targetRoot, angle) {
+    const roots = getEstimateMonumentRoots();
+    const visibility = roots.map(item => [item.root, item.root.visible]);
+    const savedPos = camera.position.clone();
+    const savedTarget = controls.target.clone();
+    const savedZoom = camera.zoom;
+    try {
+        roots.forEach(item => { item.root.visible = item.root === targetRoot; });
+        targetRoot.updateWorldMatrix(true, true);
+        const bounds = new THREE.Box3().setFromObject(targetRoot);
+        if (bounds.isEmpty()) return '';
+        const fit = getEstimateCameraFit(bounds);
+        const rad = angle * Math.PI / 180;
+        const distance = fit.distance * 0.92;
+        controls.target.copy(fit.center);
+        camera.position.set(
+            fit.center.x + Math.sin(rad) * distance,
+            fit.center.y + Math.max(0.08, distance * 0.07),
+            fit.center.z + Math.cos(rad) * distance
+        );
+        controls.update();
+        renderer.render(scene, camera);
+        return renderer.domElement.toDataURL('image/jpeg', 0.9);
+    } finally {
+        visibility.forEach(([root, visible]) => { root.visible = visible; });
+        camera.position.copy(savedPos);
+        controls.target.copy(savedTarget);
+        camera.zoom = savedZoom;
+        camera.updateProjectionMatrix();
+        controls.update();
+        renderer.render(scene, camera);
+    }
+}
+
 function makeScreenshot(angle,height=2.5,distance=6.0,targetY=0.6,fitAll=true) {
     const savedPos=camera.position.clone(), savedTarget=controls.target.clone(), savedZoom=camera.zoom;
     try {
@@ -7276,6 +7357,7 @@ function generateEstimatePDF() {
     
     // ========== 11. ДЕЛАЕМ СКРИНШОТЫ ==========
     let screenshotFront = '', screenshotBack = '', screenshotSide = '', screenshotTop = '', screenshotSteleFront = '', screenshotSteleBack = '';
+    let monumentDetailShots = [];
     
     try {
         const distance = 7.0;
@@ -7302,6 +7384,15 @@ function generateEstimatePDF() {
         const closeHeight = targetY + 0.1;
         screenshotSteleFront = makeScreenshot(0, closeHeight, closeDistance, targetY, false);
         screenshotSteleBack = makeScreenshot(180, closeHeight, closeDistance, targetY, false);
+
+        const monumentRoots = getEstimateMonumentRoots();
+        if (monumentRoots.length > 1) {
+            monumentDetailShots = monumentRoots.map((item, index) => ({
+                label: item.label || `Памятник ${index + 1}`,
+                front: makeMonumentDetailScreenshot(item.root, 0),
+                back: makeMonumentDetailScreenshot(item.root, 180)
+            }));
+        }
     } catch(e) {
         console.warn('Ошибка создания скриншотов:', e);
     }
@@ -7431,11 +7522,17 @@ function generateEstimatePDF() {
         ${screenshotBack ? `<div class="screenshot-box"><img src="${screenshotBack}"><div class="caption">📷 Вид сзади</div></div>` : ''}
         ${screenshotTop ? `<div class="screenshot-box screenshot-box-top"><img src="${screenshotTop}"><div class="caption">📷 Вид сверху</div></div>` : ''}
     </div>
-    <div class="screenshots-stele">
-        <div class="stele-title"><span>🔍 Крупный план стелы</span></div>
-        ${screenshotSteleFront ? `<div class="screenshot-box screenshot-box-stele"><img src="${screenshotSteleFront}"><div class="caption">📷 Стела (вид спереди)</div></div>` : ''}
-        ${screenshotSteleBack ? `<div class="screenshot-box screenshot-box-stele"><img src="${screenshotSteleBack}"><div class="caption">📷 Стела (вид сзади)</div></div>` : ''}
-    </div>
+    ${monumentDetailShots.length > 1 ? monumentDetailShots.map((item, index) => `
+        <div class="screenshots-stele">
+            <div class="stele-title"><span>🔍 ${escapeHTML(item.label)} — крупный план</span></div>
+            ${item.front ? `<div class="screenshot-box screenshot-box-stele"><img src="${item.front}"><div class="caption">📷 Вид спереди</div></div>` : ''}
+            ${item.back ? `<div class="screenshot-box screenshot-box-stele"><img src="${item.back}"><div class="caption">📷 Вид сзади</div></div>` : ''}
+        </div>`).join('') : `
+        <div class="screenshots-stele">
+            <div class="stele-title"><span>🔍 Крупный план стелы</span></div>
+            ${screenshotSteleFront ? `<div class="screenshot-box screenshot-box-stele"><img src="${screenshotSteleFront}"><div class="caption">📷 Стела (вид спереди)</div></div>` : ''}
+            ${screenshotSteleBack ? `<div class="screenshot-box screenshot-box-stele"><img src="${screenshotSteleBack}"><div class="caption">📷 Стела (вид сзади)</div></div>` : ''}
+        </div>`}
     <div class="section">
         <div class="section-title">💰 Стоимость</div>
         <table class="price-table">
