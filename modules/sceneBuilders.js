@@ -844,13 +844,20 @@ export async function createUnifiedTextureWithJoints(
     return texture;
 }
 
-// Отдельная текстура тротуарной плитки с физически разными форматами.
+// Текстура тротуарной плитки: цвет + карта рельефа для нормального освещения.
 function createSlabSurfaceTexture(format, tileType, jointColor) {
     const mobile = window.innerWidth < 768;
     const size = mobile ? 768 : 1024;
     const canvas = document.createElement('canvas');
-    canvas.width = size; canvas.height = size;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
+
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = size;
+    heightCanvas.height = size;
+    const hctx = heightCanvas.getContext('2d', { willReadFrequently: true });
+
     const colors = {
         tile_black:'#303030', tile_gray:'#929292', tile_beige:'#c8b99a',
         tile_dark:'#484848', tile_light:'#d0d0cc', tile_red:'#96534b',
@@ -860,52 +867,102 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
     const joint = jointColor || '#514e49';
     const moduleMm = format === 'square500' ? 1000 : 1200;
     const px = size / moduleMm;
-    const gap = mobile ? 5 : 6;
+    const gap = mobile ? 7 : 9;
+
     ctx.fillStyle = joint;
     ctx.fillRect(0, 0, size, size);
+    hctx.fillStyle = '#171717';
+    hctx.fillRect(0, 0, size, size);
+
     const hash = (x, y, salt = 0) => {
         const v = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
         return v - Math.floor(v);
     };
+
+    const roundedRect = (target, x, y, w, h, r) => {
+        target.beginPath();
+        target.moveTo(x + r, y);
+        target.lineTo(x + w - r, y);
+        target.quadraticCurveTo(x + w, y, x + w, y + r);
+        target.lineTo(x + w, y + h - r);
+        target.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        target.lineTo(x + r, y + h);
+        target.quadraticCurveTo(x, y + h, x, y + h - r);
+        target.lineTo(x, y + r);
+        target.quadraticCurveTo(x, y, x + r, y);
+        target.closePath();
+    };
+
     const paintTile = (x, y, w, h, seed) => {
-        const shade = 0.88 + hash(seed, Math.floor(x), 13) * 0.22;
-        const rgb = [base.r, base.g, base.b].map(v => Math.max(0, Math.min(255, Math.round(v * 255 * shade))));
         const inset = gap / 2;
-        const rx = x + inset, ry = y + inset, rw = Math.max(1, w - gap), rh = Math.max(1, h - gap);
-        ctx.fillStyle = 'rgba(0,0,0,0.30)';
-        ctx.fillRect(rx + 1, ry + 2, rw, rh);
-        const grad = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
-        grad.addColorStop(0, 'rgb(' + rgb.map(v=>Math.min(255,v+13)).join(',') + ')');
-        grad.addColorStop(0.48, 'rgb(' + rgb.join(',') + ')');
-        grad.addColorStop(1, 'rgb(' + rgb.map(v=>Math.max(0,v-17)).join(',') + ')');
+        const rx = x + inset;
+        const ry = y + inset;
+        const rw = Math.max(2, w - gap);
+        const rh = Math.max(2, h - gap);
+        const radius = Math.min(mobile ? 3 : 5, rw * 0.025, rh * 0.025);
+        const shade = 0.91 + hash(seed, Math.floor(x), 13) * 0.16;
+        const rgb = [base.r, base.g, base.b].map(v =>
+            Math.max(0, Math.min(255, Math.round(v * 255 * shade)))
+        );
+
+        // Глубокая тень под камнем и мягкий скос верхней кромки.
+        ctx.save();
+        roundedRect(ctx, rx + 1, ry + 2, rw, rh, radius);
+        ctx.fillStyle = 'rgba(0,0,0,0.48)';
+        ctx.fill();
+        roundedRect(ctx, rx, ry, rw, rh, radius);
+        const grad = ctx.createLinearGradient(rx, ry, rx + rw * 0.8, ry + rh);
+        grad.addColorStop(0, 'rgb(' + rgb.map(v => Math.min(255, v + 20)).join(',') + ')');
+        grad.addColorStop(0.22, 'rgb(' + rgb.map(v => Math.min(255, v + 7)).join(',') + ')');
+        grad.addColorStop(0.72, 'rgb(' + rgb.join(',') + ')');
+        grad.addColorStop(1, 'rgb(' + rgb.map(v => Math.max(0, v - 22)).join(',') + ')');
         ctx.fillStyle = grad;
-        ctx.fillRect(rx, ry, rw, rh);
-        ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
-        // Мелкая минеральная неоднородность, не меняющая основной цвет камня.
-        const specks = Math.max(10, Math.round(rw * rh / 900));
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.lineWidth = mobile ? 1 : 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // Минеральные вкрапления — редкие и малоконтрастные.
+        const specks = Math.max(14, Math.round(rw * rh / 1500));
         for (let n = 0; n < specks; n++) {
-            const sx = rx + hash(seed, n, 31) * rw;
-            const sy = ry + hash(seed, n, 47) * rh;
-            const alpha = 0.025 + hash(seed, n, 59) * 0.07;
+            const sx = rx + 3 + hash(seed, n, 31) * Math.max(1, rw - 6);
+            const sy = ry + 3 + hash(seed, n, 47) * Math.max(1, rh - 6);
+            const alpha = 0.025 + hash(seed, n, 59) * 0.055;
             ctx.fillStyle = hash(seed, n, 71) > 0.5
                 ? 'rgba(255,255,255,' + alpha + ')'
                 : 'rgba(0,0,0,' + alpha + ')';
-            ctx.fillRect(sx, sy, 1 + hash(seed,n,83) * 2, 1 + hash(seed,n,97) * 2);
+            ctx.fillRect(sx, sy, 1 + hash(seed, n, 83) * 2, 1 + hash(seed, n, 97) * 2);
         }
+
+        // Высотная карта: тёмный шов, светлая плоскость и скруглённая фаска.
+        hctx.save();
+        roundedRect(hctx, rx, ry, rw, rh, radius);
+        hctx.fillStyle = '#b8b8b8';
+        hctx.fill();
+        hctx.strokeStyle = '#777777';
+        hctx.lineWidth = mobile ? 5 : 7;
+        hctx.stroke();
+        roundedRect(hctx, rx + 3, ry + 3, Math.max(1, rw - 6), Math.max(1, rh - 6), Math.max(1, radius - 2));
+        hctx.strokeStyle = '#e2e2e2';
+        hctx.lineWidth = mobile ? 2 : 3;
+        hctx.stroke();
+        hctx.restore();
     };
+
     if (format === 'old_city') {
-        // Классический модуль 1200×1200: 600×400, 400×400, 400×200 и 200×200.
+        // Повторяемый модуль 1200×1200 мм. Все элементы замыкаются без
+        // наложений и пустот: 600×400, 400×400 и 400×200 мм.
         const u = 200 * px;
-        const patterns = [
-            [[0,0,3,2],[3,0,3,2],[0,2,2,4],[2,2,4,1],[2,3,4,3]],
-            [[0,0,2,2],[2,0,4,2],[0,2,3,4],[3,2,3,1],[3,3,3,3]]
+        const module = [
+            [0,0,3,2], [3,0,3,2],
+            [0,2,2,2], [2,2,2,2], [4,2,2,2],
+            [0,4,2,2], [2,4,2,1], [4,4,2,2],
+            [2,5,2,1]
         ];
-        const tiles = patterns[0];
-        tiles.forEach((t, i) => paintTile(t[0]*u, t[1]*u, t[2]*u, t[3]*u, i+1));
+        module.forEach((t, i) => paintTile(t[0] * u, t[1] * u, t[2] * u, t[3] * u, i + 1));
     } else if (format === 'stone') {
-        // Камень природной формы: соседние ячейки Вороного имеют общие, неразорванные швы.
+        // Для природного камня сохраняем нерегулярные соседние полигоны.
         const count = 4, step = size / count, points = [];
         const rand = (x,y) => hash(x,y,113);
         for (let ty=-1; ty<=1; ty++) for (let tx=-1; tx<=1; tx++) {
@@ -939,7 +996,7 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
                 poly=clip(poly,nx,ny,(q.x*q.x+q.y*q.y-p.x*p.x-p.y*p.y)/2);
             }
             if(poly.length<3) continue;
-            const shade=0.82+rand(p.gx+p.tx*count,p.gy+p.ty*count+7)*0.32;
+            const shade=0.84+rand(p.gx+p.tx*count,p.gy+p.ty*count+7)*0.28;
             const rgb=[base.r,base.g,base.b].map(v=>Math.max(0,Math.min(255,Math.round(v*255*shade))));
             const cx=poly.reduce((v,a)=>v+a.x,0)/poly.length,cy=poly.reduce((v,a)=>v+a.y,0)/poly.length;
             const grad=ctx.createLinearGradient(cx-step*.55,cy-step*.55,cx+step*.55,cy+step*.55);
@@ -949,30 +1006,70 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
             ctx.beginPath();ctx.moveTo(poly[0].x,poly[0].y);
             for(let i=1;i<poly.length;i++)ctx.lineTo(poly[i].x,poly[i].y);
             ctx.closePath();ctx.fillStyle=grad;ctx.fill();
-            ctx.strokeStyle='rgba(0,0,0,0.42)';ctx.lineWidth=gap+1;ctx.lineJoin='round';ctx.stroke();
-            ctx.strokeStyle='rgba(255,255,255,0.20)';ctx.lineWidth=1;ctx.stroke();
-            // Лёгкие природные прожилки и минеральные точки внутри каждой плиты.
-            ctx.save();ctx.clip();
-            for(let n=0;n<18;n++){
-                const x=rand(p.gx+n,p.gy+31)*size,y=rand(p.gx+71,p.gy+n+17)*size;
-                ctx.fillStyle='rgba(255,255,255,'+(0.025+rand(n,p.gx)*.045)+')';
-                ctx.beginPath();ctx.arc(x,y,1+rand(n,p.gy)*2,0,Math.PI*2);ctx.fill();
-            }
-            ctx.restore();
+            ctx.strokeStyle='rgba(0,0,0,0.50)';ctx.lineWidth=gap+2;ctx.lineJoin='round';ctx.stroke();
+            ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.stroke();
+            hctx.beginPath();hctx.moveTo(poly[0].x,poly[0].y);
+            for(let i=1;i<poly.length;i++)hctx.lineTo(poly[i].x,poly[i].y);
+            hctx.closePath();hctx.fillStyle='#b8b8b8';hctx.fill();
+            hctx.strokeStyle='#777777';hctx.lineWidth=gap+3;hctx.stroke();
+            hctx.strokeStyle='#e0e0e0';hctx.lineWidth=2;hctx.stroke();
         }
     } else if (format === 'square500') {
-        const u=500*px;for(let y=0;y<size;y+=u)for(let x=0;x<size;x+=u)paintTile(x,y,u,u,Math.round(x+y));
+        const u=500*px;
+        for(let y=0;y<size;y+=u) for(let x=0;x<size;x+=u) paintTile(x,y,u,u,Math.round(x+y));
     } else if (format === 'rectangle') {
-        const w=200*px,h=100*px;for(let row=0,y=0;y<size;row++,y+=h)for(let x=-(row%2?w/2:0);x<size;x+=w)paintTile(x,y,w,h,row+Math.round(x/w));
+        const w=200*px,h=100*px;
+        for(let row=0,y=0;y<size;row++,y+=h)
+            for(let x=-(row%2?w/2:0);x<size;x+=w) paintTile(x,y,w,h,row+Math.round(x/w));
     } else {
-        const u=300*px;for(let y=0;y<size;y+=u)for(let x=0;x<size;x+=u)paintTile(x,y,u,u,Math.round(x+y));
+        const u=300*px;
+        for(let y=0;y<size;y+=u) for(let x=0;x<size;x+=u) paintTile(x,y,u,u,Math.round(x+y));
     }
-    const texture=new THREE.CanvasTexture(canvas);
-    texture.wrapS=THREE.RepeatWrapping;texture.wrapT=THREE.RepeatWrapping;
-    texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;
-    texture.anisotropy=mobile?1:4;
-    texture.needsUpdate=true;
-    return texture;
+
+    // Преобразуем высотную карту в tangent-space normal map.
+    const source = hctx.getImageData(0, 0, size, size);
+    const src = source.data;
+    const normalData = ctx.createImageData(size, size);
+    const dst = normalData.data;
+    const strength = mobile ? 1.7 : 2.2;
+    for (let y = 1; y < size - 1; y++) {
+        for (let x = 1; x < size - 1; x++) {
+            const i = (y * size + x) * 4;
+            const left = src[i - 4], right = src[i + 4];
+            const up = src[i - size * 4], down = src[i + size * 4];
+            let nx = (left - right) / 255 * strength;
+            let ny = (up - down) / 255 * strength;
+            let nz = 1;
+            const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+            dst[i] = Math.round((nx / len * 0.5 + 0.5) * 255);
+            dst[i + 1] = Math.round((ny / len * 0.5 + 0.5) * 255);
+            dst[i + 2] = Math.round((nz / len * 0.5 + 0.5) * 255);
+            dst[i + 3] = 255;
+        }
+    }
+    ctx.putImageData(normalData, 0, 0);
+
+    const normalCanvas = document.createElement('canvas');
+    normalCanvas.width = size;
+    normalCanvas.height = size;
+    normalCanvas.getContext('2d').putImageData(normalData, 0, 0);
+
+    // Восстанавливаем цветовую карту: она была перезаписана normal map выше.
+    const colorTexture = new THREE.CanvasTexture(canvas);
+    const normalTexture = new THREE.CanvasTexture(normalCanvas);
+    colorTexture.colorSpace = THREE.SRGBColorSpace;
+    normalTexture.colorSpace = THREE.NoColorSpace;
+    for (const texture of [colorTexture, normalTexture]) {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = true;
+        texture.anisotropy = mobile ? 1 : 4;
+        texture.needsUpdate = true;
+    }
+    colorTexture.userData.normalMap = normalTexture;
+    return colorTexture;
 }
 // ============================================================
 // ⭐ СОЗДАНИЕ ТЕКСТУРЫ БРУСЧАТКИ
@@ -1715,7 +1812,9 @@ export async function createPathBetweenGraveAndFence(
         material =
             new THREE.MeshStandardMaterial({
                 map: texture || null,
-                roughness: 0.6,
+                normalMap: texture && texture.userData ? texture.userData.normalMap || null : null,
+                normalScale: new THREE.Vector2(0.55, 0.55),
+                roughness: 0.78,
                 metalness: 0.05,
                 side: THREE.DoubleSide,
             });
