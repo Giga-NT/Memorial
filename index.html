@@ -636,9 +636,21 @@
                                     <option value="tile_light">Светлая плитка</option>
                                     <option value="tile_dark">Тёмная плитка</option>
                                     <option value="tile_red">Красная плитка</option>
+                                    <option value="tile_marble">Под натуральный камень</option>
                                 </select>
                             </div>
-                            <div class="hint-text">Профиль плитки: верхний элемент 4 см; ниже отображаются песчаная постель, отсев, щебёночное основание и геотекстиль при необходимости.</div>
+                            <div class="control-group">
+                                <label for="pathSlabFormat">Формат и рисунок укладки</label>
+                                <select id="pathSlabFormat">
+                                    <option value="square300" selected>Квадратная 300×300×50 мм</option>
+                                    <option value="square500">Крупноформатная 500×500×50 мм</option>
+                                    <option value="rectangle">Прямоугольная 200×100×60 мм</option>
+                                    <option value="old_city">«Старый город», набор размеров 60 мм</option>
+                                    <option value="stone">Плитка с фактурой натурального камня 50 мм</option>
+                                </select>
+                            </div>
+                            <div class="hint-text">Форматы отображаются с отдельной раскладкой. Цена материала задаётся в админ-прайсе за м² для выбранного материала и размера; пока цена не внесена, она будет отмечена как отсутствующая.</div>
+                            <div class="hint-text">Профиль основания: песчаная постель, отсев, щебёночное основание и геотекстиль при необходимости.</div>
                         </div>
 
                         <div id="pathPaverSettings" style="display:block; border:1px solid #d7dce2; border-radius:8px; padding:10px; margin:10px 0;">
