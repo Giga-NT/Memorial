@@ -4193,7 +4193,6 @@ document.getElementById('addVaseBtn')?.addEventListener('click', async function(
 
     console.log(`🏺 Добавление выбранной вазы: ${vaseId}`);
 
-    // В активном GLB вазу размещаем внутри габаритов импортированной модели.
     const vase = await manager.addVase(vaseId);
 
     if (vase) {
