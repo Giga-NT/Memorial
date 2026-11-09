@@ -1101,12 +1101,19 @@ updatePhotoPosition(photoMesh, x, y) {
 		}
 
 		const baseHEl =
-			document.getElementById('baseHeight');
+            document.getElementById('baseHeight');
 
-		if (baseHEl) {
-			data.baseHeight =
-				parseFloat(baseHEl.value);
-		}
+        if (baseHEl) {
+            data.baseHeight =
+                parseFloat(baseHEl.value);
+        }
+
+        const baseEnabledEl =
+            document.getElementById('baseEnabled');
+
+        if (baseEnabledEl) {
+            data.baseEnabled = baseEnabledEl.checked;
+        }
 
 		const flowerEnabledEl =
 			document.getElementById('flowerEnabled');
@@ -1672,7 +1679,10 @@ updatePhotoPosition(photoMesh, x, y) {
 		if (graveLEl) window.state.graveLength = parseFloat(graveLEl.value);
 		
 		const baseHEl = document.getElementById('baseHeight');
-		if (baseHEl) window.state.baseHeight = parseFloat(baseHEl.value);
+        if (baseHEl) window.state.baseHeight = parseFloat(baseHEl.value);
+
+        const baseEnabledEl = document.getElementById('baseEnabled');
+        if (baseEnabledEl) window.state.baseEnabled = baseEnabledEl.checked;
 		
 		const flowerEnabledEl = document.getElementById('flowerEnabled');
 		if (flowerEnabledEl) window.state.flowerEnabled = flowerEnabledEl.checked;
@@ -1895,6 +1905,9 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const baseHEl = document.getElementById('baseHeight');
         if (baseHEl) data.baseHeight = parseFloat(baseHEl.value);
+
+        const baseEnabledEl = document.getElementById('baseEnabled');
+        if (baseEnabledEl) data.baseEnabled = baseEnabledEl.checked;
         
         const flowerEnabledEl = document.getElementById('flowerEnabled');
         if (flowerEnabledEl) data.flowerEnabled = flowerEnabledEl.checked;
@@ -3298,8 +3311,11 @@ updatePhotoPosition(photoMesh, x, y) {
 			const graveL =
 				data.graveLength || 1.5;
 
-			const baseH =
-				data.baseHeight || 0.15;
+			// При скрытом надгробии вся конструкция начинается от земли.
+            const baseH =
+                data.baseEnabled === false
+                    ? 0
+                    : (Number(data.baseHeight) || 0.15);
 
 			const flowerW = data.flowerWidth || 1.2;
 			const flowerL = data.flowerLength || 0.8;
@@ -3308,41 +3324,43 @@ updatePhotoPosition(photoMesh, x, y) {
 			// 1. ОСНОВАНИЕ / НАДГРОБИЕ
 			// ========================================================
 
-			const baseGeo =
-				new THREE.BoxGeometry(
-					graveW,
-					baseH,
-					graveL
-				);
+			if (data.baseEnabled !== false) {
+                const baseGeo =
+                    new THREE.BoxGeometry(
+                        graveW,
+                        baseH,
+                        graveL
+                    );
 
-			const baseMat =
-				await createSteleMaterialWithTexture(
-					baseMaterialType,
-					true
-				);
+                const baseMat =
+                    await createSteleMaterialWithTexture(
+                        baseMaterialType,
+                        true
+                    );
 
-			const baseMesh =
-				new THREE.Mesh(
-					baseGeo,
-					baseMat
-				);
+                const baseMesh =
+                    new THREE.Mesh(
+                        baseGeo,
+                        baseMat
+                    );
 
-			baseMesh.position.y =
-				baseH / 2;
+                baseMesh.position.y =
+                    baseH / 2;
 
-			baseMesh.castShadow =
-				true;
+                baseMesh.castShadow =
+                    true;
 
-			baseMesh.receiveShadow =
-				true;
+                baseMesh.receiveShadow =
+                    true;
 
-			mon.group.add(
-				baseMesh
-			);
+                mon.group.add(
+                    baseMesh
+                );
 
-			console.log(
-				`🪦 Надгробие дублера: ${baseMaterialType}`
-			);
+                console.log(
+                    `🪦 Надгробие дублера: ${baseMaterialType}`
+                );
+            }
 
 
 			// ========================================================
@@ -3838,7 +3856,9 @@ updatePhotoPosition(photoMesh, x, y) {
 
 					pedestal.position.x = 0;
 					
-					pedestal.position.y = 0.21;
+					pedestal.position.y =
+                        baseH +
+                        (Number(data.stelePedestalHeight) || 0.12) / 2;
 
 					pedestal.position.z =
 						data.pedestalOffsetZ ||
