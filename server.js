@@ -3104,9 +3104,14 @@ app.post('/api/order', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Ошибка отправки email:', error);
-        res.json({ 
-            success: true, 
-            message: '✅ Заказ принят (файлы созданы локально). Мы свяжемся с вами.' 
+        // PDF и JSON уже сохранены на сервере: заказ принят, но письмо не доставлено.
+        res.json({
+            success: true,
+            emailSent: false,
+            filesSaved: true,
+            projectName,
+            fileName: `project_${projectName.replace(/\\s+/g, '_')}_${timestamp}.json`,
+            message: 'Заказ и файлы сохранены на сервере, но письмо не отправлено. Мы проверим доставку и свяжемся с вами.'
         });
     }
 });
