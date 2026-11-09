@@ -2189,6 +2189,10 @@ export class ProjectIO {
 
                     if (data.glbProject && window.glbImportManager?.restoreProjectSnapshot) {
                         await window.glbImportManager.restoreProjectSnapshot(data.glbProject);
+                    } else if (window.glbImportManager?.assets?.size) {
+                        // Обычный параметрический проект не должен наследовать GLB
+                        // от ранее открытого проекта.
+                        window.glbImportManager.removeAllImported(true);
                     }
 
                     if (
