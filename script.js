@@ -89,12 +89,12 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSteleTypeHandlers);
     document.addEventListener('DOMContentLoaded', initSteleSizeHandlers);
     document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
-    document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
+    // initSiteCurbHandlers запускается после создания window.state.
 } else {
     initSteleTypeHandlers();
     initSteleSizeHandlers();
     initPhotoScaleHandler();
-    queueMicrotask(initSiteCurbHandlers);
+    // initSiteCurbHandlers запускается после создания window.state.
 }
 
 // ⭐ ГЛОБАЛЬНЫЕ ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ОБНОВЛЕНИЯМИ
@@ -880,6 +880,7 @@ window.positionDecalsOnCustomStele = positionDecalsOnCustomStele;
 window.decalsGroup = decalsGroup;
 window.state = state;
 initPathHandlers();
+initSiteCurbHandlers();
 window.controls = controls;
 window.renderer = renderer;
 window.monumentGroup = monumentGroup;
