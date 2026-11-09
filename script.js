@@ -784,6 +784,7 @@ const state = {
     tileMaterial: '',
     decorations: [],
     includeInstall: null,
+    includeDuplicatorsInPrice: false,
     fullName: "Иванов Иван Иванович", dates: "01.01.1950 — 01.01.2026",
     epitaph: "Светлая память\nо дорогих людях", textColor: '#FFFFFF',
     flowerbedType: 'grass', photoScale: 1.0, photoOffsetX: 0, photoOffsetY: 0,
@@ -4832,9 +4833,30 @@ const tileMaterialLabels = {
     other: 'Другое'
 };
 
+function getSceneMonuments() {
+    const manager = window.multiMonumentManager;
+    const duplicates = Array.isArray(manager?.monuments)
+        ? manager.monuments.map((monument, index) => {
+            const duplicateData = (
+                manager.currentMode === 'duplicator' &&
+                manager.activeIndex === index
+            )
+                ? getActivePricingMonument()
+                : (monument?.data || {});
+            return { ...state, ...duplicateData };
+        })
+        : [];
+    return [state, ...duplicates];
+}
+
 function getPricingMonuments() {
-    // Пока рассчитываем только основной памятник.
-    return [state];
+    const checkbox = document.getElementById('includeDuplicatorsInPrice');
+    const shouldInclude = checkbox
+        ? checkbox.checked
+        : state.includeDuplicatorsInPrice === true;
+
+    if (!shouldInclude) return [state];
+    return getSceneMonuments();
 }
 
 function getActivePricingMonument() {
@@ -5218,7 +5240,7 @@ function buildPriceBreakdown() {
 
     if (state.pathEnabled) {
         const siteArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
-        const monumentsArea = monuments.reduce((sum, monument) => {
+        const monumentsArea = getSceneMonuments().reduce((sum, monument) => {
             if (monument.baseEnabled === false) return sum;
             const baseWidth = Number(monument.graveWidth) || 0.9;
             const baseLength = Number(monument.graveLength) || 1.5;
@@ -5453,24 +5475,25 @@ function buildPriceBreakdown() {
         const installFull = getPriceValue('install_full_set');
         const installFlowerbedBase = getPriceValue('install_flowerbed_base');
         const installPedestalPercent = getPriceValue('install_pedestal_percent');
+        const installationCount = monuments.length;
         const pedestalCommission = pedestalTotal * installPedestalPercent / 100;
 
         if (isPriceSettingEnabled('install_split') && installFlowerbedBase > 0) {
             addRow(
                 '🔧 Установка: цветник + основание',
-                'Бетон и облицовка в составе установки',
-                installFlowerbedBase
+                `Бетон и облицовка в составе установки × ${installationCount}`,
+                installFlowerbedBase * installationCount
             );
             addRow(
                 '🔧 Установка: стела + тумба',
-                `Остаток полной установки + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
-                Math.max(0, installFull - installFlowerbedBase) + pedestalCommission
+                `Остаток полной установки × ${installationCount} + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
+                Math.max(0, installFull - installFlowerbedBase) * installationCount + pedestalCommission
             );
         } else {
             addRow(
                 '🔧 Установка',
-                `Полная установка + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
-                installFull + pedestalCommission
+                `Полная установка × ${installationCount} + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
+                installFull * installationCount + pedestalCommission
             );
         }
     }
@@ -5504,6 +5527,15 @@ function calculatePrice() {
 }
 
 window.calculatePrice = calculatePrice;
+
+const includeDuplicatorsCheckbox = document.getElementById('includeDuplicatorsInPrice');
+if (includeDuplicatorsCheckbox) {
+    includeDuplicatorsCheckbox.checked = state.includeDuplicatorsInPrice === true;
+    includeDuplicatorsCheckbox.addEventListener('change', () => {
+        state.includeDuplicatorsInPrice = includeDuplicatorsCheckbox.checked;
+        calculatePrice();
+    });
+}
 
 // ============================================================
 // ⭐ ЗАГРУЗКА ИЗ URL
