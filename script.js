@@ -4656,12 +4656,16 @@ function roundDimensionUp100(mm) {
     return value === 0 ? 0 : Math.ceil(value / 100) * 100;
 }
 function findMaterialPrice(product, material, dimensions = {}, finish = '') {
+    const keepExactDimensions = product === 'tile' || product === 'curb';
+    const normalizeDimension = value => keepExactDimensions
+        ? Math.max(0, Number(value) || 0)
+        : roundDimensionUp100(value);
     const target = {
-        width_mm: roundDimensionUp100(dimensions.width_mm),
-        height_mm: roundDimensionUp100(dimensions.height_mm),
+        width_mm: normalizeDimension(dimensions.width_mm),
+        height_mm: normalizeDimension(dimensions.height_mm),
         // У стелы ровно три размера: ширина, высота и толщина.
-        depth_mm: product === 'stele' ? 0 : roundDimensionUp100(dimensions.depth_mm),
-        thickness_mm: roundDimensionUp100(dimensions.thickness_mm)
+        depth_mm: product === 'stele' ? 0 : normalizeDimension(dimensions.depth_mm),
+        thickness_mm: normalizeDimension(dimensions.thickness_mm)
     };
     const dimensionKeys = product === 'stele'
         ? ['width_mm', 'height_mm', 'thickness_mm']
