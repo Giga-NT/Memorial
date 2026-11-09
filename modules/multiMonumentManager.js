@@ -4372,7 +4372,7 @@ if (photoDrag && decalsGroup) {
 			// ФИО
 			if (data.fullName && data.fullName.trim()) {
 				const safeFullName = data.fullName.trim();
-				const fontSize = (data.nameFontSize || 48) * (isMobile ? 0.8 : 1.5);
+				const fontSize = (data.nameFontSize || 24) * (isMobile ? 0.8 : 1.5);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
 				
 				const rawLines = safeFullName.split(/\r?\n/);
@@ -4390,7 +4390,7 @@ if (photoDrag && decalsGroup) {
 				
 				allLines.forEach(line => {
 					ctx.fillText(line, canvas.width / 2, currentY);
-					currentY += (data.nameFontSize || 48) * (isMobile ? 0.9 : 1.8);
+					currentY += (data.nameFontSize || 24) * (isMobile ? 0.9 : 1.8);
 				});
 				currentY += isMobile ? 12 : 25;
 			}
@@ -4398,7 +4398,7 @@ if (photoDrag && decalsGroup) {
 			// Даты
 			if (data.dates && data.dates.trim()) {
 				const safeDates = data.dates.trim();
-				const fontSize = (data.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
+				const fontSize = (data.datesFontSize || 24) * (isMobile ? 0.8 : 1.3);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
 				ctx.fillText(safeDates, canvas.width / 2, currentY);
 			}
