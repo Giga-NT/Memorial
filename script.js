@@ -4137,10 +4137,7 @@ document.getElementById('snapToGrid')?.addEventListener('change', function(e) {
 
 document.getElementById('addTableBtn')?.addEventListener('click', async function() {
     const manager = initFurniture3D();
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 1.5 + Math.random() * 1.0;
-    const x = Math.cos(angle) * distance;
-    const z = Math.sin(angle) * distance;
+    const { x, z } = manager.getDefaultPlacement();
     this.textContent = '⏳...';
     this.disabled = true;
     try {
@@ -4194,7 +4191,7 @@ document.getElementById('addVaseBtn')?.addEventListener('click', async function(
 
     console.log(`🏺 Добавление выбранной вазы: ${vaseId}`);
 
-    // Добавляем именно выбранную вазу, а не случайную
+    // В активном GLB вазу размещаем внутри габаритов импортированной модели.
     const vase = await manager.addVase(vaseId);
 
     if (vase) {
@@ -4254,10 +4251,7 @@ document.getElementById('vasesList')?.addEventListener('click', function(e) {
 // ============================================================
 document.getElementById('addTableGardenBtn')?.addEventListener('click', async function() {
     const manager = initFurniture3D();
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 1.5 + Math.random() * 1.0;
-    const x = Math.cos(angle) * distance;
-    const z = Math.sin(angle) * distance;
+    const { x, z } = manager.getDefaultPlacement();
     
     this.textContent = '⏳...';
     this.disabled = true;
@@ -4317,10 +4311,7 @@ document.addEventListener('click', function(event) {
 
 document.getElementById('addBenchBtn')?.addEventListener('click', async function() {
     const manager = initFurniture3D();
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 1.5 + Math.random() * 1.0;
-    const x = Math.cos(angle) * distance;
-    const z = Math.sin(angle) * distance;
+    const { x, z } = manager.getDefaultPlacement();
     this.textContent = '⏳...';
     this.disabled = true;
     try {
@@ -4337,10 +4328,7 @@ document.getElementById('addBenchBtn')?.addEventListener('click', async function
 
 document.getElementById('addPicnicSetBtn')?.addEventListener('click', async function() {
     const manager = initFurniture3D();
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 2.0 + Math.random() * 1.0;
-    const x = Math.cos(angle) * distance;
-    const z = Math.sin(angle) * distance;
+    const { x, z } = manager.getDefaultPlacement();
     this.textContent = '⏳...';
     this.disabled = true;
     try {
@@ -6127,7 +6115,13 @@ setTimeout(() => {
         camera,
         domElement: renderer.domElement,
         orbitControls: controls,
-        onToast: showToast
+        onToast: showToast,
+        onActiveModel: (modelRoot) => {
+            const furnitureManager = initFurniture3D();
+            const vaseManager = initVasesManager();
+            furnitureManager.setParent(modelRoot, modelRoot);
+            vaseManager.setParent(modelRoot, modelRoot);
+        }
     });
     glbImportManager.bindUI();
     window.glbImportManager = glbImportManager;
