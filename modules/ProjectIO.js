@@ -739,15 +739,15 @@ export class ProjectIO {
 
             nameFontSize:
                 this.state.nameFontSize ??
-                48,
+                24,
 
             datesFontSize:
                 this.state.datesFontSize ??
-                32,
+                24,
 
             epitaphFontSize:
                 this.state.epitaphFontSize ??
-                40,
+                24,
 
             textOffsetX:
                 this.state.textOffsetX ??
@@ -1837,17 +1837,17 @@ export class ProjectIO {
                             nameFontSize:
                                 parseInt(
                                     ui.nameFontSize
-                                ) || 48,
+                                ) || 24,
 
                             datesFontSize:
                                 parseInt(
                                     ui.datesFontSize
-                                ) || 32,
+                                ) || 24,
 
                             epitaphFontSize:
                                 parseInt(
                                     ui.epitaphFontSize
-                                ) || 40,
+                                ) || 24,
 
                             fenceOffsetX:
                                 parseFloat(
