@@ -1211,6 +1211,30 @@ async function initDB() {
         )
     `);
 
+    // Стартовые рыночные ориентиры. INSERT OR IGNORE не перезаписывает существующие цены.
+    const initialMaterialPriceRows = [
+        // Брусчатка 300×300×60, цена за м².
+        ['tile_gray', 'tile', 300, 300, 60, 60, 'paver', 850],
+        ['tile_black', 'tile', 300, 300, 60, 60, 'paver', 1250],
+        ['tile_beige', 'tile', 300, 300, 60, 60, 'paver', 1250],
+        ['tile_dark', 'tile', 300, 300, 60, 60, 'paver', 1250],
+        ['tile_light', 'tile', 300, 300, 60, 60, 'paver', 1250],
+        ['tile_marble', 'tile', 300, 300, 60, 60, 'paver', 1800],
+        // Бордюр 1000×120×80, цена за погонный метр.
+        ['granite', 'curb', 1000, 120, 80, 80, '', 3600],
+        ['black_galaxy', 'curb', 1000, 120, 80, 80, '', 4320],
+        ['red_granite', 'curb', 1000, 120, 80, 80, '', 2800],
+        ['beige_granite', 'curb', 1000, 120, 80, 80, '', 1500],
+        ['gray_granite', 'curb', 1000, 120, 80, 80, '', 1350],
+        ['marble', 'curb', 1000, 120, 80, 80, '', 3000],
+        ['concrete', 'curb', 1000, 120, 80, 80, '', 260]
+    ];
+    for (const row of initialMaterialPriceRows) {
+        await dbRun(`INSERT OR IGNORE INTO material_price_rows
+            (material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, row);
+    }
+
     // Удаляем прежний отдельный закупочный каталог: используется единый клиентский прайс.
     await dbRun('DROP TABLE IF EXISTS supplier_material_prices');
 
