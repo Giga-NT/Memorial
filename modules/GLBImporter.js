@@ -90,7 +90,8 @@ export class GLBImportManager {
         this.activeId = null;
 
         this.transform = new TransformControls(camera, domElement);
-        this.helper = this.transform.getHelper();
+        // В Three.js r160 TransformControls сам является Object3D и добавляется в сцену напрямую.
+        this.helper = this.transform;
         this.helper.userData.excludeFromGLBExport = true;
         this.scene.add(this.helper);
 
