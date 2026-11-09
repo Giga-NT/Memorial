@@ -7460,7 +7460,7 @@ function generateEstimatePDF() {
         .screenshot-box .caption { font-size:13px; color:#555; margin-top:8px; font-weight:bold; }
         .screenshot-box img { width:100%; height:auto; max-height:200px; object-fit:contain; border:1px solid #ccc; border-radius:4px; background:#fff; }
         .screenshot-box-top img { max-height:280px; }
-        .screenshot-box-stele img { max-height:300px; }
+        .screenshot-box-stele img { max-height:420px; }
         .price-table { width:100%; border-collapse:collapse; margin:15px 0; font-size:15px; }
         .price-table th { background:#1a1a2e; color:white; padding:10px 15px; text-align:left; font-weight:600; }
         .price-table td { padding:8px 15px; border-bottom:1px solid #eee; }
