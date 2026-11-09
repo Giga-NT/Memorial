@@ -3115,7 +3115,7 @@ app.post('/api/order', async (req, res) => {
 // API: ПРОЕКТЫ
 // ============================================
 
-app.get('/api/projects', (req, res) => {
+app.get('/api/projects', requireAdmin, (req, res) => {
     try {
         const projectsFile = path.join(__dirname, 'data', 'projects.json');
         
@@ -3132,7 +3132,7 @@ app.get('/api/projects', (req, res) => {
     }
 });
 
-app.post('/api/projects', (req, res) => {
+app.post('/api/projects', requireAdmin, (req, res) => {
     try {
         const rawProject = req.body;
         // ⭐ Санитизируем проект перед сохранением
@@ -3175,7 +3175,7 @@ app.post('/api/projects', (req, res) => {
     }
 });
 
-app.delete('/api/projects/:id', (req, res) => {
+app.delete('/api/projects/:id', requireAdmin, (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const projectsFile = path.join(__dirname, 'data', 'projects.json');
