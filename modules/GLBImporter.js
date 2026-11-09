@@ -58,6 +58,7 @@ function validateBinaryGLB(buffer) {
         }
     };
     inspect(json);
+    return json;
 }
 
 function disposeObject(root) {
@@ -136,7 +137,27 @@ export class GLBImportManager {
 
         try {
             const buffer = await file.arrayBuffer();
-            validateBinaryGLB(buffer);
+            const glbJson = validateBinaryGLB(buffer);
+            const memorialProject = glbJson.asset?.extras?.memorialProject;
+            if (memorialProject?.format === 'GigaNT-Memorial-Project') {
+                if (memorialProject.version !== 1 || !memorialProject.project ||
+                    typeof memorialProject.project !== 'object') {
+                    throw new Error('Версия данных проекта внутри GLB не поддерживается');
+                }
+                if (!window.projectIO?.loadFromFile) {
+                    throw new Error('Модуль восстановления проекта не инициализирован');
+                }
+                const projectFile = new File(
+                    [JSON.stringify(memorialProject.project)],
+                    'memorial-project-from-glb.json',
+                    { type: 'application/json' }
+                );
+                const restored = await window.projectIO.loadFromFile(projectFile);
+                if (!restored) throw new Error('Не удалось восстановить параметры памятника из GLB');
+                this.onToast('Проект восстановлен из GLB. Параметры конструктора снова доступны для редактирования.', 'success');
+                return;
+            }
+
             const gltf = await new Promise((resolve, reject) => {
                 this.loader.parse(buffer, '', resolve, reject);
             });
@@ -283,43 +304,6 @@ export class GLBImportManager {
         const index = Number(value);
         const target = Number.isInteger(index) ? item.meshTargets[index] : null;
         if (target?.object) this.transform.attach(target.object);
-    }
-
-    async getProjectSnapshot() {
-        const item = this.assets.get(this.activeId);
-        if (!item) return null;
-        const result = await exportObjectsToGLB(item.pivot);
-        const bytes = new Uint8Array(await result.blob.arrayBuffer());
-        let binary = '';
-        const chunkSize = 0x8000;
-        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-            binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
-        }
-        return {
-            format: 'glb-project-asset',
-            version: 1,
-            fileName: item.name,
-            mimeType: 'model/gltf-binary',
-            dataBase64: btoa(binary),
-            byteLength: bytes.length
-        };
-    }
-
-    async restoreProjectSnapshot(snapshot) {
-        if (!snapshot || snapshot.format !== 'glb-project-asset' ||
-            snapshot.version !== 1 || typeof snapshot.dataBase64 !== 'string') {
-            throw new Error('Неподдерживаемый формат GLB в проекте');
-        }
-        const binary = atob(snapshot.dataBase64);
-        if (!binary.length || binary.length > MAX_GLB_SIZE) {
-            throw new Error('Размер встроенной GLB-модели недопустим');
-        }
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const file = new File([bytes], snapshot.fileName || 'project-model.glb', {
-            type: 'model/gltf-binary'
-        });
-        await this.loadFile(file);
     }
 
     async exportActive() {
