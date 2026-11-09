@@ -111,6 +111,7 @@ export class ProjectIO {
             'pathMaterial',
             'pathSurfaceType',
             'slabMaterial',
+            'pathSlabFormat',
             'pathTileLayout',
             'curbMaterial',
             'steleType',
@@ -2827,6 +2828,7 @@ export class ProjectIO {
 
         setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');
         setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
+        setSelect('pathSlabFormat', state.pathSlabFormat || 'square300');
         setSelect('pathMaterial', state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
         const pathType = document.getElementById('pathSurfaceType')?.value || 'paver';
         state.pathSurfaceType = pathType;
