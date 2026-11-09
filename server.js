@@ -438,8 +438,8 @@ const DEFAULT_PRICES = {
     site_base_preparation_per_m2: 0,
     site_excavation_per_m3: 0,
     site_compaction_per_m3: 0,
-    path_tile_work_per_m2: 0,
-    path_slab_work_per_m2: 0,
+    path_tile_work_per_m2: 1200,
+    path_slab_work_per_m2: 1000,
     site_curb_install_per_m: 0,
     install_full_set: 35000,
     install_flowerbed_base: 25000,
@@ -1236,6 +1236,17 @@ async function initDB() {
             );
         }
     }
+    // Рыночные ориентиры по дополнительным типам мощения, ₽/м².
+    // Цены материалов — ориентиры по розничным предложениям, не привязаны к поставщику.
+    initialMaterialPriceRows.push(
+        ['tile_gray','tile',0,0,40,40,'paver_old_city',1500],
+        ['tile_gray','tile',0,0,60,60,'paver_old_city',1700],
+        ['tile_beige','tile',0,0,40,40,'paver_old_city',1650],
+        ['tile_beige','tile',0,0,60,60,'paver_old_city',1850],
+        ['natural_stone','tile',0,0,20,20,'slab',1100],
+        ['natural_stone','tile',0,0,30,30,'slab',1300],
+        ['natural_stone','tile',0,0,40,40,'slab',1500]
+    );
     // Бетонные бордюры: садовый, дорожный и усиленный; ₽/пог.м.
     initialMaterialPriceRows.push(
         ['concrete','curb',1000,200,80,80,'',400],
