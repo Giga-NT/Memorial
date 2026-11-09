@@ -4739,13 +4739,36 @@ function findNearestLargerMaterialPrice(product, material, dimensions = {}, fini
 // ⭐ РАСЧЕТ СТОИМОСТИ
 // ============================================================
 const materialPriceLabels = {
-    granite: 'Габбро-Диабаз',
-    black_galaxy: 'Галактика черный',
+    granite: 'Габбро-диабаз',
+    black_galaxy: 'Галактика чёрная',
     ninimyaki: 'Нинимяки',
-    marble: 'Белый Мрамор',
-    red_granite: 'Красный Гранит',
-    beige_granite: 'Бежевый Гранит',
-    gray_granite: 'Серый Гранит'
+    marble: 'Белый мрамор',
+    red_granite: 'Красный гранит',
+    beige_granite: 'Бежевый гранит',
+    gray_granite: 'Серый гранит',
+    tile_gray: 'Серая брусчатка',
+    tile_black: 'Чёрная брусчатка',
+    tile_beige: 'Бежевая брусчатка',
+    tile_dark: 'Тёмная брусчатка',
+    tile_light: 'Светлая брусчатка',
+    tile_marble: 'Мраморная брусчатка',
+    tile_red: 'Красная брусчатка',
+    tile_brown: 'Коричневая брусчатка',
+    tile_blue: 'Синяя брусчатка',
+    tile_green: 'Зелёная брусчатка',
+    sand: 'Песок',
+    gravel: 'Щебень',
+    geotextile: 'Геотекстиль',
+    concrete: 'Бетон'
+};
+
+const catalogFinishLabels = {
+    paver: 'Укладка брусчатки',
+    slab: 'Тротуарная плитка',
+    'site_layer:sand': 'Песчаная постель',
+    'site_layer:gravel': 'Щебёночный слой основания',
+    'site_layer:geotextile': 'Разделительный геотекстиль',
+    site_fill: 'Отсыпка площадки'
 };
 
 const flowerbedPriceLabels = {
@@ -4863,9 +4886,22 @@ function buildPriceBreakdown() {
                             ? 'м³'
                             : 'шт.';
         total += amount;
+        const materialLabel = materialPriceLabels[material] || 'Материал';
+        const finishLabel = catalogFinishLabels[finish] || '';
+        const isSiteLayer = finish.startsWith('site_layer:');
+        const dimensionsLabel = isSiteLayer || finish === 'site_fill'
+            ? ''
+            : product === 'tile'
+                ? '200×200 и 200×100 мм, толщина 60 мм'
+                : `${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм`;
+        const descriptionParts = [
+            finishLabel && finish !== 'paver' && finish !== 'slab' ? finishLabel : materialLabel,
+            dimensionsLabel,
+            `${match.price} ₽/${unit} × ${Number(count).toFixed(2)} ${unit}`
+        ].filter(Boolean);
         rows.push({
             name,
-            desc: `${materialPriceLabels[material] || material}; ${match.dimensions.width_mm}×${match.dimensions.height_mm}×${match.dimensions.depth_mm} мм; ${finish || 'стандарт'}; ${match.price} ₽/${unit} × ${Number(count).toFixed(2)} ${unit}`,
+            desc: descriptionParts.join('; '),
             price: amount
         });
         return amount;
