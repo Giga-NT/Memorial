@@ -956,9 +956,9 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
         const u = 200 * px;
         const module = [
             [0,0,3,2], [3,0,3,2],
-            [0,2,2,2], [2,2,2,2], [4,2,2,2],
-            [0,4,2,2], [2,4,2,1], [4,4,2,2],
-            [2,5,2,1]
+            [0,2,2,1], [2,2,2,1], [4,2,2,1],
+            [0,3,2,1], [2,3,2,1], [4,3,2,1],
+            [0,4,2,2], [2,4,2,2], [4,4,2,2]
         ];
         module.forEach((t, i) => paintTile(t[0] * u, t[1] * u, t[2] * u, t[3] * u, i + 1));
     } else if (format === 'stone') {
@@ -1047,14 +1047,12 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
             dst[i + 3] = 255;
         }
     }
-    ctx.putImageData(normalData, 0, 0);
-
     const normalCanvas = document.createElement('canvas');
     normalCanvas.width = size;
     normalCanvas.height = size;
     normalCanvas.getContext('2d').putImageData(normalData, 0, 0);
 
-    // Восстанавливаем цветовую карту: она была перезаписана normal map выше.
+    // Цветовая карта остаётся нетронутой; normal map хранится отдельно.
     const colorTexture = new THREE.CanvasTexture(canvas);
     const normalTexture = new THREE.CanvasTexture(normalCanvas);
     colorTexture.colorSpace = THREE.SRGBColorSpace;
