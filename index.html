@@ -1632,6 +1632,7 @@ document.addEventListener('contextmenu', event => event.preventDefault());
  const hide=()=>{if(backdrop){backdrop.hidden=true;document.body.classList.remove('configuration-open');}};
  const apply=(persist=true)=>{
    const disableControls={
+     base:['baseEnabled'],
      flowerbed:['flowerEnabled'],
      paving:['pathEnabled'],
      fence:['fenceEnabled','curbVisible']
