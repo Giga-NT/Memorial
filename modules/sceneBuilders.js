@@ -874,19 +874,114 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
     if (format === 'square500') grid(500, 500);
     else if (format === 'rectangle') grid(200, 100, true);
     else if (format === 'old_city') {
-        const u = 200 * px;
-        for (let y = 0; y < size; y += 3 * u) for (let x = 0; x < size; x += 3 * u) {
-            draw(x,y,2*u,u,1); draw(x+2*u,y,u,u,2); draw(x,y+u,u,u,3); draw(x+u,y+u,u,u,4);
-            draw(x+2*u,y+u,u,2*u,5); draw(x,y+2*u,u,u,6); draw(x+u,y+2*u,u,u,7);
+        // «Старый город»: повторяемый модуль 1200×1200 мм из камней нескольких форматов.
+        const unit = 200 * px;
+        const module = 6 * unit;
+        const hash = (x, y) => {
+            const v = Math.sin(x * 127.1 + y * 311.7 + 19.19) * 43758.5453;
+            return v - Math.floor(v);
+        };
+        for (let my = -module; my < size + module; my += module) {
+            for (let mx = -module; mx < size + module; mx += module) {
+                const occupied = Array.from({ length: 6 }, () => Array(6).fill(false));
+                for (let gy = 0; gy < 6; gy++) {
+                    for (let gx = 0; gx < 6; gx++) {
+                        if (occupied[gy][gx]) continue;
+                        const choices = [[2,2],[2,1],[1,2],[1,1],[1,1]];
+                        const shift = Math.floor(hash(gx + mx / module, gy + my / module) * choices.length);
+                        let placed = false;
+                        for (let k = 0; k < choices.length; k++) {
+                            const [cw, ch] = choices[(shift + k) % choices.length];
+                            if (gx + cw > 6 || gy + ch > 6) continue;
+                            let free = true;
+                            for (let yy = gy; yy < gy + ch; yy++)
+                                for (let xx = gx; xx < gx + cw; xx++)
+                                    if (occupied[yy][xx]) free = false;
+                            if (!free) continue;
+                            for (let yy = gy; yy < gy + ch; yy++)
+                                for (let xx = gx; xx < gx + cw; xx++) occupied[yy][xx] = true;
+                            draw(mx + gx * unit, my + gy * unit, cw * unit, ch * unit,
+                                Math.round(hash(gx + mx / module, gy + my / module) * 10000));
+                            placed = true;
+                            break;
+                        }
+                        if (!placed) {
+                            occupied[gy][gx] = true;
+                            draw(mx + gx * unit, my + gy * unit, unit, unit, gx + gy * 17);
+                        }
+                    }
+                }
+            }
         }
     } else if (format === 'stone') {
-        const cell = 300 * px;
-        for (let y = -cell; y < size + cell; y += cell) for (let x = -cell; x < size + cell; x += cell) {
-            ctx.beginPath(); ctx.moveTo(x+gap,y+cell*.12); ctx.lineTo(x+cell*.62,y+gap); ctx.lineTo(x+cell-gap,y+cell*.28);
-            ctx.lineTo(x+cell*.82,y+cell-gap); ctx.lineTo(x+cell*.18,y+cell*.88); ctx.closePath();
-            ctx.fillStyle = colors[tileType] || '#929292'; ctx.fill(); ctx.strokeStyle = joint; ctx.lineWidth = gap; ctx.stroke();
+        // «Натуральный камень»: нерегулярные многоугольники Вороного с общей сетью швов.
+        const count = 4;
+        const step = size / count;
+        const points = [];
+        const rand = (x, y) => {
+            const v = Math.sin(x * 127.1 + y * 311.7 + 43.7) * 43758.5453;
+            return v - Math.floor(v);
+        };
+        for (let ty = -1; ty <= 1; ty++) {
+            for (let tx = -1; tx <= 1; tx++) {
+                for (let gy = 0; gy < count; gy++) {
+                    for (let gx = 0; gx < count; gx++) {
+                        points.push({
+                            x: (gx + 0.5 + (rand(gx + tx * count, gy + ty * count) - 0.5) * 0.48) * step + tx * size,
+                            y: (gy + 0.5 + (rand(gx + tx * count + 71, gy + ty * count + 29) - 0.5) * 0.48) * step + ty * size,
+                            gx, gy, tx, ty
+                        });
+                    }
+                }
+            }
         }
-    } else grid(300, 300);
+        const clip = (poly, nx, ny, limit) => {
+            const out = [];
+            for (let i = 0; i < poly.length; i++) {
+                const p = poly[i], q = poly[(i + 1) % poly.length];
+                const dp = p.x * nx + p.y * ny - limit;
+                const dq = q.x * nx + q.y * ny - limit;
+                if (dp <= 0) out.push(p);
+                if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)) {
+                    const t = dp / (dp - dq);
+                    out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+                }
+            }
+            return out;
+        };
+        for (const p of points) {
+            if (p.tx !== 0 || p.ty !== 0) continue;
+            let poly = [{x:0,y:0},{x:size,y:0},{x:size,y:size},{x:0,y:size}];
+            for (const q of points) {
+                if (q === p || poly.length === 0) continue;
+                const nx = q.x - p.x, ny = q.y - p.y;
+                const limit = (q.x*q.x + q.y*q.y - p.x*p.x - p.y*p.y) / 2;
+                poly = clip(poly, nx, ny, limit);
+            }
+            if (poly.length < 3) continue;
+            const shade = 0.84 + rand(p.gx + p.tx * count, p.gy + p.ty * count) * 0.30;
+            const rgb = [base.r, base.g, base.b].map(v => Math.max(0, Math.min(255, Math.round(v * 255 * shade))));
+            const cx = poly.reduce((v, pt) => v + pt.x, 0) / poly.length;
+            const cy = poly.reduce((v, pt) => v + pt.y, 0) / poly.length;
+            const grad = ctx.createLinearGradient(cx - step * 0.45, cy - step * 0.45, cx + step * 0.5, cy + step * 0.5);
+            grad.addColorStop(0, 'rgba(255,255,255,0.13)');
+            grad.addColorStop(0.48, 'rgb(' + rgb.join(',') + ')');
+            grad.addColorStop(1, 'rgba(0,0,0,0.20)');
+            ctx.beginPath();
+            ctx.moveTo(poly[0].x, poly[0].y);
+            for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.strokeStyle = joint;
+            ctx.lineWidth = gap;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    else grid(300, 300);
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
     texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter;
