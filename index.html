@@ -603,17 +603,17 @@
 
                 <div class="subsection">
                     <div class="subsection-title">🛤️ Покрытие площадки</div>
+                    <div class="control-group" id="pathSurfaceTypeControl" style="display:block !important; visibility:visible; opacity:1; margin:10px 0 14px; padding:10px; border:2px solid #64748b; border-radius:8px;">
+                        <label for="pathSurfaceType" style="display:block; font-weight:700; margin-bottom:6px;">Тип покрытия — выбери нужный вариант</label>
+                        <select id="pathSurfaceType" style="display:block !important; visibility:visible; width:100%; min-height:42px; font-size:16px;">
+                            <option value="slab">Тротуарная плитка</option>
+                            <option value="paver" selected>Брусчатка</option>
+                        </select>
+                    </div>
                     <div id="pathControls" class="path-controls">
                         <div class="checkbox-group" style="margin-bottom:12px;">
                             <input type="checkbox" id="pathEnabled" checked>
                             <label for="pathEnabled">Показывать покрытие и слои основания</label>
-                        </div>
-                        <div class="control-group">
-                            <label for="pathSurfaceType">Тип покрытия</label>
-                            <select id="pathSurfaceType">
-                                <option value="slab">Тротуарная плитка</option>
-                                <option value="paver" selected>Брусчатка</option>
-                            </select>
                         </div>
                         <div class="control-group-with-input">
                             <label for="pathWidth">Ширина площадки</label>
