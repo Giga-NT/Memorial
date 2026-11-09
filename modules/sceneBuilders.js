@@ -865,7 +865,9 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
     };
     const base = new THREE.Color(colors[tileType] || colors.tile_gray);
     const joint = jointColor || '#514e49';
-    const moduleMm = format === 'square500' ? 1000 : 1200;
+    // Для модульной раскладки «Старый город» используем реальные типоразмеры
+    // коллекции Braer «Ландхаус»: 240×160, 160×160 и 80×160 мм.
+    const moduleMm = format === 'old_city' ? 480 : (format === 'square500' ? 1000 : 1200);
     const px = size / moduleMm;
     const gap = mobile ? 7 : 9;
 
@@ -951,14 +953,15 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
     };
 
     if (format === 'old_city') {
-        // Повторяемый модуль 1200×1200 мм. Все элементы замыкаются без
-        // наложений и пустот: 600×400, 400×400 и 400×200 мм.
-        const u = 200 * px;
+        // Модуль 480×480 мм по типоразмерам Braer «Ландхаус»:
+        // 240×160 (3×2 ячейки), 160×160 (2×2), 80×160 (1×2).
+        // Сетка 80 мм, элементы стыкуются без перекрытий и пустот.
+        const u = 80 * px;
         const module = [
             [0,0,3,2], [3,0,3,2],
-            [0,2,2,1], [2,2,2,1], [4,2,2,1],
-            [0,3,2,1], [2,3,2,1], [4,3,2,1],
-            [0,4,2,2], [2,4,2,2], [4,4,2,2]
+            [0,2,2,2], [2,2,2,2], [4,2,2,2],
+            [0,4,1,2], [1,4,1,2], [2,4,1,2],
+            [3,4,1,2], [4,4,1,2], [5,4,1,2]
         ];
         module.forEach((t, i) => paintTile(t[0] * u, t[1] * u, t[2] * u, t[3] * u, i + 1));
     } else if (format === 'stone') {
