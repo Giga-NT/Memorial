@@ -1211,24 +1211,33 @@ async function initDB() {
         )
     `);
 
-    // Стартовые рыночные ориентиры. INSERT OR IGNORE не перезаписывает существующие цены.
-    const initialMaterialPriceRows = [
-        // Брусчатка 300×300×60, цена за м².
-        ['tile_gray', 'tile', 300, 300, 60, 60, 'paver', 850],
-        ['tile_black', 'tile', 300, 300, 60, 60, 'paver', 1250],
-        ['tile_beige', 'tile', 300, 300, 60, 60, 'paver', 1250],
-        ['tile_dark', 'tile', 300, 300, 60, 60, 'paver', 1250],
-        ['tile_light', 'tile', 300, 300, 60, 60, 'paver', 1250],
-        ['tile_marble', 'tile', 300, 300, 60, 60, 'paver', 1800],
-        // Бордюр 1000×120×80, цена за погонный метр.
-        ['granite', 'curb', 1000, 120, 80, 80, '', 3600],
-        ['black_galaxy', 'curb', 1000, 120, 80, 80, '', 4320],
-        ['red_granite', 'curb', 1000, 120, 80, 80, '', 2800],
-        ['beige_granite', 'curb', 1000, 120, 80, 80, '', 1500],
-        ['gray_granite', 'curb', 1000, 120, 80, 80, '', 1350],
-        ['marble', 'curb', 1000, 120, 80, 80, '', 3000],
-        ['concrete', 'curb', 1000, 120, 80, 80, '', 260]
-    ];
+    // Рыночные ориентиры по брусчатке, ₽/м². Оба формата имеют одну цену за площадь.
+    // INSERT OR IGNORE не затрагивает существующие и вручную отредактированные записи.
+    const paverPrices = {
+        tile_gray:{60:850,80:1120,100:1650},
+        tile_black:{60:1200,80:1400,100:1700},
+        tile_dark:{60:1200,80:1400,100:1700},
+        tile_red:{60:1120,80:1400,100:1700},
+        tile_beige:{60:2350,80:2350,100:2350},
+        tile_light:{60:2350,80:2350,100:2350},
+        tile_marble:{60:2350,80:2350,100:2350}
+    };
+    const initialMaterialPriceRows=[];
+    for(const [material,thicknesses] of Object.entries(paverPrices)){
+        for(const [thicknessText,price] of Object.entries(thicknesses)){
+            const thickness=Number(thicknessText);
+            initialMaterialPriceRows.push(
+                [material,'tile',200,200,thickness,thickness,'paver',price],
+                [material,'tile',200,100,thickness,thickness,'paver',price]
+            );
+        }
+    }
+    // Бетонные бордюры: садовый, дорожный и усиленный; ₽/пог.м.
+    initialMaterialPriceRows.push(
+        ['concrete','curb',1000,200,80,80,'',400],
+        ['concrete','curb',1000,300,150,150,'',650],
+        ['concrete','curb',1000,300,180,180,'',800]
+    );
     for (const row of initialMaterialPriceRows) {
         await dbRun(`INSERT OR IGNORE INTO material_price_rows
             (material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, price)
