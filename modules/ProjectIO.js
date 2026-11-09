@@ -942,7 +942,7 @@ export class ProjectIO {
     // СОХРАНЕНИЕ
     // ============================================================
 
-    async saveToFile() {
+    async saveToFile(options = {}) {
 
         try {
 
@@ -983,10 +983,6 @@ export class ProjectIO {
 
             const cameraState =
                 this.getCameraState();
-
-            // GLB вместе с добавленными вазами и мебелью сохраняется
-            // внутри JSON проекта, чтобы его можно было открыть позже.
-            const glbProject = await window.glbImportManager?.getProjectSnapshot?.() || null;
 
             const steleName =
                 this.getSteleName();
@@ -1072,7 +1068,6 @@ export class ProjectIO {
                 vases:
                     vasesData,
 
-                glbProject,
 
                 camera:
                     cameraState,
@@ -1196,6 +1191,9 @@ export class ProjectIO {
 
 
             // ----------------------------------------------------
+            // GLB-экспорт получает тот же полный объект проекта, что и JSON-сохранение.
+            if (options.returnData === true) return projectData;
+
             // JSON
             // ----------------------------------------------------
 
