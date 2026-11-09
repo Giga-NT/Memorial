@@ -1236,7 +1236,13 @@ async function initDB() {
     initialMaterialPriceRows.push(
         ['concrete','curb',1000,200,80,80,'',400],
         ['concrete','curb',1000,300,150,150,'',650],
-        ['concrete','curb',1000,300,180,180,'',800]
+        ['concrete','curb',1000,300,180,180,'',800],
+        // Компактный бетонный бордюр площадки 1000×100×100 мм, ₽/пог.м.
+        ['concrete','curb',1000,100,100,100,'',300],
+        // Слои основания площадки: песок/щебень — ₽/м³, геотекстиль — ₽/м².
+        ['sand','other',0,0,0,0,'site_layer:sand',1200],
+        ['gravel','other',0,0,0,0,'site_layer:gravel',1700],
+        ['geotextile','other',0,0,0,0,'site_layer:geotextile',50]
     );
     for (const row of initialMaterialPriceRows) {
         await dbRun(`INSERT OR IGNORE INTO material_price_rows
