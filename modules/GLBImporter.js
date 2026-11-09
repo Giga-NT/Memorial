@@ -100,9 +100,6 @@ export class GLBImportManager {
             orbitControls.enabled = !event.value;
         });
 
-        this.transform.addEventListener('change', () => {
-            if (this.renderer) this.renderer.render(this.scene, camera);
-        });
     }
 
     bindUI() {
