@@ -254,8 +254,8 @@ app.use((req, res, next) => {
     const fileName = segments[segments.length - 1] || '';
     const hasBlockedDirectory = segments.some(segment => blockedDirectories.has(segment));
     const hasBlockedFile = blockedFiles.has(fileName) ||
-        /\\.(?:db|sqlite|sqlite3|log|backup|bak)$/i.test(fileName) ||
-        /^package(?:-lock)?\\.json$/i.test(fileName);
+        /\.(?:db|sqlite|sqlite3|log|backup|bak)$/i.test(fileName) ||
+        /^package(?:-lock)?\.json$/i.test(fileName);
 
     if (hasBlockedDirectory || hasBlockedFile) {
         return res.status(404).end();
