@@ -390,7 +390,7 @@ const ALLOWED_PRICE_KEYS = new Set([
     'site_base_preparation_per_m2', 'site_excavation_per_m3',
     'site_compaction_per_m3', 'path_tile_work_per_m2',
     'path_slab_work_per_m2', 'site_curb_install_per_m',
-    'install_full_set', 'install_flowerbed_base', 'install_pedestal_percent',
+    'install_full_set', 'install_flowerbed_base', 'install_flowerbed_only', 'install_pedestal_percent',
     'tile_work_per_m2', 'decoration_volume', 'decoration_engraving'
 ]);
 
@@ -443,6 +443,7 @@ const DEFAULT_PRICES = {
     site_curb_install_per_m: 0,
     install_full_set: 35000,
     install_flowerbed_base: 25000,
+    install_flowerbed_only: 0,
     install_pedestal_percent: 10,
     tile_work_per_m2: 1000,
     decoration_volume: 0,
