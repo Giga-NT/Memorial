@@ -1853,7 +1853,9 @@ export async function updateMainMonument(
                 : 0.5,
 
         pathMaterial:
-            state.pathMaterial || 'tile_gray',
+            (state.pathSurfaceType === 'slab'
+                ? (state.pathSlabMaterial || state.pathMaterial)
+                : (state.pathPaverMaterial || state.pathMaterial)) || 'tile_gray',
 
         pathSurfaceType:
             state.pathSurfaceType || 'paver',
