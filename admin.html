@@ -1026,6 +1026,7 @@
                 <p class="intro">Здесь задаются цены для клиента. Для основной стелы достаточно одной базовой позиции на материал: укажите ширину, высоту, толщину и цену. Стоимость других размеров калькулятор пересчитает по объёму. Дополнительные изделия добавляйте отдельными позициями ниже.</p>
                 <div class="material-price-toolbar" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
                     <label for="material-search" style="display:flex;flex-direction:column;gap:5px;min-width:240px"><strong>Быстрый поиск по прайсу</strong><input id="material-search" type="search" placeholder="Название, размер или цена…" style="padding:10px;border:1px solid #d2d5da;border-radius:7px;font-size:15px"></label>
+                    <label for="material-sort" style="display:flex;flex-direction:column;gap:5px"><strong>Сортировка</strong><select id="material-sort" style="min-width:190px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"><option value="product">По типу изделия</option><option value="size">По размеру</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="material">По материалу</option></select></label>
                     <label for="product-filter" style="display:flex;flex-direction:column;gap:5px"><strong>Тип изделия</strong><select id="product-filter" style="min-width:180px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"><option value="">Все изделия</option></select></label>
                     <label for="material-select"><strong>Материал</strong></label>
                     <select id="material-select" aria-label="Выбрать материал" style="min-width:220px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"></select>
@@ -1753,11 +1754,22 @@
         const searchText = (document.getElementById('material-search')?.value || '').trim().toLocaleLowerCase('ru');
         const productFilter = document.getElementById('product-filter')?.value || '';
         const rows = materialRows.map((r,i)=>({...r,_index:i})).filter(r=>{
-            if(r.material!==activeMaterial) return false;
+            if(!searchText && r.material!==activeMaterial) return false;
             if(productFilter && r.product!==productFilter) return false;
             if(!searchText) return true;
-            const haystack = [r.product,r.width_mm,r.height_mm,r.depth_mm,r.thickness_mm,r.finish,r.price].join(' ').toLocaleLowerCase('ru');
+            const materialLabel = MATERIALS.find(x=>x[0]===r.material)?.[1] || r.material;
+            const productLabel = PRODUCTS.find(x=>x[0]===r.product)?.[1] || r.product;
+            const haystack = [materialLabel,productLabel,r.width_mm,r.height_mm,r.depth_mm,r.thickness_mm,r.finish,r.price].join(' ').toLocaleLowerCase('ru');
             return haystack.includes(searchText);
+        });
+        const sortMode = document.getElementById('material-sort')?.value || 'product';
+        const productOrder = PRODUCTS.map(x=>x[0]);
+        rows.sort((a,b)=>{
+            if(sortMode==='price-asc') return Number(a.price||0)-Number(b.price||0);
+            if(sortMode==='price-desc') return Number(b.price||0)-Number(a.price||0);
+            if(sortMode==='size') return (Number(a.width_mm)||0)-(Number(b.width_mm)||0) || (Number(a.height_mm)||0)-(Number(b.height_mm)||0) || (Number(a.depth_mm)||0)-(Number(b.depth_mm)||0);
+            if(sortMode==='material') return String(a.material).localeCompare(String(b.material),'ru');
+            return productOrder.indexOf(a.product)-productOrder.indexOf(b.product) || (Number(a.width_mm)||0)-(Number(b.width_mm)||0);
         });
         const productOptions = PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
         const productFilterSelect = document.getElementById('product-filter');
@@ -1789,6 +1801,7 @@
     });
     document.getElementById('material-search').addEventListener('input',renderMaterialPriceEditor);
     document.getElementById('product-filter').addEventListener('change',renderMaterialPriceEditor);
+    document.getElementById('material-sort').addEventListener('change',renderMaterialPriceEditor);
     document.getElementById('material-add-row').addEventListener('click',()=>{
         materialRows.push({material:activeMaterial,product:'stele',width_mm:0,height_mm:0,depth_mm:0,thickness_mm:0,finish:'',price:0});
         renderMaterialPriceEditor();
