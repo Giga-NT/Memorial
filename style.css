@@ -2507,3 +2507,13 @@ select:focus, input:focus, textarea:focus { border-color:var(--gnt-gold); }
     .top-price-toggle { height:34px; min-width:45px; padding:0 7px; }
     .live-price-panel.is-hidden { display:none; }
 }
+
+.brand-lockup { margin:0 0 0 8px; }
+.quick-actions { margin-left:auto; }
+.top-price-toggle { margin-left:0; }
+.rotate-toggle { left:20px; right:auto; bottom:24px; }
+@media(max-width:768px) {
+    .brand-lockup { margin-left:4px; }
+    .quick-actions { margin-left:auto; }
+    .rotate-toggle { left:auto; right:12px; bottom:172px; }
+}
