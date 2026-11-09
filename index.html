@@ -54,16 +54,18 @@
             <span class="quick-label">Сброс</span>
         </button>
     </div>
+    <label class="price-visibility-toggle top-price-toggle" title="Показывать или скрывать стоимость">
+        <input type="checkbox" id="showPricePanel" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-caption">₽</span>
+    </label>
 </div>
 
 <!-- Постоянная панель стоимости -->
 <aside class="live-price-panel" id="livePricePanel" aria-label="Стоимость проекта">
     <div class="live-price-head">
         <div><span class="live-price-kicker">ВАШ ПРОЕКТ</span><strong>Предварительная стоимость</strong></div>
-        <label class="price-visibility-toggle" title="Показывать или скрывать стоимость">
-            <input type="checkbox" id="showPricePanel" checked>
-            <span class="toggle-track"></span>
-        </label>
+        <span class="live-price-status">● АКТИВНЫЙ РАСЧЁТ</span>
     </div>
     <div class="live-price-value" id="totalPriceDisplay">0 ₽</div>
     <div class="live-price-note">Расчёт обновляется при изменении комплектации</div>
@@ -1550,5 +1552,42 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 })();
 
 </script>
+
+<script>
+(function () {
+    const toggle = document.getElementById('showPricePanel');
+    const panel = document.getElementById('livePricePanel');
+    const openDetails = document.getElementById('openPriceDetailsBtn');
+    const menu = document.getElementById('accordionMenu');
+    const overlay = document.getElementById('menuOverlay');
+    const burger = document.getElementById('burgerBtn');
+
+    if (toggle && panel) {
+        toggle.addEventListener('change', () => {
+            panel.classList.toggle('is-hidden', !toggle.checked);
+            panel.setAttribute('aria-hidden', String(!toggle.checked));
+        });
+    }
+
+    openDetails?.addEventListener('click', () => {
+        const section = document.getElementById('sendOrderBtn')?.closest('.accordion-section');
+        if (menu) menu.classList.add('open');
+        if (overlay) overlay.classList.add('active');
+        if (burger) burger.classList.add('active');
+        if (section) {
+            document.querySelectorAll('.accordion-section.active').forEach(item => {
+                if (item !== section) {
+                    item.classList.remove('active');
+                    item.querySelector('.section-header')?.setAttribute('aria-expanded', 'false');
+                }
+            });
+            section.classList.add('active');
+            section.querySelector('.section-header')?.setAttribute('aria-expanded', 'true');
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+})();
+</script>
+
 </body>
 </html>
