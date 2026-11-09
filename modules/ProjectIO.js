@@ -1611,6 +1611,94 @@ export class ProjectIO {
 
 
     // ============================================================
+    // ВОССТАНОВЛЕНИЕ МЕБЕЛИ И ВАЗ ИЗ СОХРАНЁННЫХ ДАННЫХ
+    // ============================================================
+
+    async waitForAccessoryManagers(timeoutMs = 6000) {
+        const started = Date.now();
+        while (Date.now() - started < timeoutMs) {
+            if (window.furniture3DManager && window.vasesManager) return true;
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return !!(window.furniture3DManager && window.vasesManager);
+    }
+
+    async restoreAccessories(data) {
+        const furnitureRows = Array.isArray(data.furniture) ? data.furniture : [];
+        const vaseRows = Array.isArray(data.vases) ? data.vases : [];
+
+        this.state.savedFurniture = this.cloneData(furnitureRows);
+        this.state.savedVases = this.cloneData(vaseRows);
+
+        await this.waitForAccessoryManagers();
+
+        const furnitureManager = window.furniture3DManager;
+        if (furnitureManager) {
+            furnitureManager.clearAll?.();
+            for (const saved of furnitureRows) {
+                const x = Number(saved.x) || 0;
+                const z = Number(saved.z) || 0;
+                const rotation = Number(saved.rotation) || 0;
+                const scale = Number(saved.scale) > 0 ? Number(saved.scale) : 1;
+                let created = null;
+                switch (saved.type) {
+                    case 'table':
+                        created = await furnitureManager.placeTable(x, z, rotation, scale);
+                        break;
+                    case 'bench':
+                        created = await furnitureManager.placeBench(x, z, rotation, scale);
+                        break;
+                    case 'table_garden':
+                        created = await furnitureManager.placeTableGarden(x, z, rotation, scale);
+                        break;
+                    case 'garden_bench':
+                        created = await furnitureManager.placeGardenBench(x, z, rotation, scale);
+                        break;
+                    default:
+                        console.warn('Неизвестный тип мебели в сохранённом проекте:', saved.type);
+                }
+                if (!created) throw new Error(`Не удалось восстановить мебель: ${saved.type || 'unknown'}`);
+            }
+        } else if (furnitureRows.length) {
+            console.warn('Менеджер мебели не готов: мебель сохранена в данных проекта, но не создана в сцене');
+        }
+
+        const vasesManager = window.vasesManager;
+        if (vasesManager) {
+            vasesManager.clearAll?.();
+            if (Object.keys(vasesManager.vasesConfig || {}).length === 0 &&
+                typeof vasesManager.loadVasesConfig === 'function') {
+                await vasesManager.loadVasesConfig();
+            }
+            for (const saved of vaseRows) {
+                const vaseType = saved.type || saved.vaseType || 'vase1';
+                const material = saved.material || 'marble';
+                vasesManager.vaseMaterial = material;
+                const created = await vasesManager.addVase(
+                    vaseType,
+                    Number(saved.x) || 0,
+                    Number(saved.z) || 0,
+                    Number(saved.scale) > 0 ? Number(saved.scale) : 1
+                );
+                if (!created) throw new Error(`Не удалось восстановить вазу: ${vaseType}`);
+                const rotation = Number(saved.rotation);
+                if (Number.isFinite(rotation)) {
+                    created.rotation = rotation;
+                    created.group.rotation.y = rotation;
+                    created.group.userData.rotation = rotation;
+                }
+                created.material = material;
+                created.group.userData.material = material;
+            }
+        } else if (vaseRows.length) {
+            console.warn('Менеджер ваз не готов: вазы сохранены в данных проекта, но не созданы в сцене');
+        }
+
+        console.log(`♻️ Аксессуары восстановлены: мебель=${furnitureManager?.furniture?.length || 0}, вазы=${vasesManager?.vases?.length || 0}`);
+    }
+
+
+    // ============================================================
     // ЗАГРУЗКА ФАЙЛА
     // ============================================================
 
@@ -2024,23 +2112,15 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 4. ОБНОВЛЯЕМ UI
+                    // 4. БЛОКИРУЕМ ОБРАБОТЧИКИ И ОБНОВЛЯЕМ UI
                     // ==================================================
-					window._isLoadingProject = true;
+                    window._isLoadingProject = true;
+                    window._disableAutoMonument = true;
+                    window._forceMainUpdate = true;
                     this.updateAllUIFromState();
-					if (typeof window.refreshBurialRecordsUI === 'function') {
-						window.refreshBurialRecordsUI();
-					}
-
-                    // ==================================================
-                    // 5. ОТКЛЮЧАЕМ АВТООБНОВЛЕНИЕ
-                    // ==================================================
-
-                    window._disableAutoMonument =
-                        true;
-
-                    window._forceMainUpdate =
-                        true;
+                    if (typeof window.refreshBurialRecordsUI === 'function') {
+                        window.refreshBurialRecordsUI();
+                    }
 
 
                     // ==================================================
@@ -2137,33 +2217,9 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 10. МЕБЕЛЬ / ВАЗЫ
-                    //
-                    // Их существующие менеджеры могут восстановить
-                    // отдельно. Здесь сохраняем данные в state,
-                    // чтобы они были доступны проекту.
+                    // 10. ВОССТАНАВЛИВАЕМ МЕБЕЛЬ И ВАЗЫ В 3D-СЦЕНЕ
                     // ==================================================
-
-                    if (
-                        Array.isArray(data.furniture)
-                    ) {
-
-                        this.state.savedFurniture =
-                            this.cloneData(
-                                data.furniture
-                            );
-                    }
-
-
-                    if (
-                        Array.isArray(data.vases)
-                    ) {
-
-                        this.state.savedVases =
-                            this.cloneData(
-                                data.vases
-                            );
-                    }
+                    await this.restoreAccessories(data);
 
 
                     // ==================================================
