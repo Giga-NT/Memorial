@@ -2833,7 +2833,7 @@ async function createPathBetweenGraveAndFence() {
             : await createPavingTexture(0.2, state.pathMaterial, state.pathJointColor || '#666666');
         // Для плитки повторяем модуль 1,2×1,2 м; для брусчатки — 0,4×0,4 м.
         const repeatModule = isSlab
-            ? (slabFormat.startsWith('old_city') ? 0.48 : (slabFormat === 'square500' ? 1.0 : 1.2))
+            ? (slabFormat === 'old_city' ? 0.48 : (slabFormat === 'square500' ? 1.0 : 1.2))
             : 0.4;
         const repeatX = totalWidth / repeatModule;
         const repeatY = totalLength / repeatModule;
@@ -2897,7 +2897,7 @@ function createSlabTexture(format, tileType, jointColor) {
     const base = new THREE.Color(colors[tileType] || colors.tile_gray);
     const joint = jointColor || '#514e49';
     // Braer «Ландхаус»: модуль 480 мм для камней 240×160, 160×160 и 80×160 мм.
-    const isOldCity = format.startsWith('old_city');
+    const isOldCity = format === 'old_city';
     const moduleMm = isOldCity ? 480 : (format === 'square500' ? 1000 : 1200);
     const px = size / moduleMm;
     const gap = mobile ? 5 : 6;
@@ -2939,23 +2939,13 @@ function createSlabTexture(format, tileType, jointColor) {
         // BRAER «Ландхаус», модуль 480×480 мм. Варианты размеров:
         // 240×160, 160×160, 80×160 мм или смешанный комплект.
         const u = 80 * px;
-        let tiles;
-        if (format === 'old_city_240') {
-            tiles = [];
-            for (let y = 0; y < 6; y += 2) for (let x = 0; x < 6; x += 3) tiles.push([x,y,3,2]);
-        } else if (format === 'old_city_160') {
-            tiles = [];
-            for (let y = 0; y < 6; y += 2) for (let x = 0; x < 6; x += 2) tiles.push([x,y,2,2]);
-        } else if (format === 'old_city_80') {
-            tiles = [];
-            for (let y = 0; y < 6; y += 2) for (let x = 0; x < 6; x += 1) tiles.push([x,y,1,2]);
-        } else {
-            tiles = [
-                [0,0,3,2], [3,0,3,2],
-                [0,2,2,2], [2,2,2,2], [4,2,2,2],
-                [0,4,1,2], [1,4,1,2], [2,4,1,2],
-                [3,4,1,2], [4,4,1,2], [5,4,1,2]
-            ];
+        // Только малый формат 80×160 мм. Рисунок — смещённая раскладка.
+        const tiles = [];
+        for (let y = 0; y < 6; y += 2) {
+            const offset = (y / 2) % 2;
+            for (let x = -1; x < 6; x++) {
+                tiles.push([x + offset, y, 1, 2]);
+            }
         }
         tiles.forEach((tile, index) => {
             paintTile(tile[0] * u, tile[1] * u, tile[2] * u, tile[3] * u, index + 1);
@@ -5518,10 +5508,7 @@ function buildPriceBreakdown() {
                 square300: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 },
                 square500: { width_mm: 500, height_mm: 500, depth_mm: 50, thickness_mm: 50 },
                 rectangle: { width_mm: 200, height_mm: 100, depth_mm: 60, thickness_mm: 60 },
-                old_city: { width_mm: 240, height_mm: 160, depth_mm: 60, thickness_mm: 60 },
-                old_city_240: { width_mm: 240, height_mm: 160, depth_mm: 60, thickness_mm: 60 },
-                old_city_160: { width_mm: 160, height_mm: 160, depth_mm: 60, thickness_mm: 60 },
-                old_city_80: { width_mm: 80, height_mm: 160, depth_mm: 60, thickness_mm: 60 },
+                old_city: { width_mm: 80, height_mm: 160, depth_mm: 60, thickness_mm: 60 },
                 stone: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 }
             };
             const tileDimensions = surfaceType === 'slab'
