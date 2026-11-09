@@ -5521,7 +5521,7 @@ function buildPriceBreakdown() {
                 coverageArea
             );
             const tileWorkPrice = surfaceType === 'slab'
-                ? (getPriceValue('path_slab_work_per_m2') || getPriceValue('path_tile_work_per_m2'))
+                ? getPriceValueOrDefault('path_slab_work_per_m2', getPriceValue('path_tile_work_per_m2'))
                 : getPriceValue('path_tile_work_per_m2');
             addRow(
                 `🔧 Укладка ${surfaceLabel}`,
