@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { exportObjectsToGLB, downloadBlob, sanitizeFileName } from './GLBExporter.js';
 // В проекте локально присутствует OrbitControls, но TransformControls в комплект Three.js не включён.
 import { TransformControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/TransformControls.js';
 
@@ -120,6 +121,7 @@ export class GLBImportManager {
         document.getElementById('glbRotateBtn')?.addEventListener('click', () => this.transform.setMode('rotate'));
         document.getElementById('glbScaleBtn')?.addEventListener('click', () => this.transform.setMode('scale'));
         document.getElementById('glbRemoveBtn')?.addEventListener('click', () => this.removeActive());
+        document.getElementById('glbExportSelectedBtn')?.addEventListener('click', () => this.exportActive());
     }
 
     async loadFile(file) {
@@ -187,6 +189,33 @@ export class GLBImportManager {
         this.transform.attach(item.pivot);
         const select = document.getElementById('glbImportedSelect');
         if (select) select.value = id;
+    }
+
+    async exportActive() {
+        const item = this.assets.get(this.activeId);
+        if (!item) {
+            this.onToast('Сначала выберите импортированную модель', 'info');
+            return;
+        }
+        const button = document.getElementById('glbExportSelectedBtn');
+        if (button) {
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+        }
+        try {
+            const result = await exportObjectsToGLB(item.pivot);
+            const baseName = sanitizeFileName(item.name.replace(/\\.glb$/i, ''));
+            downloadBlob(result.blob, `${baseName}_edited.glb`);
+            this.onToast(`Модель экспортирована: ${baseName}_edited.glb`, 'success');
+        } catch (error) {
+            console.error('GLB selected export failed:', error);
+            this.onToast(error?.message || 'Не удалось экспортировать выбранную модель', 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.removeAttribute('aria-busy');
+            }
+        }
     }
 
     removeActive() {
