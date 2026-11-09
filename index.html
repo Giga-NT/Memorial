@@ -1368,6 +1368,10 @@
                     <select id="glbImportedSelect" style="width:100%;margin-top:5px;">
                         <option value="">Нет загруженных моделей</option>
                     </select>
+                    <label for="glbPartSelect" style="display:block;margin-top:10px;">Элемент внутри модели</label>
+                    <select id="glbPartSelect" style="width:100%;margin-top:5px;">
+                        <option value="__model__">Вся модель</option>
+                    </select>
                     <div class="action-buttons" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px;">
                         <button id="glbTranslateBtn" class="btn-secondary" type="button" title="Переместить">↔ Переместить</button>
                         <button id="glbRotateBtn" class="btn-secondary" type="button" title="Вращать">⟳ Вращать</button>
@@ -1375,7 +1379,7 @@
                     </div>
                     <button id="glbExportSelectedBtn" class="btn-export-glb" type="button" style="width:100%;margin-top:7px;">⬇️ Скачать выбранную модель</button>
                     <button id="glbRemoveBtn" class="btn-secondary" type="button" style="width:100%;margin-top:7px;">Удалить выбранную модель</button>
-                    <small style="display:block;margin-top:8px;color:#667085;">GLB до 100 МБ. Импортированную модель можно двигать, вращать и масштабировать, затем скачать вместе со сценой.</small>
+                    <small style="display:block;margin-top:8px;color:#667085;">GLB до 100 МБ. Можно трансформировать всю модель или отдельные её элементы, затем скачать модель или всю сцену.</small>
                 </div>
                 
                 <hr>
