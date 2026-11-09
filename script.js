@@ -4981,6 +4981,12 @@ function getPriceValue(key) {
     return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+function getPriceValueOrDefault(key, fallback) {
+    return prices && Object.prototype.hasOwnProperty.call(prices, key)
+        ? getPriceValue(key)
+        : fallback;
+}
+
 function isPriceSettingEnabled(key) {
     const value = priceSettings?.[key];
     return value === true || value === 1 || value === '1' || value === 'true';
@@ -5132,7 +5138,7 @@ function buildPriceBreakdown() {
             const legacyFinishThickness = String(row?.finish ?? '').trim().match(/^(\d+(?:[.,]\d+)?)$/);
             return legacyFinishThickness ? Number(legacyFinishThickness[1].replace(',', '.')) : 0;
         };
-        const baseRow = materialPriceRows.find(row =>
+        const baseRows = materialPriceRows.filter(row =>
             row.material === material &&
             row.product === 'stele' &&
             Number(row.width_mm) > 0 &&
@@ -5140,6 +5146,17 @@ function buildPriceBreakdown() {
             getSteleThicknessMm(row) > 0 &&
             Number(row.price) > 0
         );
+        // Базовая позиция выбирается детерминированно: минимальный объём,
+        // затем цена. Порядок строк в прайсе больше не влияет на расчёт.
+        baseRows.sort((a, b) => {
+            const volume = row =>
+                Number(row.width_mm) * Number(row.height_mm) * getSteleThicknessMm(row);
+            return volume(a) - volume(b) ||
+                Number(a.price) - Number(b.price) ||
+                Number(a.width_mm) - Number(b.width_mm) ||
+                Number(a.height_mm) - Number(b.height_mm);
+        });
+        const baseRow = baseRows[0] || null;
         if (baseRow) {
             const baseThicknessMm = getSteleThicknessMm(baseRow);
             const baseVolume = Number(baseRow.width_mm) * Number(baseRow.height_mm) * baseThicknessMm;
@@ -5256,7 +5273,7 @@ function buildPriceBreakdown() {
     }
 
     // Стоимость нанесения текста: 80 ₽ за каждый символ ФИО, дат и эпитафии.
-    const textCharacterPrice = getPriceValue('text_character_price') || 80;
+    const textCharacterPrice = getPriceValueOrDefault('text_character_price', 80);
     let textCharacterCount = 0;
     const textCharacterParts = [];
     monuments.forEach((monument, index) => {
@@ -5306,7 +5323,9 @@ function buildPriceBreakdown() {
         );
     }
 
-    const photoBasePrice = getPriceValue('photo_price') || getPriceValue('photo');
+    const photoBasePrice = prices && Object.prototype.hasOwnProperty.call(prices, 'photo_price')
+        ? getPriceValue('photo_price')
+        : getPriceValue('photo');
     const photoTypicalWidthMm = 300;
     const photoTypicalHeightMm = 150;
     let photoTotal = 0;
@@ -5338,7 +5357,16 @@ function buildPriceBreakdown() {
 
     const decorations = Array.isArray(state.decorations) ? state.decorations : [];
     if (decorations.length) {
-        /* расчёт добавим позже */
+        const labels = decorations.map((item, index) => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item === 'object') {
+                return item.name || item.title || item.type || `элемент №${index + 1}`;
+            }
+            return `элемент №${index + 1}`;
+        });
+        missingCatalogPrices.push(
+            `Декор не включён в итог: для выбранных элементов пока не настроены правила цены (${labels.join(', ')})`
+        );
     }
 
     monuments.forEach((monument, index) => {
@@ -5682,8 +5710,8 @@ function buildPriceBreakdown() {
             : isPriceSettingEnabled('include_install');
 
     if (includeInstall) {
-        const installStelePedestal = getPriceValue('install_stele_pedestal') || 5000;
-        const installFlowerbedPerMeter = getPriceValue('install_flowerbed_per_m') || 1000;
+        const installStelePedestal = getPriceValueOrDefault('install_stele_pedestal', 5000);
+        const installFlowerbedPerMeter = getPriceValueOrDefault('install_flowerbed_per_m', 1000);
         const installationCount = monuments.length;
         addRow(
             '🔧 Установка стелы и тумбы',
@@ -5733,12 +5761,20 @@ function buildPriceBreakdown() {
 }
 
 function calculatePrice() {
-    const { total } = buildPriceBreakdown();
+    const breakdown = buildPriceBreakdown();
     const totalDisplay = document.getElementById('totalPriceDisplay');
     if (totalDisplay) {
-        totalDisplay.innerText = total.toLocaleString('ru-RU') + ' ₽';
+        totalDisplay.innerText = breakdown.total.toLocaleString('ru-RU') + ' ₽';
     }
-    return total;
+    const warningDisplay = document.getElementById('priceWarnings');
+    if (warningDisplay) {
+        const missing = breakdown.missingCatalogPrices || [];
+        warningDisplay.textContent = missing.length
+            ? `Предварительный расчёт: не найдены цены для ${missing.length} позиции(й). ${missing.join('; ')}`
+            : '';
+        warningDisplay.hidden = missing.length === 0;
+    }
+    return breakdown.total;
 }
 
 window.calculatePrice = calculatePrice;
