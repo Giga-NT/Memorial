@@ -30,7 +30,7 @@ import {
     initBackgroundsUI,
     initBackgroundControls
 } from './modules/backgrounds.js';
-import { Furniture3DManager } from './modules/furniture3D.min.js';
+import { Furniture3DManager } from './modules/furniture3D.js';
 import { MobileImprovements } from './modules/mobile-improvements.min.js';
 
 import { initDragManagers } from './modules/drag/index.js';
@@ -6122,8 +6122,16 @@ setTimeout(() => {
         onActiveModel: (modelRoot) => {
             const furnitureManager = initFurniture3D();
             const vaseManager = initVasesManager();
-            furnitureManager.setParent(modelRoot, modelRoot);
-            vaseManager.setParent(modelRoot, modelRoot);
+            if (typeof furnitureManager?.setParent === 'function') {
+                furnitureManager.setParent(modelRoot, modelRoot);
+            } else {
+                console.warn('⚠️ Furniture3DManager без setParent: мебель останется в основной сцене');
+            }
+            if (typeof vaseManager?.setParent === 'function') {
+                vaseManager.setParent(modelRoot, modelRoot);
+            } else {
+                console.warn('⚠️ VasesManager без setParent: вазы останутся в основной сцене');
+            }
         }
     });
     glbImportManager.bindUI();
