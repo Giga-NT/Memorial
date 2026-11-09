@@ -78,13 +78,35 @@ export class Furniture3DManager {
     }
 
     setParent(parent = null, monumentGroup = null) {
-        const nextParent = parent || this.scene;
-        if (this.furnitureGroup.parent !== nextParent) {
-            this.furnitureGroup.parent?.remove(this.furnitureGroup);
-            nextParent.add(this.furnitureGroup);
+        if (parent && parent === this.activeModelRoot) return;
+        if (parent) {
+            if (!this.originalContext) {
+                this.originalContext = {
+                    group: this.furnitureGroup,
+                    furniture: this.furniture,
+                    selectedId: this.selectedId
+                };
+            }
+            const nextGroup = new THREE.Group();
+            nextGroup.name = 'importedGlbFurniture';
+            parent.add(nextGroup);
+            this.furnitureGroup = nextGroup;
+            this.furniture = [];
+            this.selectedId = null;
+            this.dragging = null;
+            this.activeModelRoot = parent;
+            this.monumentGroup = monumentGroup || parent;
+            return;
         }
-        this.activeModelRoot = parent || null;
-        this.monumentGroup = monumentGroup || this.originalMonumentGroup;
+        if (this.originalContext) {
+            this.furnitureGroup.parent?.remove(this.furnitureGroup);
+            this.furnitureGroup = this.originalContext.group;
+            this.furniture = this.originalContext.furniture;
+            this.selectedId = this.originalContext.selectedId;
+            this.originalContext = null;
+        }
+        this.activeModelRoot = null;
+        this.monumentGroup = this.originalMonumentGroup;
     }
 
     getDefaultPlacement() {
