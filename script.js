@@ -5536,7 +5536,7 @@ function buildPriceBreakdown() {
             // При отключённом основании оставляем стоимость установки цветника,
             // а долю основания не начисляем. До появления отдельной настройки
             // доля цветника принимается равной половине совместной установки.
-            const flowerbedOnlyPrice = installFlowerbedBase / 2;
+            const flowerbedOnlyPrice = getPriceValue('install_flowerbed_only');
             const flowerbedBasePrice = installFlowerbedBase;
             if (enabledBaseCount > 0) {
                 addRow(
