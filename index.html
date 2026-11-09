@@ -303,101 +303,7 @@
 
 				
 
-                <div class="subsection">
-                    <div class="subsection-title">🚧 Оградка</div>
-                    
-                    <div class="checkbox-group" style="margin-bottom:10px;">
-                        <input type="checkbox" id="fenceEnabled" checked>
-                        <label for="fenceEnabled">🚧 Показать оградку</label>
-                    </div>
-                    
-                    <div class="control-group-with-input">
-                        <label for="fenceWidth">Ширина площадки / оградки</label>
-                        <div class="input-with-range">
-                            <input type="range" id="fenceWidth" min="1.0" max="10.0" step="0.1" value="1.5">
-                            <input type="number" id="fenceWidthInput" class="number-input" value="1.5" min="1.0" max="10.0" step="0.1">
-                            <span class="unit">м</span>
-                        </div>
-                        <span class="value-display" id="fenceWidthVal">1.5 м</span>
-                    </div>
-                    
-                    <div class="control-group-with-input">
-                        <label for="fenceLength">Длина площадки / оградки</label>
-                        <div class="input-with-range">
-                            <input type="range" id="fenceLength" min="1.0" max="10.0" step="0.1" value="2.5">
-                            <input type="number" id="fenceLengthInput" class="number-input" value="2.5" min="1.0" max="10.0" step="0.1">
-                            <span class="unit">м</span>
-                        </div>
-                        <span class="value-display" id="fenceLengthVal">2.5 м</span>
-                    </div>
-
-                    <div class="control-group">
-                        <label for="fenceType">Тип</label>
-                        <select id="fenceType">
-                            <option value="pipe">🔘 Труба</option>
-                            <option value="chain">⛓️ Цепь</option>
-                            <option value="casting">🏺 Литье</option>
-                            <option value="none">⭕ Только столбы</option>
-                            <option value="model_3d">🎨 3D Модель</option>
-                            <option value="venzel">✨ Вензель</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label for="fenceMaterial">Материал</label>
-                        <select id="fenceMaterial">
-                            <option value="black_metal">⚫ Черный металл</option>
-                            <option value="steel" selected>⚪ Нержавеющая сталь</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group-with-input">
-                        <label for="fenceHeight">Высота</label>
-                        <div class="input-with-range">
-                            <input type="range" id="fenceHeight" min="0.2" max="2.0" step="0.05" value="0.6">
-                            <input type="number" id="fenceHeightInput" class="number-input" value="0.6" min="0.2" max="2.0" step="0.05">
-                            <span class="unit">м</span>
-                        </div>
-                        <span class="value-display" id="fenceHeightVal">0.6 м</span>
-                    </div>
-                    
-                    <div class="subsection-title" style="margin-top:15px;">🚪 Вход</div>
-                    <div class="control-group">
-                        <label for="fenceGateSide">Сторона</label>
-                        <select id="fenceGateSide">
-                            <option value="none">🚫 Нет</option>
-                            <option value="front">⬆️ Передняя</option>
-                            <option value="back" selected>⬇️ Задняя</option>
-                            <option value="left">⬅️ Левая</option>
-                            <option value="right">➡️ Правая</option>
-                        </select>
-                    </div>
-                    <div class="control-group-with-input">
-                        <label for="gateWidth">Ширина</label>
-                        <div class="input-with-range">
-                            <input type="range" id="gateWidth" min="0.4" max="3.0" step="0.05" value="0.8">
-                            <input type="number" id="gateWidthInput" class="number-input" value="0.8" min="0.4" max="3.0" step="0.05">
-                            <span class="unit">м</span>
-                        </div>
-                        <span class="value-display" id="gateWidthVal">0.8 м</span>
-                    </div>
-                    
-                    <div class="subsection-title" style="margin-top:15px;">📍 Смещение</div>
-                    <div class="fence-offset-buttons">
-                        <button id="moveFenceModeBtn" class="btn-move-fence">✋ Перемещать</button>
-                        <button id="resetFencePositionBtn" class="btn-reset-fence">⟲ В центр</button>
-                    </div>
-                    <div class="fence-offset-grid">
-                        <div class="fence-offset-item">
-                            <label>X: <span id="fenceOffsetXDisplay" class="value">0.00</span></label>
-                            <input type="range" id="fenceOffsetX" min="-9.5" max="9.5" step="0.05" value="0">
-                        </div>
-                        <div class="fence-offset-item">
-                            <label>Z: <span id="fenceOffsetZDisplay" class="value">0.00</span></label>
-                            <input type="range" id="fenceOffsetZ" min="-9.5" max="9.5" step="0.05" value="0">
-                        </div>
-                    </div>
-                </div>
+                
 
                 
             </div>
@@ -711,6 +617,102 @@
                 🧱 3. Ограда и покрытие участка
             </div>
             <div class="section-content">
+<div class="subsection">
+                    <div class="subsection-title">🚧 Оградка</div>
+                    
+                    <div class="checkbox-group" style="margin-bottom:10px;">
+                        <input type="checkbox" id="fenceEnabled" checked>
+                        <label for="fenceEnabled">🚧 Показать оградку</label>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="fenceWidth">Ширина площадки / оградки</label>
+                        <div class="input-with-range">
+                            <input type="range" id="fenceWidth" min="1.0" max="10.0" step="0.1" value="1.5">
+                            <input type="number" id="fenceWidthInput" class="number-input" value="1.5" min="1.0" max="10.0" step="0.1">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="fenceWidthVal">1.5 м</span>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="fenceLength">Длина площадки / оградки</label>
+                        <div class="input-with-range">
+                            <input type="range" id="fenceLength" min="1.0" max="10.0" step="0.1" value="2.5">
+                            <input type="number" id="fenceLengthInput" class="number-input" value="2.5" min="1.0" max="10.0" step="0.1">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="fenceLengthVal">2.5 м</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="fenceType">Тип</label>
+                        <select id="fenceType">
+                            <option value="pipe">🔘 Труба</option>
+                            <option value="chain">⛓️ Цепь</option>
+                            <option value="casting">🏺 Литье</option>
+                            <option value="none">⭕ Только столбы</option>
+                            <option value="model_3d">🎨 3D Модель</option>
+                            <option value="venzel">✨ Вензель</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="fenceMaterial">Материал</label>
+                        <select id="fenceMaterial">
+                            <option value="black_metal">⚫ Черный металл</option>
+                            <option value="steel" selected>⚪ Нержавеющая сталь</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group-with-input">
+                        <label for="fenceHeight">Высота</label>
+                        <div class="input-with-range">
+                            <input type="range" id="fenceHeight" min="0.2" max="2.0" step="0.05" value="0.6">
+                            <input type="number" id="fenceHeightInput" class="number-input" value="0.6" min="0.2" max="2.0" step="0.05">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="fenceHeightVal">0.6 м</span>
+                    </div>
+                    
+                    <div class="subsection-title" style="margin-top:15px;">🚪 Вход</div>
+                    <div class="control-group">
+                        <label for="fenceGateSide">Сторона</label>
+                        <select id="fenceGateSide">
+                            <option value="none">🚫 Нет</option>
+                            <option value="front">⬆️ Передняя</option>
+                            <option value="back" selected>⬇️ Задняя</option>
+                            <option value="left">⬅️ Левая</option>
+                            <option value="right">➡️ Правая</option>
+                        </select>
+                    </div>
+                    <div class="control-group-with-input">
+                        <label for="gateWidth">Ширина</label>
+                        <div class="input-with-range">
+                            <input type="range" id="gateWidth" min="0.4" max="3.0" step="0.05" value="0.8">
+                            <input type="number" id="gateWidthInput" class="number-input" value="0.8" min="0.4" max="3.0" step="0.05">
+                            <span class="unit">м</span>
+                        </div>
+                        <span class="value-display" id="gateWidthVal">0.8 м</span>
+                    </div>
+                    
+                    <div class="subsection-title" style="margin-top:15px;">📍 Смещение</div>
+                    <div class="fence-offset-buttons">
+                        <button id="moveFenceModeBtn" class="btn-move-fence">✋ Перемещать</button>
+                        <button id="resetFencePositionBtn" class="btn-reset-fence">⟲ В центр</button>
+                    </div>
+                    <div class="fence-offset-grid">
+                        <div class="fence-offset-item">
+                            <label>X: <span id="fenceOffsetXDisplay" class="value">0.00</span></label>
+                            <input type="range" id="fenceOffsetX" min="-9.5" max="9.5" step="0.05" value="0">
+                        </div>
+                        <div class="fence-offset-item">
+                            <label>Z: <span id="fenceOffsetZDisplay" class="value">0.00</span></label>
+                            <input type="range" id="fenceOffsetZ" min="-9.5" max="9.5" step="0.05" value="0">
+                        </div>
+                    </div>
+                </div>
+
                                 <div class="subsection" style="margin-top:0;">
                                         
                                         <div class="checkbox-group">
@@ -1624,33 +1626,42 @@ document.addEventListener('contextmenu', event => event.preventDefault());
  document.getElementById('quickActions')?.appendChild(openBtn);
  const toggles=[...document.querySelectorAll('[data-module-toggle]')];
  const count=document.getElementById('configurationSelectedCount');
+ const storageKey='gnt-customer-modules-v1';
  const updateCount=()=>{const n=toggles.filter(t=>t.checked).length;if(count)count.textContent='Выбрано: '+n+' разделов';};
  const show=()=>{if(backdrop){backdrop.hidden=false;document.body.classList.add('configuration-open');updateCount();}};
  const hide=()=>{if(backdrop){backdrop.hidden=true;document.body.classList.remove('configuration-open');}};
- const apply=()=>{
+ const apply=(persist=true)=>{
    toggles.forEach(t=>{
      const section=document.querySelector('.customer-module-section[data-module="'+t.dataset.moduleToggle+'"]');
      if(section)section.hidden=!t.checked;
    });
+   if(persist){try{localStorage.setItem(storageKey,JSON.stringify(toggles.filter(t=>t.checked).map(t=>t.dataset.moduleToggle)));}catch(e){console.warn('Не удалось сохранить комплектацию',e);}}
    hide();
    document.dispatchEvent(new CustomEvent('memorial:configuration-changed'));
  };
+ let saved=null;
+ try{saved=JSON.parse(localStorage.getItem(storageKey)||'null');}catch(e){saved=null;}
+ if(Array.isArray(saved)){
+   toggles.forEach(t=>t.checked=saved.includes(t.dataset.moduleToggle));
+   apply(false);
+ } else {
+   apply(false);
+   show();
+ }
  openBtn.addEventListener('click',show);
  document.getElementById('closeConfigurationBtn')?.addEventListener('click',hide);
- document.getElementById('applyConfigurationBtn')?.addEventListener('click',apply);
+ document.getElementById('applyConfigurationBtn')?.addEventListener('click',()=>apply(true));
  backdrop?.addEventListener('click',e=>{if(e.target===backdrop)hide();});
  toggles.forEach(t=>t.addEventListener('change',updateCount));
  document.getElementById('showPricePanel')?.addEventListener('change',e=>{
    const panel=document.getElementById('livePricePanel');
    panel?.classList.toggle('is-hidden',!e.target.checked);
  });
- const priceDetails=document.getElementById('openPriceDetailsBtn');
- priceDetails?.addEventListener('click',()=>{
+ document.getElementById('openPriceDetailsBtn')?.addEventListener('click',()=>{
    const order=document.getElementById('sendOrderBtn')?.closest('.accordion-section');
    if(order){order.hidden=false;order.classList.add('active');order.querySelector('.section-header')?.setAttribute('aria-expanded','true');}
    menu?.classList.add('open');overlay?.classList.add('active');
  });
- if(!sessionStorage.getItem('gnt-config-seen')){show();sessionStorage.setItem('gnt-config-seen','1');}
 })();
 </script>
 
