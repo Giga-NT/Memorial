@@ -306,6 +306,24 @@ export class GLBImportManager {
         if (target?.object) this.transform.attach(target.object);
     }
 
+    // Совместимость со старыми JSON-проектами, где GLB хранился отдельным Base64-блоком.
+    async restoreProjectSnapshot(snapshot) {
+        if (!snapshot || snapshot.format !== 'glb-project-asset' ||
+            snapshot.version !== 1 || typeof snapshot.dataBase64 !== 'string') {
+            throw new Error('Неподдерживаемый формат старой GLB-модели');
+        }
+        const binary = atob(snapshot.dataBase64);
+        if (!binary.length || binary.length > MAX_GLB_SIZE) {
+            throw new Error('Размер встроенной GLB-модели недопустим');
+        }
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const file = new File([bytes], snapshot.fileName || 'legacy-project-model.glb', {
+            type: 'model/gltf-binary'
+        });
+        await this.loadFile(file);
+    }
+
     async exportActive() {
         const item = this.assets.get(this.activeId);
         if (!item) {
