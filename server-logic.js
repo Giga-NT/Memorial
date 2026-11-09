@@ -4859,21 +4859,76 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-function makeScreenshot(angle, height = 2.5, distance = 6.0, targetY = 0.6) {
+function getEstimateSceneBounds() {
+    const bounds = new THREE.Box3();
+    let hasBounds = false;
+    const groups = [
+        window.monumentGroup,
+        window.multiMonumentManager?.monumentsGroup
+    ].filter(group => group && group.isObject3D && group.visible !== false);
+
+    groups.forEach(group => {
+        group.updateWorldMatrix(true, true);
+        const groupBounds = new THREE.Box3().setFromObject(group);
+        if (groupBounds.isEmpty()) return;
+        if (!hasBounds) {
+            bounds.copy(groupBounds);
+            hasBounds = true;
+        } else {
+            bounds.union(groupBounds);
+        }
+    });
+
+    if (!hasBounds) {
+        bounds.set(new THREE.Vector3(-0.8, 0, -0.8), new THREE.Vector3(0.8, 2.5, 0.8));
+    }
+    return bounds;
+}
+
+function getEstimateCameraFit(bounds) {
+    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov || 45);
+    const aspect = Math.max(0.1, camera.aspect || (renderer.domElement.width / renderer.domElement.height) || 1);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+    const halfFov = Math.max(0.05, Math.min(verticalFov, horizontalFov) / 2);
+    return {
+        center: sphere.center,
+        distance: Math.max(2, sphere.radius / Math.sin(halfFov) * 1.18),
+        radius: sphere.radius
+    };
+}
+
+function makeScreenshot(angle, height = 2.5, distance = 6.0, targetY = 0.6, fitAll = true) {
     const savedPos = camera.position.clone();
     const savedTarget = controls.target.clone();
-    const rad = angle * Math.PI / 180;
-    const x = Math.sin(rad) * distance;
-    const z = Math.cos(rad) * distance;
-    camera.position.set(x, height, z);
-    controls.target.set(0, targetY, 0);
-    controls.update();
-    renderer.render(scene, camera);
-    const dataUrl = renderer.domElement.toDataURL('image/jpeg', 0.85);
-    camera.position.copy(savedPos);
-    controls.target.copy(savedTarget);
-    controls.update();
-    return dataUrl;
+    const savedZoom = camera.zoom;
+    try {
+        const rad = angle * Math.PI / 180;
+        if (fitAll) {
+            const fit = getEstimateCameraFit(getEstimateSceneBounds());
+            const elevationRatio = Math.max(0, Number(height) || 0) / Math.max(0.1, Number(distance) || 6);
+            const horizontalDistance = fit.distance / Math.sqrt(1 + elevationRatio * elevationRatio);
+            controls.target.copy(fit.center);
+            camera.position.set(
+                fit.center.x + Math.sin(rad) * horizontalDistance,
+                fit.center.y + horizontalDistance * elevationRatio,
+                fit.center.z + Math.cos(rad) * horizontalDistance
+            );
+        } else {
+            camera.position.set(Math.sin(rad) * distance, height, Math.cos(rad) * distance);
+            controls.target.set(0, targetY, 0);
+        }
+        controls.update();
+        renderer.render(scene, camera);
+        return renderer.domElement.toDataURL('image/jpeg', 0.85);
+    } finally {
+        camera.position.copy(savedPos);
+        controls.target.copy(savedTarget);
+        camera.zoom = savedZoom;
+        camera.updateProjectionMatrix();
+        controls.update();
+        renderer.render(scene, camera);
+    }
 }
 
 function generateEstimatePDF() {
@@ -5021,8 +5076,9 @@ function generateEstimatePDF() {
         screenshotSide = makeScreenshot(90, height, distance);
         const savedPos = camera.position.clone();
         const savedTarget = controls.target.clone();
-        camera.position.set(0, 8.0, 0.1);
-        controls.target.set(0, 0, 0);
+        const topFit = getEstimateCameraFit(getEstimateSceneBounds());
+        camera.position.set(topFit.center.x, topFit.center.y + topFit.distance, topFit.center.z + 0.001);
+        controls.target.copy(topFit.center);
         controls.update();
         renderer.render(scene, camera);
         screenshotTop = renderer.domElement.toDataURL('image/jpeg', 0.85);
@@ -5033,8 +5089,8 @@ function generateEstimatePDF() {
         const targetY = steleHeight / 2 + 0.2;
         const closeDistance = 1.8;
         const closeHeight = targetY + 0.1;
-        screenshotSteleFront = makeScreenshot(0, closeHeight, closeDistance, targetY);
-        screenshotSteleBack = makeScreenshot(180, closeHeight, closeDistance, targetY);
+        screenshotSteleFront = makeScreenshot(0, closeHeight, closeDistance, targetY, false);
+        screenshotSteleBack = makeScreenshot(180, closeHeight, closeDistance, targetY, false);
     } catch(e) {
         console.warn('Ошибка создания скриншотов:', e);
     }
