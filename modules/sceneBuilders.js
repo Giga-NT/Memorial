@@ -867,7 +867,8 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
     const joint = jointColor || '#514e49';
     // Для модульной раскладки «Старый город» используем реальные типоразмеры
     // коллекции Braer «Ландхаус»: 240×160, 160×160 и 80×160 мм.
-    const moduleMm = format === 'old_city' ? 480 : (format === 'square500' ? 1000 : 1200);
+    const isOldCity = format.startsWith('old_city');
+    const moduleMm = isOldCity ? 480 : (format === 'square500' ? 1000 : 1200);
     const px = size / moduleMm;
     const gap = mobile ? 7 : 9;
 
@@ -952,17 +953,27 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
         hctx.restore();
     };
 
-    if (format === 'old_city') {
-        // Модуль 480×480 мм по типоразмерам Braer «Ландхаус»:
-        // 240×160 (3×2 ячейки), 160×160 (2×2), 80×160 (1×2).
-        // Сетка 80 мм, элементы стыкуются без перекрытий и пустот.
+    if (isOldCity) {
+        // BRAER «Ландхаус»: 240×160, 160×160, 80×160 мм или смешанный комплект.
         const u = 80 * px;
-        const module = [
-            [0,0,3,2], [3,0,3,2],
-            [0,2,2,2], [2,2,2,2], [4,2,2,2],
-            [0,4,1,2], [1,4,1,2], [2,4,1,2],
-            [3,4,1,2], [4,4,1,2], [5,4,1,2]
-        ];
+        let module;
+        if (format === 'old_city_240') {
+            module = [];
+            for (let y = 0; y < 6; y += 2) for (let x = 0; x < 6; x += 3) module.push([x,y,3,2]);
+        } else if (format === 'old_city_160') {
+            module = [];
+            for (let y = 0; y < 6; y += 2) for (let x = 0; x < 6; x += 2) module.push([x,y,2,2]);
+        } else if (format === 'old_city_80') {
+            module = [];
+            for (let y = 0; y < 6; y += 2) for (let x = 0; x < 6; x += 1) module.push([x,y,1,2]);
+        } else {
+            module = [
+                [0,0,3,2], [3,0,3,2],
+                [0,2,2,2], [2,2,2,2], [4,2,2,2],
+                [0,4,1,2], [1,4,1,2], [2,4,1,2],
+                [3,4,1,2], [4,4,1,2], [5,4,1,2]
+            ];
+        }
         module.forEach((t, i) => paintTile(t[0] * u, t[1] * u, t[2] * u, t[3] * u, i + 1));
     } else if (format === 'stone') {
         // Для природного камня сохраняем нерегулярные соседние полигоны.
@@ -1612,7 +1623,7 @@ export async function createPathBetweenGraveAndFence(
             : await createPavingTexture(tileStep, pathMaterial, pathJointColor || '#666666', pavingLayout);
     }
 
-    const slabModule = pathSlabFormat === 'square500' ? 1.0 : 1.2;
+    const slabModule = pathSlabFormat.startsWith('old_city') ? 0.48 : (pathSlabFormat === 'square500' ? 1.0 : 1.2);
     const pavingSpanX =
         pavingTexture &&
         pavingTexture.userData &&
