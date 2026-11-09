@@ -89,11 +89,13 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSteleTypeHandlers);
     document.addEventListener('DOMContentLoaded', initSteleSizeHandlers);
     document.addEventListener('DOMContentLoaded', initPhotoScaleHandler);
+    document.addEventListener('DOMContentLoaded', initPathHandlers);
     document.addEventListener('DOMContentLoaded', initSiteCurbHandlers);
 } else {
     initSteleTypeHandlers();
     initSteleSizeHandlers();
     initPhotoScaleHandler();
+    initPathHandlers();
     queueMicrotask(initSiteCurbHandlers);
 }
 
