@@ -163,6 +163,7 @@ export class GLBImportManager {
 
             const id = `glb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             this.assets.set(id, { id, name: file.name, pivot });
+            window.calculatePrice?.();
             const select = document.getElementById('glbImportedSelect');
             if (select) {
                 const option = document.createElement('option');
@@ -225,6 +226,7 @@ export class GLBImportManager {
         this.scene.remove(item.pivot);
         disposeObject(item.pivot);
         this.assets.delete(item.id);
+        window.calculatePrice?.();
         document.querySelector(`#glbImportedSelect option[value="${CSS.escape(item.id)}"]`)?.remove();
         this.activeId = null;
         const next = this.assets.keys().next().value;
