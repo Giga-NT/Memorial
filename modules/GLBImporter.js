@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { exportObjectsToGLB, downloadBlob, sanitizeFileName } from './GLBExporter.js';
-// В проекте локально присутствует OrbitControls, но TransformControls в комплект Three.js не включён.
-import { TransformControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/TransformControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
 const MAX_GLB_SIZE = 100 * 1024 * 1024;
 const GLB_MAGIC = 0x46546c67;
