@@ -9,6 +9,8 @@ export class VasesManager {
         this.camera = camera;
         this.renderer = renderer;
         this.monumentGroup = monumentGroup;
+        this.originalMonumentGroup = monumentGroup;
+        this.activeModelRoot = null;
         this.controls = controls;
         
         this.vasesGroup = new THREE.Group();
@@ -40,6 +42,51 @@ export class VasesManager {
         this.bindEvents();
     }
     
+    setParent(parent = null, monumentGroup = null) {
+        const nextParent = parent || this.scene;
+        if (this.vasesGroup.parent !== nextParent) {
+            this.vasesGroup.parent?.remove(this.vasesGroup);
+            nextParent.add(this.vasesGroup);
+        }
+        this.activeModelRoot = parent || null;
+        this.monumentGroup = monumentGroup || this.originalMonumentGroup;
+    }
+
+    getDefaultPosition() {
+        if (this.activeModelRoot) {
+            const bounds = this.getActiveModelBounds();
+            if (bounds && !bounds.isEmpty()) {
+                const marginX = Math.max(0.03, (bounds.max.x - bounds.min.x) * 0.12);
+                const marginZ = Math.max(0.03, (bounds.max.z - bounds.min.z) * 0.12);
+                return {
+                    x: bounds.min.x + marginX + Math.random() * Math.max(0, bounds.max.x - bounds.min.x - 2 * marginX),
+                    z: bounds.min.z + marginZ + Math.random() * Math.max(0, bounds.max.z - bounds.min.z - 2 * marginZ)
+                };
+            }
+        }
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 0.2 + Math.random() * 0.3;
+        return { x: Math.cos(angle) * distance, z: Math.sin(angle) * distance };
+    }
+
+    getActiveModelBounds() {
+        if (!this.activeModelRoot) return null;
+        this.activeModelRoot.updateMatrixWorld(true);
+        const inverse = new THREE.Matrix4().copy(this.activeModelRoot.matrixWorld).invert();
+        const result = new THREE.Box3();
+        const box = new THREE.Box3();
+        this.activeModelRoot.traverse(object => {
+            if (!object.isMesh || !object.geometry) return;
+            if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+            if (!object.geometry.boundingBox) return;
+            box.copy(object.geometry.boundingBox);
+            const relative = new THREE.Matrix4().multiplyMatrices(inverse, object.matrixWorld);
+            box.applyMatrix4(relative);
+            result.union(box);
+        });
+        return result.isEmpty() ? null : result;
+    }
+
     // ============================================================
     // ⭐ ЗАГРУЗКА КОНФИГА ВАЗ
     // ============================================================
@@ -248,42 +295,30 @@ export class VasesManager {
 // ⭐ ОПРЕДЕЛЕНИЕ ВЫСОТЫ ПОВЕРХНОСТИ (ФИНАЛЬНАЯ)
 // ============================================================
 getSurfaceHeight(x, z) {
-    let surfaceHeight = 0.0; // дефолтная высота (земля)
-    
-    if (this.monumentGroup) {
-        this.monumentGroup.children.forEach(child => {
-            if (!child.isMesh) return;
-            
-            // ⭐ ИЩЕМ ОСНОВАНИЕ/НАДГРОБИЕ (BoxGeometry)
-            if (child.geometry.type === 'BoxGeometry') {
-                const params = child.geometry.parameters;
-                if (params) {
-                    const boxHeight = params.height || 0;
-                    const boxWidth = params.width || 0;
-                    const boxDepth = params.depth || 0;
-                    
-                    // ⭐ ЭТО ОСНОВАНИЕ (широкое и плоское)
-                    if (boxHeight < boxWidth * 0.5 && boxHeight < boxDepth * 0.5) {
-                        const box = new THREE.Box3().setFromObject(child);
-                        const minX = box.min.x;
-                        const maxX = box.max.x;
-                        const minZ = box.min.z;
-                        const maxZ = box.max.z;
-                        
-                        const tolerance = 0.05;
-                        if (x >= minX - tolerance && x <= maxX + tolerance && 
-                            z >= minZ - tolerance && z <= maxZ + tolerance) {
-                            
-                            // ⭐ ПРАВИЛЬНАЯ ВЫСОТА: позиция центра + половина высоты
-                            surfaceHeight = child.position.y + (boxHeight / 2);
-                            console.log(`🪨 Надгробие найдено! Высота: ${surfaceHeight}`);
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
+    let surfaceHeight = 0;
+    const root = this.activeModelRoot || this.monumentGroup;
+    if (!root) return surfaceHeight;
+
+    root.updateMatrixWorld(true);
+    const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const localBox = new THREE.Box3();
+    const relativeMatrix = new THREE.Matrix4();
+
+    root.traverse(object => {
+        if (!object.isMesh || !object.geometry) return;
+        if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+        if (!object.geometry.boundingBox) return;
+
+        localBox.copy(object.geometry.boundingBox);
+        relativeMatrix.multiplyMatrices(inverse, object.matrixWorld);
+        localBox.applyMatrix4(relativeMatrix);
+
+        const tolerance = 0.04;
+        if (x >= localBox.min.x - tolerance && x <= localBox.max.x + tolerance &&
+            z >= localBox.min.z - tolerance && z <= localBox.max.z + tolerance) {
+            surfaceHeight = Math.max(surfaceHeight, localBox.max.y);
+        }
+    });
     return surfaceHeight;
 }
     
@@ -321,18 +356,11 @@ async addVase(vaseId, x, z, scale = 1.0) {
             return null;
         }
 
-        // Если координаты не переданы — выбираем случайные
+        // При GLB-импорте выбираем точку внутри габаритов загруженной модели.
         if (!Number.isFinite(x) || !Number.isFinite(z)) {
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 0.2 + Math.random() * 0.3;
-
-            x = Math.cos(angle) * distance;
-            z = Math.sin(angle) * distance;
-
-            console.log(
-                `📍 Координаты вазы не заданы, выбрана позиция: ` +
-                `(${x.toFixed(2)}, ${z.toFixed(2)})`
-            );
+            const position = this.getDefaultPosition();
+            x = position.x;
+            z = position.z;
         }
 
         const clone = this.cloneWithUniqueIds(model);
@@ -901,7 +929,8 @@ setScale(scale) {
                 this.draggedVase = vaseGroup;
                 this.isDragging = true;
                 if (this.controls) this.controls.enabled = false;
-                const intersectPoint = intersects[0].point;
+                const intersectPoint = intersects[0].point.clone();
+                if (this.vasesGroup.parent) this.vasesGroup.parent.worldToLocal(intersectPoint);
                 this.dragOffset.copy(intersectPoint).sub(this.draggedVase.position);
                 this.dragOffset.y = 0;
                 this.renderer.domElement.style.cursor = 'grabbing';
@@ -917,8 +946,10 @@ setScale(scale) {
         const ray = this.raycaster.ray;
         const intersectPoint = ray.intersectPlane(plane, intersection);
         if (intersectPoint) {
-            const newX = intersectPoint.x - this.dragOffset.x;
-            const newZ = intersectPoint.z - this.dragOffset.z;
+            const localPoint = intersectPoint.clone();
+            if (this.vasesGroup.parent) this.vasesGroup.parent.worldToLocal(localPoint);
+            const newX = localPoint.x - this.dragOffset.x;
+            const newZ = localPoint.z - this.dragOffset.z;
             
             // ⭐ ОБНОВЛЯЕМ ПОЗИЦИЮ С ПЕРЕСЧЁТОМ ВЫСОТЫ
             const vaseData = this.vases.find(v => v.id === this.draggedVase.userData.id);
