@@ -705,6 +705,11 @@ export function initPathHandlers() {
         window.throttledUpdate();
         window.calculatePrice?.();
     });
+    document.getElementById('pathSlabFormat')?.addEventListener('change', e => {
+        window.state.pathSlabFormat = e.target.value;
+        window.throttledUpdate();
+        window.calculatePrice?.();
+    });
 
     document.getElementById('pathTileSize')?.addEventListener('input', e => {
         window.state.pathTileSize = parseFloat(e.target.value);
@@ -735,6 +740,9 @@ export function initPathHandlers() {
     if (typeSelect) typeSelect.value = window.state.pathSurfaceType || 'paver';
     if (document.getElementById('slabMaterial')) {
         document.getElementById('slabMaterial').value = window.state.pathSlabMaterial || 'tile_gray';
+    }
+    if (document.getElementById('pathSlabFormat')) {
+        document.getElementById('pathSlabFormat').value = window.state.pathSlabFormat || 'square300';
     }
     if (document.getElementById('pathMaterial')) {
         document.getElementById('pathMaterial').value = window.state.pathPaverMaterial || window.state.pathMaterial || 'tile_gray';
