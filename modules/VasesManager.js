@@ -43,13 +43,34 @@ export class VasesManager {
     }
     
     setParent(parent = null, monumentGroup = null) {
-        const nextParent = parent || this.scene;
-        if (this.vasesGroup.parent !== nextParent) {
-            this.vasesGroup.parent?.remove(this.vasesGroup);
-            nextParent.add(this.vasesGroup);
+        if (parent && parent === this.activeModelRoot) return;
+        if (parent) {
+            if (!this.originalContext) {
+                this.originalContext = {
+                    group: this.vasesGroup,
+                    vases: this.vases,
+                    selectedId: this.selectedId
+                };
+            }
+            const nextGroup = new THREE.Group();
+            nextGroup.name = 'importedGlbVases';
+            parent.add(nextGroup);
+            this.vasesGroup = nextGroup;
+            this.vases = [];
+            this.selectedId = null;
+            this.activeModelRoot = parent;
+            this.monumentGroup = monumentGroup || parent;
+            return;
         }
-        this.activeModelRoot = parent || null;
-        this.monumentGroup = monumentGroup || this.originalMonumentGroup;
+        if (this.originalContext) {
+            this.vasesGroup.parent?.remove(this.vasesGroup);
+            this.vasesGroup = this.originalContext.group;
+            this.vases = this.originalContext.vases;
+            this.selectedId = this.originalContext.selectedId;
+            this.originalContext = null;
+        }
+        this.activeModelRoot = null;
+        this.monumentGroup = this.originalMonumentGroup;
     }
 
     getDefaultPosition() {
