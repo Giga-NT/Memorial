@@ -74,6 +74,7 @@ export function collectProjectRoots(scene, options = {}) {
     if (includeEnvironment) {
         scene.children.forEach((child) => {
             if (!isObject3D(child) || !child.visible) return;
+            if (child.userData?.excludeFromGLBExport) return;
             if (child.isCamera || child.isAmbientLight || child.isHemisphereLight) return;
             addRoot(child);
         });
