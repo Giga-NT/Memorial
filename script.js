@@ -5101,6 +5101,31 @@ function buildPriceBreakdown() {
         );
     }
 
+    // Стоимость нанесения текста: 80 ₽ за каждый символ ФИО, дат и эпитафии.
+    const textCharacterPrice = getPriceValue('text_character_price') || 80;
+    let textCharacterCount = 0;
+    const textCharacterParts = [];
+    monuments.forEach((monument, index) => {
+        const fields = [
+            ['ФИО', monument.fullName],
+            ['Даты', monument.dates],
+            ['Эпитафия', monument.epitaph]
+        ];
+        fields.forEach(([label, value]) => {
+            const count = Array.from(String(value || '').replace(/[\\r\\n]/g, '')).length;
+            if (!count) return;
+            textCharacterCount += count;
+            textCharacterParts.push(`№${index + 1} ${label}: ${count} симв.`);
+        });
+    });
+    if (textCharacterCount > 0) {
+        addRow(
+            '✍️ Нанесение текста',
+            `${textCharacterParts.join('; ')}; ${textCharacterCount} символов × ${textCharacterPrice} ₽`,
+            textCharacterCount * textCharacterPrice
+        );
+    }
+
     let engravingPriceTotal = 0;
     let engravingCount = 0;
     const engravingDescParts = [];
@@ -5503,13 +5528,30 @@ function buildPriceBreakdown() {
         const installPedestalPercent = getPriceValue('install_pedestal_percent');
         const installationCount = monuments.length;
         const pedestalCommission = pedestalTotal * installPedestalPercent / 100;
+        const disabledBaseCount = monuments.filter(monument => monument.baseEnabled === false).length;
+        const enabledBaseCount = installationCount - disabledBaseCount;
 
         if (isPriceSettingEnabled('install_split') && installFlowerbedBase > 0) {
-            addRow(
-                '🔧 Установка: цветник + основание',
-                `Бетон и облицовка в составе установки × ${installationCount}`,
-                installFlowerbedBase * installationCount
-            );
+            // Сумма install_flowerbed_base — установка цветника и основания.
+            // При отключённом основании оставляем стоимость установки цветника,
+            // а долю основания не начисляем. До появления отдельной настройки
+            // доля цветника принимается равной половине совместной установки.
+            const flowerbedOnlyPrice = installFlowerbedBase / 2;
+            const flowerbedBasePrice = installFlowerbedBase;
+            if (enabledBaseCount > 0) {
+                addRow(
+                    '🔧 Установка: цветник + основание',
+                    `Установка комплекта × ${enabledBaseCount}`,
+                    flowerbedBasePrice * enabledBaseCount
+                );
+            }
+            if (disabledBaseCount > 0) {
+                addRow(
+                    '🔧 Установка цветника',
+                    `Основание отключено; установка цветника × ${disabledBaseCount}`,
+                    flowerbedOnlyPrice * disabledBaseCount
+                );
+            }
             addRow(
                 '🔧 Установка: стела + тумба',
                 `Остаток полной установки × ${installationCount} + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
