@@ -2896,7 +2896,8 @@ function createSlabTexture(format, tileType, jointColor) {
     };
     const base = new THREE.Color(colors[tileType] || colors.tile_gray);
     const joint = jointColor || '#514e49';
-    const moduleMm = format === 'square500' ? 1000 : 1200;
+    // Braer «Ландхаус»: модуль 480 мм для камней 240×160, 160×160 и 80×160 мм.
+    const moduleMm = format === 'old_city' ? 480 : (format === 'square500' ? 1000 : 1200);
     const px = size / moduleMm;
     const gap = mobile ? 5 : 6;
     ctx.fillStyle = joint;
@@ -2934,14 +2935,14 @@ function createSlabTexture(format, tileType, jointColor) {
         }
     };
     if (format === 'old_city') {
-        // Классический модуль 1200×1200 мм: 2 плиты 600×400,
-        // 3 плиты 400×400 и 6 плит 400×200. Укладка без перекрытий.
-        const u = 200 * px;
+        // Модуль 480×480 мм по типоразмерам Braer «Ландхаус»:
+        // 240×160, 160×160 и 80×160 мм; базовая ячейка — 80 мм.
+        const u = 80 * px;
         const tiles = [
             [0,0,3,2], [3,0,3,2],
-            [0,2,2,1], [2,2,2,1], [4,2,2,1],
-            [0,3,2,1], [2,3,2,1], [4,3,2,1],
-            [0,4,2,2], [2,4,2,2], [4,4,2,2]
+            [0,2,2,2], [2,2,2,2], [4,2,2,2],
+            [0,4,1,2], [1,4,1,2], [2,4,1,2],
+            [3,4,1,2], [4,4,1,2], [5,4,1,2]
         ];
         tiles.forEach((tile, index) => {
             paintTile(tile[0] * u, tile[1] * u, tile[2] * u, tile[3] * u, index + 1);
@@ -5516,7 +5517,7 @@ function buildPriceBreakdown() {
                 square300: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 },
                 square500: { width_mm: 500, height_mm: 500, depth_mm: 50, thickness_mm: 50 },
                 rectangle: { width_mm: 200, height_mm: 100, depth_mm: 60, thickness_mm: 60 },
-                old_city: { width_mm: 1200, height_mm: 1200, depth_mm: 60, thickness_mm: 60 },
+                old_city: { width_mm: 240, height_mm: 160, depth_mm: 60, thickness_mm: 60 },
                 stone: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 }
             };
             const tileDimensions = surfaceType === 'slab'
