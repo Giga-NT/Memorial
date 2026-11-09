@@ -844,6 +844,55 @@ export async function createUnifiedTextureWithJoints(
     return texture;
 }
 
+// Отдельная текстура тротуарной плитки с физически разными форматами.
+function createSlabSurfaceTexture(format, tileType, jointColor) {
+    const mobile = window.innerWidth < 768;
+    const size = mobile ? 512 : 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const colors = { tile_black:'#303030', tile_gray:'#929292', tile_beige:'#c8b99a', tile_dark:'#484848', tile_light:'#d0d0cc', tile_red:'#96534b', tile_marble:'#aaa69c', tile_brown:'#765b49' };
+    const base = new THREE.Color(colors[tileType] || '#929292');
+    const joint = jointColor || '#666666';
+    const moduleMm = format === 'square500' ? 1000 : 1200;
+    const px = size / moduleMm;
+    const gap = mobile ? 3 : 4;
+    ctx.fillStyle = joint; ctx.fillRect(0, 0, size, size);
+    const draw = (x, y, w, h, seed = 0) => {
+        const shade = 0.91 + ((Math.sin(seed * 12.9898) + 1) / 2) * 0.16;
+        const rgb = [base.r, base.g, base.b].map(v => Math.max(0, Math.min(255, Math.round(v * 255 * shade))));
+        ctx.fillStyle = 'rgb(' + rgb.join(',') + ')';
+        ctx.fillRect(x + gap / 2, y + gap / 2, Math.max(1, w - gap), Math.max(1, h - gap));
+    };
+    const grid = (wMm, hMm, stagger = false) => {
+        const w = wMm * px, h = hMm * px;
+        for (let row = 0, y = 0; y < size; row++, y += h) {
+            const offset = stagger && row % 2 ? w / 2 : 0;
+            for (let x = -offset; x < size; x += w) draw(x, y, w, h, row * 31 + Math.round(x / w));
+        }
+    };
+    if (format === 'square500') grid(500, 500);
+    else if (format === 'rectangle') grid(200, 100, true);
+    else if (format === 'old_city') {
+        const u = 200 * px;
+        for (let y = 0; y < size; y += 3 * u) for (let x = 0; x < size; x += 3 * u) {
+            draw(x,y,2*u,u,1); draw(x+2*u,y,u,u,2); draw(x,y+u,u,u,3); draw(x+u,y+u,u,u,4);
+            draw(x+2*u,y+u,u,2*u,5); draw(x,y+2*u,u,u,6); draw(x+u,y+2*u,u,u,7);
+        }
+    } else if (format === 'stone') {
+        const cell = 300 * px;
+        for (let y = -cell; y < size + cell; y += cell) for (let x = -cell; x < size + cell; x += cell) {
+            ctx.beginPath(); ctx.moveTo(x+gap,y+cell*.12); ctx.lineTo(x+cell*.62,y+gap); ctx.lineTo(x+cell-gap,y+cell*.28);
+            ctx.lineTo(x+cell*.82,y+cell-gap); ctx.lineTo(x+cell*.18,y+cell*.88); ctx.closePath();
+            ctx.fillStyle = colors[tileType] || '#929292'; ctx.fill(); ctx.strokeStyle = joint; ctx.lineWidth = gap; ctx.stroke();
+        }
+    } else grid(300, 300);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+    texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = mobile ? 1 : 4;
+    return texture;
+}
 // ============================================================
 // ⭐ СОЗДАНИЕ ТЕКСТУРЫ БРУСЧАТКИ
 // ============================================================
@@ -1307,6 +1356,7 @@ export async function createPathBetweenGraveAndFence(
         pathWidth,
         pathMaterial,
         pathSurfaceType = 'paver',
+        pathSlabFormat = 'square300',
         pathTileSize,
         pathJointColor,
         pathTileLayout,
@@ -1378,16 +1428,12 @@ export async function createPathBetweenGraveAndFence(
     let pavingTexture = null;
 
     if (isTile) {
-        pavingTexture =
-            await createPavingTexture(
-                tileStep,
-                pathMaterial,
-                pathJointColor ||
-                    '#666666',
-                pavingLayout
-            );
+        pavingTexture = pathSurfaceType === 'slab'
+            ? createSlabSurfaceTexture(pathSlabFormat, pathMaterial, pathJointColor || '#666666')
+            : await createPavingTexture(tileStep, pathMaterial, pathJointColor || '#666666', pavingLayout);
     }
 
+    const slabModule = pathSlabFormat === 'square500' ? 1.0 : 1.2;
     const pavingSpanX =
         pavingTexture &&
         pavingTexture.userData &&
@@ -1402,13 +1448,8 @@ export async function createPathBetweenGraveAndFence(
             ? pavingTexture.userData.spanY
             : tileStep;
 
-    const repeatX =
-        totalWidth /
-        pavingSpanX;
-
-    const repeatY =
-        totalLength /
-        pavingSpanY;
+    const repeatX = totalWidth / (pathSurfaceType === 'slab' ? slabModule : pavingSpanX);
+    const repeatY = totalLength / (pathSurfaceType === 'slab' ? slabModule : pavingSpanY);
 
     // Extruded surface gives paving/gravel a real, measurable thickness.
     const geometry = new THREE.ExtrudeGeometry(shape, {
