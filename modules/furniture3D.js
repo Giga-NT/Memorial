@@ -120,10 +120,16 @@ export class Furniture3DManager {
                 new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.min.z),
                 new THREE.Vector3(bounds.min.x, bounds.max.y, bounds.max.z)
             ].map(point => point.applyMatrix4(inverse));
+            const minX = Math.min(...points.map(point => point.x));
             const maxX = Math.max(...points.map(point => point.x));
             const minZ = Math.min(...points.map(point => point.z));
             const maxZ = Math.max(...points.map(point => point.z));
-            return { x: maxX + 0.65, z: (minZ + maxZ) / 2 };
+            const marginX = Math.min(0.25, Math.max(0.05, (maxX - minX) * 0.2));
+            const marginZ = Math.min(0.25, Math.max(0.05, (maxZ - minZ) * 0.2));
+            return {
+                x: minX + marginX + Math.random() * Math.max(0, maxX - minX - 2 * marginX),
+                z: minZ + marginZ + Math.random() * Math.max(0, maxZ - minZ - 2 * marginZ)
+            };
         }
         const angle = Math.random() * Math.PI * 2;
         const distance = 1.5 + Math.random();
