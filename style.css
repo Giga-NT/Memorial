@@ -2517,3 +2517,70 @@ select:focus, input:focus, textarea:focus { border-color:var(--gnt-gold); }
     .quick-actions { margin-left:auto; }
     .rotate-toggle { left:auto; right:12px; bottom:172px; }
 }
+
+/* Customer configuration dialog */
+.top-bar { align-items:center; }
+.brand-lockup {
+    position:absolute; left:50%; top:0; transform:translateX(-50%);
+    margin:0; z-index:2; white-space:nowrap;
+}
+.quick-actions { margin-left:auto; margin-right:0; }
+.quick-actions .top-price-toggle { margin:0 2px 0 4px; }
+.quick-actions .top-price-toggle .toggle-caption { font-size:12px; }
+.configuration-open-btn {
+    color:#f0d7aa; background:rgba(201,166,107,.14);
+    border:1px solid rgba(201,166,107,.35); font-weight:700;
+}
+.configuration-open-btn:hover { background:rgba(201,166,107,.25); }
+.configuration-backdrop {
+    position:fixed; inset:0; z-index:3000; display:grid; place-items:center;
+    padding:20px; background:rgba(8,14,18,.72); backdrop-filter:blur(8px);
+}
+.configuration-backdrop[hidden] { display:none !important; }
+.configuration-dialog {
+    width:min(760px,100%); max-height:min(88vh,850px); overflow:auto;
+    padding:26px; border-radius:22px; color:#f5f3ee;
+    background:linear-gradient(150deg,#24333c,#17232b);
+    border:1px solid rgba(201,166,107,.34); box-shadow:0 28px 90px rgba(0,0,0,.48);
+}
+.configuration-heading { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-bottom:22px; }
+.configuration-eyebrow { color:#c9a66b; font-size:10px; font-weight:800; letter-spacing:1.8px; }
+.configuration-heading h2 { margin:8px 0 7px; font-size:25px; color:#fff; }
+.configuration-heading p { max-width:520px; margin:0; color:#b9c3c8; font-size:13px; line-height:1.55; }
+.configuration-close { width:36px; height:36px; border:1px solid rgba(255,255,255,.14); border-radius:10px; background:rgba(255,255,255,.06); color:#fff; font-size:25px; cursor:pointer; }
+.configuration-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.configuration-card {
+    min-height:80px; display:flex; align-items:center; gap:12px; padding:14px;
+    border-radius:13px; background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.10); cursor:pointer; transition:.18s;
+}
+.configuration-card:hover { border-color:rgba(201,166,107,.55); background:rgba(201,166,107,.08); }
+.configuration-card:has(input:checked) { border-color:rgba(201,166,107,.72); background:rgba(201,166,107,.13); }
+.configuration-card input { width:18px; height:18px; accent-color:#c9a66b; flex-shrink:0; }
+.configuration-card > span:last-child { display:flex; flex-direction:column; gap:5px; }
+.configuration-card strong { font-size:13px; color:#f4f1e9; }
+.configuration-card small { font-size:11px; color:#aebbc1; line-height:1.35; }
+.configuration-icon { width:35px; height:35px; flex-shrink:0; display:grid; place-items:center; border-radius:10px; background:rgba(201,166,107,.14); color:#e1c18b; font-size:19px; font-weight:700; }
+.configuration-footer { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-top:22px; padding-top:17px; border-top:1px solid rgba(255,255,255,.12); }
+.configuration-footer > span { color:#aebbc1; font-size:12px; }
+.configuration-apply { padding:12px 20px; border:0; border-radius:10px; color:#1d292f; background:linear-gradient(135deg,#dfc18e,#b58a4e); font-weight:800; cursor:pointer; }
+.customer-module-section[hidden] { display:none !important; }
+@media(max-width:768px) {
+    .brand-lockup { left:50%; top:2px; transform:translateX(-50%) scale(.88); transform-origin:top center; }
+    .top-bar { gap:5px; }
+    .quick-actions { gap:3px; padding:3px; }
+    .quick-actions .quick-btn { padding:0 7px; }
+    .configuration-open-btn { font-size:10px; }
+    .configuration-dialog { padding:18px; border-radius:17px; }
+    .configuration-heading h2 { font-size:20px; }
+    .configuration-grid { grid-template-columns:1fr; gap:8px; }
+    .configuration-card { min-height:68px; }
+    .configuration-footer { align-items:stretch; flex-direction:column; }
+    .configuration-apply { width:100%; }
+}
+@media(max-width:420px) {
+    .brand-lockup { transform:translateX(-50%) scale(.72); }
+    .quick-actions .quick-label { display:none; }
+    .quick-actions .quick-btn { width:34px; justify-content:center; padding:0; }
+    .top-price-toggle { min-width:38px; padding:0 5px; }
+}
