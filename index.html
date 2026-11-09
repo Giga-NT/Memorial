@@ -56,59 +56,16 @@
 <div class="accordion-menu" id="accordionMenu" role="navigation" aria-label="Главное меню">
     <div class="menu-scroll" id="menuScroll">
         
-        <!-- ============================================================
-        ШАГ 1: УПРАВЛЕНИЕ ПАМЯТНИКАМИ
-        ============================================================ -->
-        <div class="accordion-section active">
-            <div class="section-header" role="button" tabindex="0" aria-expanded="true">
-                📋 Проекты и памятники (<span id="monumentCount">1</span>)
-            </div>
-            <div class="section-content">
-                <div id="monumentListContainer" class="monument-list-container">
-                    <div class="loading-placeholder">Загрузка...</div>
-                </div>
-
-                <div class="checkbox-group" style="margin: 10px 0 12px;">
-                    <input type="checkbox" id="includeDuplicatorsInPrice">
-                    <label for="includeDuplicatorsInPrice">💰 Учитывать дублёры в расчёте</label>
-                </div>
-                
-                <div class="btn-group-monument">
-                    <button id="addMonumentBtn" class="btn-add-monument">➕ Добавить</button>
-                    <button id="duplicateMonumentBtn" class="btn-duplicate-monument">📋 Копировать</button>
-                    <button id="deleteMonumentBtn" class="btn-delete-monument">🗑️ Удалить</button>
-                    <button id="selectMainMonumentBtn" class="btn-select-main">🏠 Основной</button>
-                </div>
-
-                <div class="move-mode-container">
-                    <div class="btn-group">
-                        <button id="toggleMoveModeBtn" class="btn-toggle-move">✋ Переместить</button>
-                        <button id="arrangeInRowBtn" class="btn-arrange-row">📐 Выровнять</button>
-                    </div>
-                    
-                    <div id="selectedMonumentInfo" class="selected-monument-info">
-                        <span class="empty">⬤</span>
-                        <span class="empty-text">Ничего не выбрано</span>
-                        <span id="selectedMonumentBadge" class="badge">ВЫБРАНО</span>
-                    </div>
-                    
-                    <div class="hint-text">
-                        💡 Кликни по памятнику в 3D, чтобы выбрать его<br>
-                        💡 Нажми «✋ Переместить», чтобы перетаскивать дублеры
-                    </div>
-                </div>
-
-                <div class="hint-text" style="margin-top:8px;">
-                    💡 Выбранный памятник подсвечивается зелёным
-                </div>
-            </div>
+        <div class="hint-text" style="margin:0 0 12px;padding:12px;border-radius:10px;background:#f5f7fa;color:#344054;line-height:1.5;">
+            <strong>Создайте памятник самостоятельно</strong><br>
+            Выберите форму, материалы и оформление. Настройки можно менять в любой момент, а итоговая стоимость будет пересчитываться по вашему выбору.
         </div>
 
         <!-- ============================================================
         ШАГ 2: ФОРМА И РАЗМЕРЫ СТЕЛЫ
         ============================================================ -->
-        <div class="accordion-section">
-            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+        <div class="accordion-section active">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="true">
                 🪦 1. Стела — форма, материал и размеры
             </div>
             <div class="section-content">
@@ -1328,6 +1285,55 @@
         </div>
 
         <!-- ============================================================
+        ШАГ 1: УПРАВЛЕНИЕ ПАМЯТНИКАМИ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="true">
+                📋 Дополнительные памятники и проекты (<span id="monumentCount">1</span>)
+            </div>
+            <div class="section-content">
+                <div id="monumentListContainer" class="monument-list-container">
+                    <div class="loading-placeholder">Загрузка...</div>
+                </div>
+
+                <div class="checkbox-group" style="margin: 10px 0 12px;">
+                    <input type="checkbox" id="includeDuplicatorsInPrice">
+                    <label for="includeDuplicatorsInPrice">💰 Учитывать дублёры в расчёте</label>
+                </div>
+                
+                <div class="btn-group-monument">
+                    <button id="addMonumentBtn" class="btn-add-monument">➕ Добавить</button>
+                    <button id="duplicateMonumentBtn" class="btn-duplicate-monument">📋 Копировать</button>
+                    <button id="deleteMonumentBtn" class="btn-delete-monument">🗑️ Удалить</button>
+                    <button id="selectMainMonumentBtn" class="btn-select-main">🏠 Основной</button>
+                </div>
+
+                <div class="move-mode-container">
+                    <div class="btn-group">
+                        <button id="toggleMoveModeBtn" class="btn-toggle-move">✋ Переместить</button>
+                        <button id="arrangeInRowBtn" class="btn-arrange-row">📐 Выровнять</button>
+                    </div>
+                    
+                    <div id="selectedMonumentInfo" class="selected-monument-info">
+                        <span class="empty">⬤</span>
+                        <span class="empty-text">Ничего не выбрано</span>
+                        <span id="selectedMonumentBadge" class="badge">ВЫБРАНО</span>
+                    </div>
+                    
+                    <div class="hint-text">
+                        💡 Кликни по памятнику в 3D, чтобы выбрать его<br>
+                        💡 Нажми «✋ Переместить», чтобы перетаскивать дублеры
+                    </div>
+                </div>
+
+                <div class="hint-text" style="margin-top:8px;">
+                    💡 Выбранный памятник подсвечивается зелёным
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ============================================================
         ШАГ 9: ИТОГИ И ЗАКАЗ
         ============================================================ -->
         <div class="accordion-section">
@@ -1415,7 +1421,7 @@
 <!-- ============================================================
 ПОДКЛЮЧАЕМ СКРИПТЫ
 ============================================================ -->
-<script type="module" src="script.js?v=20261109-remove-glb-import"></script>
+<script type="module" src="script.js?v=20261109-customer-flow"></script>
 <script src="modules/menu.js" defer></script>
 <script src="modules/modeManager.js" defer></script>
 
