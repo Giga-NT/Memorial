@@ -1592,9 +1592,11 @@ export async function updateMainMonument(
                 : 1.5,
 
         baseHeight:
-            state.baseHeight !== undefined
-                ? Number(state.baseHeight)
-                : 0.15,
+            state.baseEnabled === false
+                ? 0
+                : (state.baseHeight !== undefined
+                    ? Number(state.baseHeight)
+                    : 0.15),
 
         baseEnabled: state.baseEnabled !== false,
 
@@ -2352,7 +2354,9 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
             data.graveLength || 1.5,
 
         baseHeight:
-            data.baseHeight || 0.15,
+            data.baseEnabled === false
+                ? 0
+                : (Number(data.baseHeight) || 0.15),
 
         baseEnabled: data.baseEnabled !== false,
 
