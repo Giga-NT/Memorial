@@ -1631,9 +1631,20 @@ document.addEventListener('contextmenu', event => event.preventDefault());
  const show=()=>{if(backdrop){backdrop.hidden=false;document.body.classList.add('configuration-open');updateCount();}};
  const hide=()=>{if(backdrop){backdrop.hidden=true;document.body.classList.remove('configuration-open');}};
  const apply=(persist=true)=>{
+   const disableControls={
+     flowerbed:['flowerEnabled'],
+     paving:['pathEnabled'],
+     fence:['fenceEnabled','curbVisible']
+   };
    toggles.forEach(t=>{
      const section=document.querySelector('.customer-module-section[data-module="'+t.dataset.moduleToggle+'"]');
      if(section)section.hidden=!t.checked;
+     if(!t.checked){
+       (disableControls[t.dataset.moduleToggle]||[]).forEach(id=>{
+         const control=document.getElementById(id);
+         if(control && control.checked){control.checked=false;control.dispatchEvent(new Event('change',{bubbles:true}));}
+       });
+     }
    });
    if(persist){try{localStorage.setItem(storageKey,JSON.stringify(toggles.filter(t=>t.checked).map(t=>t.dataset.moduleToggle)));}catch(e){console.warn('Не удалось сохранить комплектацию',e);}}
    hide();
