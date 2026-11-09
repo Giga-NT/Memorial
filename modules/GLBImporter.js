@@ -202,7 +202,7 @@ export class GLBImportManager {
         }
         try {
             const result = await exportObjectsToGLB(item.pivot);
-            const baseName = sanitizeFileName(item.name.replace(/\\.glb$/i, ''));
+            const baseName = sanitizeFileName(item.name.replace(/\.glb$/i, ''));
             downloadBlob(result.blob, `${baseName}_edited.glb`);
             this.onToast(`Модель экспортирована: ${baseName}_edited.glb`, 'success');
         } catch (error) {
