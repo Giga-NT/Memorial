@@ -2938,7 +2938,7 @@ function createSlabTexture(format, tileType, jointColor) {
             [[0,0,3,2],[3,0,3,2],[0,2,2,4],[2,2,4,1],[2,3,4,3]],
             [[0,0,2,2],[2,0,4,2],[0,2,3,4],[3,2,3,1],[3,3,3,3]]
         ];
-        const tiles = patterns[0].concat(patterns[1]);
+        const tiles = patterns[0];
         tiles.forEach((t, i) => paintTile(t[0]*u, t[1]*u, t[2]*u, t[3]*u, i+1));
     } else if (format === 'stone') {
         // Камень природной формы: соседние ячейки Вороного имеют общие, неразорванные швы.
