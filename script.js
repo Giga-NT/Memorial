@@ -7301,14 +7301,24 @@ function makeMonumentDetailScreenshot(targetRoot, angle) {
         targetRoot.updateWorldMatrix(true, true);
         const bounds = new THREE.Box3().setFromObject(targetRoot);
         if (bounds.isEmpty()) return '';
-        const fit = getEstimateCameraFit(bounds);
+        const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        // Кадрируем по габаритам комплекта, а не по описанной сфере:
+        // так стела занимает большую часть кадра, но цветник/плита остаются видны.
+        const verticalFov = THREE.MathUtils.degToRad(camera.fov || 45);
+        const aspect = Math.max(0.1, camera.aspect || renderer.domElement.width / Math.max(1, renderer.domElement.height));
+        const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+        const fitHeight = size.y / (2 * Math.tan(verticalFov / 2));
+        const fitWidth = size.x / (2 * Math.tan(horizontalFov / 2));
+        const fitDepth = size.z / (2 * Math.tan(verticalFov / 2));
+        const distance = Math.max(0.8, fitHeight, fitWidth, fitDepth) * 1.08;
         const rad = angle * Math.PI / 180;
-        const distance = fit.distance * 0.92;
-        controls.target.copy(fit.center);
+        const target = new THREE.Vector3(center.x, bounds.min.y + size.y * 0.48, center.z);
+        controls.target.copy(target);
         camera.position.set(
-            fit.center.x + Math.sin(rad) * distance,
-            fit.center.y + Math.max(0.08, distance * 0.07),
-            fit.center.z + Math.cos(rad) * distance
+            target.x + Math.sin(rad) * distance,
+            target.y + Math.max(0.025, distance * 0.025),
+            target.z + Math.cos(rad) * distance
         );
         controls.update();
         renderer.render(scene, camera);
@@ -7460,7 +7470,7 @@ function generateEstimatePDF() {
         .screenshot-box .caption { font-size:13px; color:#555; margin-top:8px; font-weight:bold; }
         .screenshot-box img { width:100%; height:auto; max-height:200px; object-fit:contain; border:1px solid #ccc; border-radius:4px; background:#fff; }
         .screenshot-box-top img { max-height:280px; }
-        .screenshot-box-stele img { max-height:420px; }
+        .screenshot-box-stele img { max-height:620px; min-height:420px; width:100%; object-fit:contain; }
         .price-table { width:100%; border-collapse:collapse; margin:15px 0; font-size:15px; }
         .price-table th { background:#1a1a2e; color:white; padding:10px 15px; text-align:left; font-weight:600; }
         .price-table td { padding:8px 15px; border-bottom:1px solid #eee; }
