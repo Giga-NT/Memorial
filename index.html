@@ -1360,27 +1360,6 @@
                 <div class="action-buttons">
                     <button id="exportGlbBtn" class="btn-export-glb" type="button" title="Скачать весь проект одним файлом GLB">Скачать 3D (GLB)</button>
                 </div>
-                <div class="glb-import-panel" style="margin-top:10px;padding:12px;border:1px solid #d7dce2;border-radius:10px;">
-                    <strong style="display:block;margin-bottom:8px;">Импорт 3D-модели</strong>
-                    <button id="importGlbBtn" class="btn-secondary" type="button" style="width:100%;">📥 Загрузить GLB</button>
-                    <input id="glbImportInput" type="file" accept=".glb,model/gltf-binary" hidden>
-                    <label for="glbImportedSelect" style="display:block;margin-top:10px;">Импортированная модель</label>
-                    <select id="glbImportedSelect" style="width:100%;margin-top:5px;">
-                        <option value="">Нет загруженных моделей</option>
-                    </select>
-                    <label for="glbPartSelect" style="display:block;margin-top:10px;">Элемент внутри модели</label>
-                    <select id="glbPartSelect" style="width:100%;margin-top:5px;">
-                        <option value="__model__">Вся модель</option>
-                    </select>
-                    <div class="action-buttons" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px;">
-                        <button id="glbTranslateBtn" class="btn-secondary" type="button" title="Переместить">↔ Переместить</button>
-                        <button id="glbRotateBtn" class="btn-secondary" type="button" title="Вращать">⟳ Вращать</button>
-                        <button id="glbScaleBtn" class="btn-secondary" type="button" title="Масштабировать">⤢ Размер</button>
-                    </div>
-                    <button id="glbExportSelectedBtn" class="btn-export-glb" type="button" style="width:100%;margin-top:7px;">⬇️ Скачать выбранную модель</button>
-                    <button id="glbRemoveBtn" class="btn-secondary" type="button" style="width:100%;margin-top:7px;">Удалить выбранную модель</button>
-                    <small style="display:block;margin-top:8px;color:#667085;">GLB до 100 МБ. Можно трансформировать всю модель или отдельные её элементы, затем скачать модель или всю сцену.</small>
-                </div>
                 
                 <hr>
                 
@@ -1436,7 +1415,7 @@
 <!-- ============================================================
 ПОДКЛЮЧАЕМ СКРИПТЫ
 ============================================================ -->
-<script type="module" src="script.js?v=20261109-glb-import-fix"></script>
+<script type="module" src="script.js?v=20261109-remove-glb-import"></script>
 <script src="modules/menu.js" defer></script>
 <script src="modules/modeManager.js" defer></script>
 
