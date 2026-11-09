@@ -851,7 +851,7 @@ const state = {
     pathSlabMaterial: 'tile_gray',
     pathPaverMaterial: 'tile_gray',
     pathColor: '#888888',
-    pathTileSize: 0.3,
+    pathTileSize: 0.2,
     pathJointColor: '#666666',
     pathTileLayout: 'brick',
 	fenceOffsetX: 0,
@@ -2813,14 +2813,10 @@ async function createPathBetweenGraveAndFence() {
     const isTile = state.pathMaterial && state.pathMaterial.startsWith('tile_');
     
     if (isTile) {
-        const texturePromise = createPavingTexture(
-            state.pathTileSize || 0.3,
-            state.pathMaterial,
-            state.pathJointColor || '#666666'
-        );
-        const tileSize = state.pathTileSize || 0.3;
-        const repeatX = totalWidth / tileSize;
-        const repeatY = totalLength / tileSize;
+        const texturePromise = createPavingTexture(0.2, state.pathMaterial, state.pathJointColor || '#666666');
+        // Один повтор — модуль 400×400 мм из элементов 200×200 и 200×100.
+        const repeatX = totalWidth / 0.4;
+        const repeatY = totalLength / 0.4;
         const texture = await texturePromise;
         if (texture) {
             texture.wrapS = THREE.RepeatWrapping;
@@ -2874,90 +2870,34 @@ function createPavingTexture(tileSize, tileType, jointColor) {
     canvas.width = texWidth;
     canvas.height = texHeight;
     const ctx = canvas.getContext('2d');
-    const tileColors = {
-        'tile_black': '#2a2a2a',
-        'tile_gray': '#8a8a8a',
-        'tile_beige': '#c4b89a',
-        'tile_dark': '#3a3a3a',
-        'tile_light': '#c8c8c8',
-        'tile_marble': '#e8e8e0',
-        'tile_red': '#8b2a2a',
-        'tile_brown': '#6b4a3a',
-        'tile_blue': '#3a5a7a',
-        'tile_green': '#4a7a4a',
-    };
-    const baseColor = tileColors[tileType] || '#8a8a8a';
-    const joint = jointColor || '#666666';
-    const tilePx = isMobile ? 48 : 80;
+    const colors = {tile_black:'#2a2a2a',tile_gray:'#8a8a8a',tile_beige:'#c4b89a',tile_dark:'#3a3a3a',tile_light:'#c8c8c8',tile_marble:'#e8e8e0',tile_red:'#8b2a2a',tile_brown:'#6b4a3a',tile_blue:'#3a5a7a',tile_green:'#4a7a4a'};
+    const baseColor = colors[tileType] || '#8a8a8a';
     const jointPx = isMobile ? 3 : 4;
-    const totalPx = tilePx + jointPx;
-    const cols = Math.ceil(texWidth / totalPx) + 1;
-    const rows = Math.ceil(texHeight / totalPx) + 1;
-    ctx.fillStyle = joint;
-    ctx.fillRect(0, 0, texWidth, texHeight);
-    let row = 0;
-    let col = 0;
-    let resolveTexture = null;
-    const promise = new Promise((resolve) => {
-        resolveTexture = resolve;
-        function drawNextTile() {
-            if (row >= rows) {
-                const texture = new THREE.CanvasTexture(canvas);
-                texture.minFilter = THREE.LinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.anisotropy = isMobile ? 1 : 2;
-                resolveTexture(texture);
-                return;
-            }
-            const offset = (row % 2 === 0) ? 0 : tilePx / 2;
-            const x = col * totalPx + offset;
-            const y = row * totalPx;
-            if (x <= texWidth && y <= texHeight) {
-                const brightness = 0.85 + Math.random() * 0.3;
-                const color = new THREE.Color(baseColor);
-                const r = Math.round(Math.min(255, color.r * 255 * brightness));
-                const g = Math.round(Math.min(255, color.g * 255 * brightness));
-                const b = Math.round(Math.min(255, color.b * 255 * brightness));
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                const radius = isMobile ? 1 : 2;
-                const px = x;
-                const py = y;
-                const w = tilePx;
-                const h = tilePx;
-                ctx.beginPath();
-                ctx.moveTo(px + radius, py);
-                ctx.lineTo(px + w - radius, py);
-                ctx.quadraticCurveTo(px + w, py, px + w, py + radius);
-                ctx.lineTo(px + w, py + h - radius);
-                ctx.quadraticCurveTo(px + w, py + h, px + w - radius, py + h);
-                ctx.lineTo(px + radius, py + h);
-                ctx.quadraticCurveTo(px, py + h, px, py + h - radius);
-                ctx.lineTo(px, py + radius);
-                ctx.quadraticCurveTo(px, py, px + radius, py);
-                ctx.closePath();
-                ctx.fill();
-                addStoneNoiseToTile(ctx, px, py, w, h);
-                const grad = ctx.createLinearGradient(px, py, px, py + h);
-                grad.addColorStop(0, 'rgba(0,0,0,0.08)');
-                grad.addColorStop(0.5, 'rgba(0,0,0,0)');
-                grad.addColorStop(1, 'rgba(0,0,0,0.08)');
-                ctx.fillStyle = grad;
-                ctx.fillRect(px, py, w, h);
-            }
-            col++;
-            if (col >= cols) {
-                col = 0;
-                row++;
-            }
-            if ((row * cols + col) % 5 === 0) {
-                requestAnimationFrame(drawNextTile);
-            } else {
-                drawNextTile();
-            }
-        }
-        requestAnimationFrame(drawNextTile);
-    });
-    return promise;
+    const unit = isMobile ? 64 : 128; // 200 мм
+    const half = unit / 2; // 100 мм
+    ctx.fillStyle = jointColor || '#666666';
+    ctx.fillRect(0,0,texWidth,texHeight);
+    const draw = (x,y,w,h) => {
+        const brightness = 0.9 + Math.random()*0.2;
+        const c = new THREE.Color(baseColor);
+        const rgb = [c.r,c.g,c.b].map(v=>Math.round(Math.min(255,v*255*brightness)));
+        const px=x+jointPx/2, py=y+jointPx/2, pw=w-jointPx, ph=h-jointPx;
+        ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        ctx.fillRect(px,py,pw,ph);
+        addStoneNoiseToTile(ctx,px,py,pw,ph);
+    };
+    // 400×400 мм: два квадрата 200×200 и четыре прямоугольника 200×100.
+    const module = unit*2;
+    for(let y=0;y<texHeight;y+=module) for(let x=0;x<texWidth;x+=module){
+        draw(x,y,unit,unit);
+        draw(x+unit,y,unit,half); draw(x+unit,y+half,unit,half);
+        draw(x,y+unit,unit,unit);
+        draw(x+unit,y+unit,unit,half); draw(x+unit,y+unit+half,unit,half);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter=THREE.LinearFilter; texture.magFilter=THREE.LinearFilter;
+    texture.anisotropy=isMobile?1:2;
+    return Promise.resolve(texture);
 }
 
 function addStoneNoiseToTile(ctx, x, y, w, h) {
@@ -5272,16 +5212,15 @@ function buildPriceBreakdown() {
             const catalogMaterial = surfaceType === 'slab'
                 ? (state.pathSlabMaterial || material)
                 : (state.pathPaverMaterial || material);
-            const tileSize = Math.max(0.01, Number(state.pathTileSize) || 0.3);
-            const tileDepthMm = surfaceType === 'slab' ? 60 : 60;
+            const tileDepthMm = surfaceType === 'slab' ? 40 : 60;
             // Каталожная цена плитки/брусчатки хранится за м², а не за отдельный элемент.
             addCatalogComponent(
                 `🛤️ Покрытие площадки — ${surfaceLabel}`,
                 'tile',
                 catalogMaterial,
                 {
-                    width_mm: tileSize * 1000,
-                    height_mm: tileSize * 1000,
+                    width_mm: 200,
+                    height_mm: 200,
                     depth_mm: tileDepthMm,
                     thickness_mm: tileDepthMm
                 },
@@ -6917,7 +6856,7 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || 'tile_gray';
         state.pathEnabled = pathEnabled;
         const pathColor = document.getElementById('pathColor')?.value || '#888888';
-        const pathTileSize = parseFloat(document.getElementById('pathTileSize')?.value) || 0.3;
+        const pathTileSize = 0.2;
         const pathJointColor = document.getElementById('pathJointColor')?.value || '#666666';
         const pathTileLayout = document.getElementById('pathTileLayout')?.value || 'brick';
         
@@ -7234,21 +7173,48 @@ window.controls = controls;
 // ============================================================
 
 
-function makeScreenshot(angle, height = 2.5, distance = 6.0, targetY = 0.6) {
-    const savedPos = camera.position.clone();
-    const savedTarget = controls.target.clone();
-    const rad = angle * Math.PI / 180;
-    const x = Math.sin(rad) * distance;
-    const z = Math.cos(rad) * distance;
-    camera.position.set(x, height, z);
-    controls.target.set(0, targetY, 0);
-    controls.update();
-    renderer.render(scene, camera);
-    const dataUrl = renderer.domElement.toDataURL('image/jpeg', 0.85);
-    camera.position.copy(savedPos);
-    controls.target.copy(savedTarget);
-    controls.update();
-    return dataUrl;
+function getEstimateSceneBounds() {
+    const bounds = new THREE.Box3();
+    let found = false;
+    const roots = [window.monumentGroup, window.multiMonumentManager?.monumentsGroup]
+        .filter(root => root?.isObject3D && root.visible !== false);
+    for (const root of roots) {
+        root.updateWorldMatrix(true,true);
+        const box = new THREE.Box3().setFromObject(root);
+        if (box.isEmpty()) continue;
+        if (!found) { bounds.copy(box); found=true; } else bounds.union(box);
+    }
+    if (!found) bounds.set(new THREE.Vector3(-1,0,-1),new THREE.Vector3(1,2.5,1));
+    return bounds;
+}
+function getEstimateCameraFit(bounds) {
+    const sphere=bounds.getBoundingSphere(new THREE.Sphere());
+    const vfov=THREE.MathUtils.degToRad(camera.fov||45);
+    const aspect=Math.max(0.1,camera.aspect||renderer.domElement.width/Math.max(1,renderer.domElement.height));
+    const hfov=2*Math.atan(Math.tan(vfov/2)*aspect);
+    const half=Math.max(0.05,Math.min(vfov,hfov)/2);
+    return {center:sphere.center,distance:Math.max(2,sphere.radius/Math.sin(half)*1.45)};
+}
+function makeScreenshot(angle,height=2.5,distance=6.0,targetY=0.6,fitAll=true) {
+    const savedPos=camera.position.clone(), savedTarget=controls.target.clone(), savedZoom=camera.zoom;
+    try {
+        const rad=angle*Math.PI/180;
+        if(fitAll){
+            const fit=getEstimateCameraFit(getEstimateSceneBounds());
+            const slope=Math.max(0.08,(Number(height)||2.5)/Math.max(0.1,Number(distance)||6));
+            const horizontal=fit.distance/Math.sqrt(1+slope*slope);
+            controls.target.copy(fit.center);
+            camera.position.set(fit.center.x+Math.sin(rad)*horizontal,fit.center.y+horizontal*slope,fit.center.z+Math.cos(rad)*horizontal);
+        } else {
+            camera.position.set(Math.sin(rad)*distance,height,Math.cos(rad)*distance);
+            controls.target.set(0,targetY,0);
+        }
+        controls.update(); renderer.render(scene,camera);
+        return renderer.domElement.toDataURL('image/jpeg',0.85);
+    } finally {
+        camera.position.copy(savedPos); controls.target.copy(savedTarget); camera.zoom=savedZoom;
+        camera.updateProjectionMatrix(); controls.update(); renderer.render(scene,camera);
+    }
 }
 
 function generateEstimatePDF() {
@@ -7272,8 +7238,9 @@ function generateEstimatePDF() {
         
         const savedPos = camera.position.clone();
         const savedTarget = controls.target.clone();
-        camera.position.set(0, 8.0, 0.1);
-        controls.target.set(0, 0, 0);
+        const topFit = getEstimateCameraFit(getEstimateSceneBounds());
+        camera.position.set(topFit.center.x,topFit.center.y+topFit.distance,topFit.center.z+0.001);
+        controls.target.copy(topFit.center);
         controls.update();
         renderer.render(scene, camera);
         screenshotTop = renderer.domElement.toDataURL('image/jpeg', 0.85);
@@ -7285,8 +7252,8 @@ function generateEstimatePDF() {
         const targetY = steleHeight / 2 + 0.2;
         const closeDistance = 1.8;
         const closeHeight = targetY + 0.1;
-        screenshotSteleFront = makeScreenshot(0, closeHeight, closeDistance, targetY);
-        screenshotSteleBack = makeScreenshot(180, closeHeight, closeDistance, targetY);
+        screenshotSteleFront = makeScreenshot(0, closeHeight, closeDistance, targetY, false);
+        screenshotSteleBack = makeScreenshot(180, closeHeight, closeDistance, targetY, false);
     } catch(e) {
         console.warn('Ошибка создания скриншотов:', e);
     }
