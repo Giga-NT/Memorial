@@ -597,18 +597,28 @@
                         </div>
                         
                         <div class="control-group">
-                            <label for="pathMaterial">Покрытие</label>
+                            <label for="pathSurfaceType">Тип покрытия</label>
+                            <select id="pathSurfaceType">
+                                <option value="paving" selected>🧱 Брусчатка</option>
+                                <option value="slab">⬜ Плитка крупного формата</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="pathMaterial">Материал и цвет</label>
                             <select id="pathMaterial">
-                                <option value="tile_black">⬛ Чёрная брусчатка</option>
-                                <option value="tile_gray" selected>⬜ Серая брусчатка</option>
-                                <option value="tile_beige">🟨 Бежевая брусчатка</option>
-                                <option value="tile_dark">⬛ Тёмная брусчатка</option>
-                                <option value="tile_light">⬜ Светлая брусчатка</option>
-                                <option value="tile_marble">⚪ Мраморная брусчатка</option>
-                                <option value="gravel">🪨 Гравий</option>
-                                <option value="sand">🏜️ Песок</option>
-                                <option value="grass">🌿 Газон</option>
-                                <option value="flowers">🌸 Цветы</option>
+                                <option value="tile_black" data-surface="paving">⬛ Чёрная брусчатка</option>
+                                <option value="tile_gray" data-surface="paving" selected>⬜ Серая брусчатка</option>
+                                <option value="tile_beige" data-surface="paving">🟨 Бежевая брусчатка</option>
+                                <option value="tile_dark" data-surface="paving">⬛ Тёмная брусчатка</option>
+                                <option value="tile_light" data-surface="paving">⬜ Светлая брусчатка</option>
+                                <option value="tile_marble" data-surface="paving">⚪ Мраморная брусчатка</option>
+                                <option value="slab_gray" data-surface="slab">⬜ Серая плитка</option>
+                                <option value="slab_black" data-surface="slab">⬛ Чёрная плитка</option>
+                                <option value="slab_beige" data-surface="slab">🟨 Бежевая плитка</option>
+                                <option value="gravel" data-surface="other">🪨 Гравий</option>
+                                <option value="sand" data-surface="other">🏜️ Песок</option>
+                                <option value="grass" data-surface="other">🌿 Газон</option>
+                                <option value="flowers" data-surface="other">🌸 Цветы</option>
                             </select>
                         </div>
                         
