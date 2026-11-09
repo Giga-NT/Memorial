@@ -6130,9 +6130,9 @@ setTimeout(() => {
     window.glbImportManager = glbImportManager;
 
     // Привязываем обработчики кнопок
-    document.getElementById('saveProjectBtn')?.addEventListener('click', () => {
-        projectIO.saveToFile();
-        showToast('💾 Проект сохранён в JSON!', 'success');
+    document.getElementById('saveProjectBtn')?.addEventListener('click', async () => {
+        const saved = await projectIO.saveToFile();
+        if (!saved) showToast('Не удалось сохранить проект', 'error');
     });
 
 
