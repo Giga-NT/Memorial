@@ -9,7 +9,7 @@
     <meta name="keywords" content="3D конструктор памятников, памятник, надгробие, гранит, мрамор, стела, цветник, оградка">
     <title>3D Конструктор Памятника | Giga-NT</title>
     <link rel="canonical" href="https://giga-nt.ru/">
-    <link rel="stylesheet" href="style.css?v=20261028-curb-textures-3">
+    <link rel="stylesheet" href="style.css?v=20261109-gigant-premium">
     
 
 
@@ -27,6 +27,17 @@
         <span></span>
         <span></span>
     </button>
+    <div class="brand-lockup" aria-label="Giga-NT — конструктор памятников">
+        <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 44 44" role="img">
+                <path d="M8 36V18.5C8 10.5 14.2 5 22 5s14 5.5 14 13.5V36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M13 36V19c0-5.2 3.7-8.7 9-8.7s9 3.5 9 8.7v17" fill="none" stroke="#c9a66b" stroke-width="1.6"/>
+                <path d="M5 36h34M17 23h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="22" cy="18" r="2" fill="#c9a66b"/>
+            </svg>
+        </span>
+        <span class="brand-copy"><strong>GIGA-NT</strong><small>МЕМОРИАЛЬНЫЙ КОНСТРУКТОР</small></span>
+    </div>
     <!-- ПАНЕЛЬ БЫСТРЫХ ДЕЙСТВИЙ (СПРАВА, НА УРОВНЕ БУРГЕРА) -->
     <div class="quick-actions" id="quickActions">
         <button id="applyMainBtn" class="quick-btn apply-main-btn" title="Применить к основному">
@@ -44,6 +55,21 @@
         </button>
     </div>
 </div>
+
+<!-- Постоянная панель стоимости -->
+<aside class="live-price-panel" id="livePricePanel" aria-label="Стоимость проекта">
+    <div class="live-price-head">
+        <div><span class="live-price-kicker">ВАШ ПРОЕКТ</span><strong>Предварительная стоимость</strong></div>
+        <label class="price-visibility-toggle" title="Показывать или скрывать стоимость">
+            <input type="checkbox" id="showPricePanel" checked>
+            <span class="toggle-track"></span>
+        </label>
+    </div>
+    <div class="live-price-value" id="totalPriceDisplay">0 ₽</div>
+    <div class="live-price-note">Расчёт обновляется при изменении комплектации</div>
+    <div id="priceWarnings" role="status" aria-live="polite" hidden></div>
+    <button type="button" class="live-price-details" id="openPriceDetailsBtn">Настроить стоимость <span>↗</span></button>
+</aside>
 
 <!-- ============================================================
 ОВЕРЛЕЙ
@@ -1345,12 +1371,8 @@
                     <input type="checkbox" id="includeInstall">
                     <label for="includeInstall">🔧 Включить установку в расчёт</label>
                 </div>
-                <div class="price-block">
-                    <div class="price-value" id="totalPriceDisplay">0 ₽</div>
-                    <div class="price-note">*Цена уточняется</div>
-                    <div id="priceWarnings" role="status" aria-live="polite" hidden style="margin-top:8px;padding:9px;border-radius:6px;background:#fff3cd;color:#7a4b00;font-size:12px;line-height:1.4;"></div>
-                </div>
-                <button id="refreshPriceBtn" class="btn-secondary" style="width:100%;">🔄 Пересчитать</button>
+                <div class="price-note" style="text-align:left;">Стоимость рассчитывается автоматически по выбранным материалам и элементам.</div>
+                <button id="refreshPriceBtn" class="btn-secondary" style="width:100%;">🔄 Пересчитать стоимость</button>
                 
                 <hr>
                 
