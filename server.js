@@ -383,7 +383,7 @@ let db;
 
 const ALLOWED_PRICE_KEYS = new Set([
     'pipe', 'chain', 'casting', 'model_3d', 'venzel',
-    'stele_work', 'engraving', 'photo', 'photo_price', 'vase_base_price',
+    'stele_work', 'engraving', 'text_character_price', 'photo', 'photo_price', 'vase_base_price',
     'background_price_per_m2', 'table', 'bench', 'picnic_set',
     'delivery', 'install', 'fence_per_m', 'fence_base_height',
     'path_work_per_m2', 'site_fill_work_per_m2',
@@ -418,6 +418,7 @@ const DEFAULT_PRICES = {
 
     stele_work: 5000,
     engraving: 1500,
+    text_character_price: 80,
     photo: 2000,
     photo_price: 0,
     vase_base_price: 0,
