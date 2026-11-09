@@ -6591,11 +6591,26 @@ if (materialSelect) {
         textureCache.invalidateFront();
         textureCache.invalidateBack();
         updateCurrentCustomSteleMaterial(state.material);
+        window.glbImportManager?.applyStoneMaterial(state.material);
         resetTileManager();
         throttledUpdate();
         calculatePrice();
     });
 }
+
+// При активной GLB-модели размерные поля управляют её габаритами,
+// а не перестраивают скрытый параметрический памятник.
+const applyActiveGlbDimensions = () => {
+    if (!window.glbImportManager?.assets?.size) return;
+    window.glbImportManager.applyDimensions(
+        parseFloat(document.getElementById('widthRange')?.value),
+        parseFloat(document.getElementById('heightRange')?.value),
+        parseFloat(document.getElementById('depthRange')?.value)
+    );
+};
+['widthRange', 'heightRange', 'depthRange'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', applyActiveGlbDimensions);
+});
 
 const isDuplicatorMode = () =>
     window.multiMonumentManager?.currentMode === 'duplicator';
