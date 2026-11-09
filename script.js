@@ -2819,7 +2819,9 @@ async function createPathBetweenGraveAndFence() {
             ? createSlabTexture(slabFormat, state.pathMaterial, state.pathJointColor || '#666666')
             : await createPavingTexture(0.2, state.pathMaterial, state.pathJointColor || '#666666');
         // Для плитки повторяем модуль 1,2×1,2 м; для брусчатки — 0,4×0,4 м.
-        const repeatModule = isSlab ? 1.2 : 0.4;
+        const repeatModule = isSlab
+            ? (slabFormat === 'square500' ? 1.0 : 1.2)
+            : 0.4;
         const repeatX = totalWidth / repeatModule;
         const repeatY = totalLength / repeatModule;
         if (texture) {
@@ -2881,7 +2883,8 @@ function createSlabTexture(format, tileType, jointColor) {
     };
     const base = colors[tileType] || '#929292';
     const joint = jointColor || '#666666';
-    const pxPerMm = size / 1200;
+    const physicalModuleMm = format === 'square500' ? 1000 : 1200;
+    const pxPerMm = size / physicalModuleMm;
     const gap = isMobile ? 3 : 4;
     ctx.fillStyle = joint;
     ctx.fillRect(0, 0, size, size);
@@ -2901,7 +2904,7 @@ function createSlabTexture(format, tileType, jointColor) {
         }
     };
     if (format === 'square500') {
-        drawGrid(600, 600);
+        drawGrid(500, 500);
     } else if (format === 'rectangle') {
         drawGrid(200, 100, true);
     } else if (format === 'old_city') {
@@ -4756,14 +4759,16 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
     const dimensionKeys = product === 'stele'
         ? ['width_mm', 'height_mm', 'thickness_mm']
         : product === 'tile'
-            ? ['depth_mm', 'thickness_mm']
+            ? (finish === 'slab'
+                ? ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm']
+                : ['depth_mm', 'thickness_mm'])
             : ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'];
     const candidates = materialPriceRows.filter(row =>
         row.material === material && row.product === product &&
         dimensionKeys.every(key => Number(row[key] || 0) === target[key]) &&
         (product !== 'stele' || Number(row.depth_mm || 0) === 0) &&
         String(row.finish || '') === String(finish || '') &&
-        (product !== 'tile' || (
+        (product !== 'tile' || finish === 'slab' || (
             (Number(row.width_mm) === 200 && Number(row.height_mm) === 200) ||
             (Number(row.width_mm) === 200 && Number(row.height_mm) === 100)
         ))
