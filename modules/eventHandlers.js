@@ -630,6 +630,8 @@ export function initPathHandlers() {
         const selectedMaterial = type === 'slab'
             ? (document.getElementById('slabMaterial')?.value || window.state.pathSlabMaterial || 'tile_gray')
             : (document.getElementById('pathMaterial')?.value || window.state.pathPaverMaterial || window.state.pathMaterial || 'tile_gray');
+        if (type === 'slab') window.state.pathSlabMaterial = selectedMaterial;
+        else window.state.pathPaverMaterial = selectedMaterial;
         window.state.pathMaterial = selectedMaterial;
 
         if (layerLegend) {
