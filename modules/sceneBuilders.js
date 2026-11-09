@@ -847,145 +847,131 @@ export async function createUnifiedTextureWithJoints(
 // Отдельная текстура тротуарной плитки с физически разными форматами.
 function createSlabSurfaceTexture(format, tileType, jointColor) {
     const mobile = window.innerWidth < 768;
-    const size = mobile ? 512 : 1024;
+    const size = mobile ? 768 : 1024;
     const canvas = document.createElement('canvas');
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const colors = { tile_black:'#303030', tile_gray:'#929292', tile_beige:'#c8b99a', tile_dark:'#484848', tile_light:'#d0d0cc', tile_red:'#96534b', tile_marble:'#aaa69c', tile_brown:'#765b49' };
-    const base = new THREE.Color(colors[tileType] || '#929292');
-    const joint = jointColor || '#666666';
+    const colors = {
+        tile_black:'#303030', tile_gray:'#929292', tile_beige:'#c8b99a',
+        tile_dark:'#484848', tile_light:'#d0d0cc', tile_red:'#96534b',
+        tile_marble:'#aaa69c', tile_brown:'#765b49'
+    };
+    const base = new THREE.Color(colors[tileType] || colors.tile_gray);
+    const joint = jointColor || '#514e49';
     const moduleMm = format === 'square500' ? 1000 : 1200;
     const px = size / moduleMm;
-    const gap = mobile ? 3 : 4;
-    ctx.fillStyle = joint; ctx.fillRect(0, 0, size, size);
-    const draw = (x, y, w, h, seed = 0) => {
-        const shade = 0.91 + ((Math.sin(seed * 12.9898) + 1) / 2) * 0.16;
+    const gap = mobile ? 5 : 6;
+    ctx.fillStyle = joint;
+    ctx.fillRect(0, 0, size, size);
+    const hash = (x, y, salt = 0) => {
+        const v = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
+        return v - Math.floor(v);
+    };
+    const paintTile = (x, y, w, h, seed) => {
+        const shade = 0.88 + hash(seed, Math.floor(x), 13) * 0.22;
         const rgb = [base.r, base.g, base.b].map(v => Math.max(0, Math.min(255, Math.round(v * 255 * shade))));
-        ctx.fillStyle = 'rgb(' + rgb.join(',') + ')';
-        ctx.fillRect(x + gap / 2, y + gap / 2, Math.max(1, w - gap), Math.max(1, h - gap));
-    };
-    const grid = (wMm, hMm, stagger = false) => {
-        const w = wMm * px, h = hMm * px;
-        for (let row = 0, y = 0; y < size; row++, y += h) {
-            const offset = stagger && row % 2 ? w / 2 : 0;
-            for (let x = -offset; x < size; x += w) draw(x, y, w, h, row * 31 + Math.round(x / w));
+        const inset = gap / 2;
+        const rx = x + inset, ry = y + inset, rw = Math.max(1, w - gap), rh = Math.max(1, h - gap);
+        ctx.fillStyle = 'rgba(0,0,0,0.30)';
+        ctx.fillRect(rx + 1, ry + 2, rw, rh);
+        const grad = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+        grad.addColorStop(0, 'rgb(' + rgb.map(v=>Math.min(255,v+13)).join(',') + ')');
+        grad.addColorStop(0.48, 'rgb(' + rgb.join(',') + ')');
+        grad.addColorStop(1, 'rgb(' + rgb.map(v=>Math.max(0,v-17)).join(',') + ')');
+        ctx.fillStyle = grad;
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
+        // Мелкая минеральная неоднородность, не меняющая основной цвет камня.
+        const specks = Math.max(10, Math.round(rw * rh / 900));
+        for (let n = 0; n < specks; n++) {
+            const sx = rx + hash(seed, n, 31) * rw;
+            const sy = ry + hash(seed, n, 47) * rh;
+            const alpha = 0.025 + hash(seed, n, 59) * 0.07;
+            ctx.fillStyle = hash(seed, n, 71) > 0.5
+                ? 'rgba(255,255,255,' + alpha + ')'
+                : 'rgba(0,0,0,' + alpha + ')';
+            ctx.fillRect(sx, sy, 1 + hash(seed,n,83) * 2, 1 + hash(seed,n,97) * 2);
         }
     };
-    if (format === 'square500') grid(500, 500);
-    else if (format === 'rectangle') grid(200, 100, true);
-    else if (format === 'old_city') {
-        // «Старый город»: повторяемый модуль 1200×1200 мм из камней нескольких форматов.
-        const unit = 200 * px;
-        const module = 6 * unit;
-        const hash = (x, y) => {
-            const v = Math.sin(x * 127.1 + y * 311.7 + 19.19) * 43758.5453;
-            return v - Math.floor(v);
-        };
-        for (let my = -module; my < size + module; my += module) {
-            for (let mx = -module; mx < size + module; mx += module) {
-                const occupied = Array.from({ length: 6 }, () => Array(6).fill(false));
-                for (let gy = 0; gy < 6; gy++) {
-                    for (let gx = 0; gx < 6; gx++) {
-                        if (occupied[gy][gx]) continue;
-                        const choices = [[2,2],[2,1],[1,2],[1,1],[1,1]];
-                        const shift = Math.floor(hash(gx + mx / module, gy + my / module) * choices.length);
-                        let placed = false;
-                        for (let k = 0; k < choices.length; k++) {
-                            const [cw, ch] = choices[(shift + k) % choices.length];
-                            if (gx + cw > 6 || gy + ch > 6) continue;
-                            let free = true;
-                            for (let yy = gy; yy < gy + ch; yy++)
-                                for (let xx = gx; xx < gx + cw; xx++)
-                                    if (occupied[yy][xx]) free = false;
-                            if (!free) continue;
-                            for (let yy = gy; yy < gy + ch; yy++)
-                                for (let xx = gx; xx < gx + cw; xx++) occupied[yy][xx] = true;
-                            draw(mx + gx * unit, my + gy * unit, cw * unit, ch * unit,
-                                Math.round(hash(gx + mx / module, gy + my / module) * 10000));
-                            placed = true;
-                            break;
-                        }
-                        if (!placed) {
-                            occupied[gy][gx] = true;
-                            draw(mx + gx * unit, my + gy * unit, unit, unit, gx + gy * 17);
-                        }
-                    }
-                }
-            }
-        }
+    if (format === 'old_city') {
+        // Классический модуль 1200×1200: 600×400, 400×400, 400×200 и 200×200.
+        const u = 200 * px;
+        const patterns = [
+            [[0,0,3,2],[3,0,3,2],[0,2,2,4],[2,2,4,1],[2,3,4,3]],
+            [[0,0,2,2],[2,0,4,2],[0,2,3,4],[3,2,3,1],[3,3,3,3]]
+        ];
+        const tiles = patterns[0].concat(patterns[1]);
+        tiles.forEach((t, i) => paintTile(t[0]*u, t[1]*u, t[2]*u, t[3]*u, i+1));
     } else if (format === 'stone') {
-        // «Натуральный камень»: нерегулярные многоугольники Вороного с общей сетью швов.
-        const count = 4;
-        const step = size / count;
-        const points = [];
-        const rand = (x, y) => {
-            const v = Math.sin(x * 127.1 + y * 311.7 + 43.7) * 43758.5453;
-            return v - Math.floor(v);
-        };
-        for (let ty = -1; ty <= 1; ty++) {
-            for (let tx = -1; tx <= 1; tx++) {
-                for (let gy = 0; gy < count; gy++) {
-                    for (let gx = 0; gx < count; gx++) {
-                        points.push({
-                            x: (gx + 0.5 + (rand(gx + tx * count, gy + ty * count) - 0.5) * 0.48) * step + tx * size,
-                            y: (gy + 0.5 + (rand(gx + tx * count + 71, gy + ty * count + 29) - 0.5) * 0.48) * step + ty * size,
-                            gx, gy, tx, ty
-                        });
-                    }
-                }
+        // Камень природной формы: соседние ячейки Вороного имеют общие, неразорванные швы.
+        const count = 4, step = size / count, points = [];
+        const rand = (x,y) => hash(x,y,113);
+        for (let ty=-1; ty<=1; ty++) for (let tx=-1; tx<=1; tx++) {
+            for (let gy=0; gy<count; gy++) for (let gx=0; gx<count; gx++) {
+                points.push({
+                    x:(gx+0.5+(rand(gx+tx*count,gy+ty*count)-0.5)*0.55)*step+tx*size,
+                    y:(gy+0.5+(rand(gx+tx*count+37,gy+ty*count+61)-0.5)*0.55)*step+ty*size,
+                    gx,gy,tx,ty
+                });
             }
         }
-        const clip = (poly, nx, ny, limit) => {
-            const out = [];
-            for (let i = 0; i < poly.length; i++) {
-                const p = poly[i], q = poly[(i + 1) % poly.length];
-                const dp = p.x * nx + p.y * ny - limit;
-                const dq = q.x * nx + q.y * ny - limit;
-                if (dp <= 0) out.push(p);
-                if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)) {
-                    const t = dp / (dp - dq);
-                    out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+        const clip=(poly,nx,ny,limit)=>{
+            const out=[];
+            for(let i=0;i<poly.length;i++){
+                const p=poly[i],q=poly[(i+1)%poly.length];
+                const dp=p.x*nx+p.y*ny-limit,dq=q.x*nx+q.y*ny-limit;
+                if(dp<=0) out.push(p);
+                if((dp<0&&dq>0)||(dp>0&&dq<0)){
+                    const t=dp/(dp-dq);
+                    out.push({x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t});
                 }
             }
             return out;
         };
-        for (const p of points) {
-            if (p.tx !== 0 || p.ty !== 0) continue;
-            let poly = [{x:0,y:0},{x:size,y:0},{x:size,y:size},{x:0,y:size}];
-            for (const q of points) {
-                if (q === p || poly.length === 0) continue;
-                const nx = q.x - p.x, ny = q.y - p.y;
-                const limit = (q.x*q.x + q.y*q.y - p.x*p.x - p.y*p.y) / 2;
-                poly = clip(poly, nx, ny, limit);
+        for(const p of points){
+            if(p.tx!==0||p.ty!==0) continue;
+            let poly=[{x:0,y:0},{x:size,y:0},{x:size,y:size},{x:0,y:size}];
+            for(const q of points){
+                if(q===p||!poly.length) continue;
+                const nx=q.x-p.x,ny=q.y-p.y;
+                poly=clip(poly,nx,ny,(q.x*q.x+q.y*q.y-p.x*p.x-p.y*p.y)/2);
             }
-            if (poly.length < 3) continue;
-            const shade = 0.84 + rand(p.gx + p.tx * count, p.gy + p.ty * count) * 0.30;
-            const rgb = [base.r, base.g, base.b].map(v => Math.max(0, Math.min(255, Math.round(v * 255 * shade))));
-            const cx = poly.reduce((v, pt) => v + pt.x, 0) / poly.length;
-            const cy = poly.reduce((v, pt) => v + pt.y, 0) / poly.length;
-            const grad = ctx.createLinearGradient(cx - step * 0.45, cy - step * 0.45, cx + step * 0.5, cy + step * 0.5);
-            grad.addColorStop(0, 'rgba(255,255,255,0.13)');
-            grad.addColorStop(0.48, 'rgb(' + rgb.join(',') + ')');
-            grad.addColorStop(1, 'rgba(0,0,0,0.20)');
-            ctx.beginPath();
-            ctx.moveTo(poly[0].x, poly[0].y);
-            for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
-            ctx.closePath();
-            ctx.fillStyle = grad;
-            ctx.fill();
-            ctx.strokeStyle = joint;
-            ctx.lineWidth = gap;
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-            ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            if(poly.length<3) continue;
+            const shade=0.82+rand(p.gx+p.tx*count,p.gy+p.ty*count+7)*0.32;
+            const rgb=[base.r,base.g,base.b].map(v=>Math.max(0,Math.min(255,Math.round(v*255*shade))));
+            const cx=poly.reduce((v,a)=>v+a.x,0)/poly.length,cy=poly.reduce((v,a)=>v+a.y,0)/poly.length;
+            const grad=ctx.createLinearGradient(cx-step*.55,cy-step*.55,cx+step*.55,cy+step*.55);
+            grad.addColorStop(0,'rgb('+rgb.map(v=>Math.min(255,v+20)).join(',')+')');
+            grad.addColorStop(.55,'rgb('+rgb.join(',')+')');
+            grad.addColorStop(1,'rgb('+rgb.map(v=>Math.max(0,v-24)).join(',')+')');
+            ctx.beginPath();ctx.moveTo(poly[0].x,poly[0].y);
+            for(let i=1;i<poly.length;i++)ctx.lineTo(poly[i].x,poly[i].y);
+            ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+            ctx.strokeStyle='rgba(0,0,0,0.42)';ctx.lineWidth=gap+1;ctx.lineJoin='round';ctx.stroke();
+            ctx.strokeStyle='rgba(255,255,255,0.20)';ctx.lineWidth=1;ctx.stroke();
+            // Лёгкие природные прожилки и минеральные точки внутри каждой плиты.
+            ctx.save();ctx.clip();
+            for(let n=0;n<18;n++){
+                const x=rand(p.gx+n,p.gy+31)*size,y=rand(p.gx+71,p.gy+n+17)*size;
+                ctx.fillStyle='rgba(255,255,255,'+(0.025+rand(n,p.gx)*.045)+')';
+                ctx.beginPath();ctx.arc(x,y,1+rand(n,p.gy)*2,0,Math.PI*2);ctx.fill();
+            }
+            ctx.restore();
         }
-    } else grid(300, 300);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
-    texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = mobile ? 1 : 4;
+    } else if (format === 'square500') {
+        const u=500*px;for(let y=0;y<size;y+=u)for(let x=0;x<size;x+=u)paintTile(x,y,u,u,Math.round(x+y));
+    } else if (format === 'rectangle') {
+        const w=200*px,h=100*px;for(let row=0,y=0;y<size;row++,y+=h)for(let x=-(row%2?w/2:0);x<size;x+=w)paintTile(x,y,w,h,row+Math.round(x/w));
+    } else {
+        const u=300*px;for(let y=0;y<size;y+=u)for(let x=0;x<size;x+=u)paintTile(x,y,u,u,Math.round(x+y));
+    }
+    const texture=new THREE.CanvasTexture(canvas);
+    texture.wrapS=THREE.RepeatWrapping;texture.wrapT=THREE.RepeatWrapping;
+    texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;
+    texture.anisotropy=mobile?1:4;
+    texture.needsUpdate=true;
     return texture;
 }
 // ============================================================
