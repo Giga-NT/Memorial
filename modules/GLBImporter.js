@@ -113,6 +113,9 @@ export class GLBImportManager {
         document.getElementById('glbImportedSelect')?.addEventListener('change', event => {
             this.select(event.target.value);
         });
+        document.getElementById('glbPartSelect')?.addEventListener('change', event => {
+            this.selectPart(event.target.value);
+        });
         document.getElementById('glbTranslateBtn')?.addEventListener('click', () => this.transform.setMode('translate'));
         document.getElementById('glbRotateBtn')?.addEventListener('click', () => this.transform.setMode('rotate'));
         document.getElementById('glbScaleBtn')?.addEventListener('click', () => this.transform.setMode('scale'));
@@ -148,10 +151,15 @@ export class GLBImportManager {
             model.position.y -= bounds.min.y;
             model.position.z -= center.z;
 
+            const meshTargets = [];
             model.traverse(object => {
                 if (!object.isMesh) return;
                 object.castShadow = true;
                 object.receiveShadow = true;
+                meshTargets.push({
+                    object,
+                    name: object.name || `Mesh ${meshTargets.length + 1}`
+                });
             });
 
             const pivot = new THREE.Group();
@@ -161,7 +169,7 @@ export class GLBImportManager {
             this.scene.add(pivot);
 
             const id = `glb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            this.assets.set(id, { id, name: file.name, pivot });
+            this.assets.set(id, { id, name: file.name, pivot, meshTargets });
             window.calculatePrice?.();
             const select = document.getElementById('glbImportedSelect');
             if (select) {
@@ -186,6 +194,34 @@ export class GLBImportManager {
         this.transform.attach(item.pivot);
         const select = document.getElementById('glbImportedSelect');
         if (select) select.value = id;
+
+        const partSelect = document.getElementById('glbPartSelect');
+        if (partSelect) {
+            partSelect.replaceChildren();
+            const wholeOption = document.createElement('option');
+            wholeOption.value = '__model__';
+            wholeOption.textContent = 'Вся модель';
+            partSelect.appendChild(wholeOption);
+            item.meshTargets.forEach((target, index) => {
+                const option = document.createElement('option');
+                option.value = String(index);
+                option.textContent = target.name;
+                partSelect.appendChild(option);
+            });
+            partSelect.value = '__model__';
+        }
+    }
+
+    selectPart(value) {
+        const item = this.assets.get(this.activeId);
+        if (!item) return;
+        if (value === '__model__') {
+            this.transform.attach(item.pivot);
+            return;
+        }
+        const index = Number(value);
+        const target = Number.isInteger(index) ? item.meshTargets[index] : null;
+        if (target?.object) this.transform.attach(target.object);
     }
 
     async exportActive() {
