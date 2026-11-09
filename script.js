@@ -5523,45 +5523,33 @@ function buildPriceBreakdown() {
             : isPriceSettingEnabled('include_install');
 
     if (includeInstall) {
-        const installFull = getPriceValue('install_full_set');
-        const installFlowerbedBase = getPriceValue('install_flowerbed_base');
-        const installPedestalPercent = getPriceValue('install_pedestal_percent');
+        const installStelePedestal = getPriceValue('install_stele_pedestal') || 5000;
+        const installFlowerbedPerMeter = getPriceValue('install_flowerbed_per_m') || 1000;
         const installationCount = monuments.length;
-        const pedestalCommission = pedestalTotal * installPedestalPercent / 100;
-        const disabledBaseCount = monuments.filter(monument => monument.baseEnabled === false).length;
-        const enabledBaseCount = installationCount - disabledBaseCount;
+        addRow(
+            '🔧 Установка стелы и тумбы',
+            `${installationCount} компл. × ${installStelePedestal.toLocaleString('ru-RU')} ₽`,
+            installStelePedestal * installationCount
+        );
 
-        if (isPriceSettingEnabled('install_split') && installFlowerbedBase > 0) {
-            // Сумма install_flowerbed_base — установка цветника и основания.
-            // При отключённом основании оставляем стоимость установки цветника,
-            // а долю основания не начисляем. До появления отдельной настройки
-            // доля цветника принимается равной половине совместной установки.
-            const flowerbedOnlyPrice = getPriceValue('install_flowerbed_only');
-            const flowerbedBasePrice = installFlowerbedBase;
-            if (enabledBaseCount > 0) {
-                addRow(
-                    '🔧 Установка: цветник + основание',
-                    `Установка комплекта × ${enabledBaseCount}`,
-                    flowerbedBasePrice * enabledBaseCount
-                );
-            }
-            if (disabledBaseCount > 0) {
-                addRow(
-                    '🔧 Установка цветника',
-                    `Основание отключено; установка цветника × ${disabledBaseCount}`,
-                    flowerbedOnlyPrice * disabledBaseCount
-                );
-            }
+        let totalFlowerbedPerimeter = 0;
+        let flowerbedCount = 0;
+        const installFlowerbedParts = [];
+        monuments.forEach((monument, index) => {
+            if (monument.flowerEnabled === false) return;
+            const width = Number(monument.flowerWidth) || 0;
+            const length = Number(monument.flowerLength) || 0;
+            if (width <= 0 || length <= 0) return;
+            const perimeter = 2 * (width + length);
+            totalFlowerbedPerimeter += perimeter;
+            flowerbedCount++;
+            installFlowerbedParts.push(`№${index + 1}: ${perimeter.toFixed(2)} м.п.`);
+        });
+        if (flowerbedCount > 0) {
             addRow(
-                '🔧 Установка: стела + тумба',
-                `Остаток полной установки × ${installationCount} + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
-                Math.max(0, installFull - installFlowerbedBase) * installationCount + pedestalCommission
-            );
-        } else {
-            addRow(
-                '🔧 Установка',
-                `Полная установка × ${installationCount} + ${installPedestalPercent}% от стоимости тумб (${pedestalCommission.toFixed(0)} ₽)`,
-                installFull * installationCount + pedestalCommission
+                '🔧 Установка цветника',
+                `${installFlowerbedParts.join('; ')}; всего ${totalFlowerbedPerimeter.toFixed(2)} м.п. × ${installFlowerbedPerMeter.toLocaleString('ru-RU')} ₽/м.п.`,
+                totalFlowerbedPerimeter * installFlowerbedPerMeter
             );
         }
     }
