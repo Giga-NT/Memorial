@@ -2414,3 +2414,88 @@ body.dragging-photo {
     color: #555;
     overflow-wrap: anywhere;
 }
+
+/* ============================================================
+   GIGA-NT — CUSTOMER WORKSPACE / PREMIUM VISUAL LAYER
+   ============================================================ */
+:root {
+    --gnt-ink: #17232b;
+    --gnt-panel: #202d35;
+    --gnt-gold: #c9a66b;
+    --gnt-gold-soft: rgba(201,166,107,.16);
+}
+.brand-lockup {
+    display:flex; align-items:center; gap:9px; margin:0 auto 0 8px;
+    min-height:44px; padding:4px 13px 4px 7px; border-radius:13px;
+    color:#f7f4ee; background:rgba(20,29,35,.88);
+    border:1px solid rgba(201,166,107,.28); backdrop-filter:blur(14px);
+    box-shadow:0 8px 28px rgba(0,0,0,.18); pointer-events:auto;
+}
+.brand-mark { width:34px; height:34px; display:grid; place-items:center; color:#f5f0e7; }
+.brand-mark svg { width:100%; height:100%; }
+.brand-copy { display:flex; flex-direction:column; gap:2px; line-height:1; }
+.brand-copy strong { font-size:15px; letter-spacing:2.1px; font-weight:800; }
+.brand-copy small { font-size:7px; letter-spacing:1.05px; color:#c9a66b; font-weight:700; }
+.accordion-menu {
+    background:rgba(24,35,43,.98);
+    border-right:1px solid rgba(201,166,107,.2);
+    box-shadow:12px 0 42px rgba(9,16,20,.28);
+}
+.menu-scroll { padding:12px 0 24px; }
+.menu-scroll > .hint-text:first-child {
+    margin:8px 12px 14px !important; padding:15px !important;
+    background:linear-gradient(135deg,rgba(201,166,107,.16),rgba(255,255,255,.035)) !important;
+    border:1px solid rgba(201,166,107,.25); color:#e9e6df !important;
+}
+.menu-scroll > .hint-text:first-child strong { color:#e2c48e; font-size:14px; }
+.section-header {
+    padding:15px 17px; background:rgba(255,255,255,.025);
+    border-left:3px solid transparent; font-size:13px; letter-spacing:.1px;
+}
+.section-header:hover { background:rgba(255,255,255,.07); }
+.accordion-section.active .section-header {
+    color:#f1d6a4; background:rgba(201,166,107,.10); border-left-color:var(--gnt-gold);
+}
+.section-content { color:#e8edf0; }
+.subsection { padding:12px; margin:0 0 12px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.07); }
+.subsection-title { color:#e4c58f; font-weight:700; letter-spacing:.2px; }
+select, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], textarea {
+    background:#142129; border-color:rgba(255,255,255,.13); color:#f4f5f6;
+}
+select:focus, input:focus, textarea:focus { border-color:var(--gnt-gold); }
+.checkbox-group { background:rgba(201,166,107,.08); border-color:rgba(201,166,107,.18); }
+.checkbox-group input[type="checkbox"]:checked { background:var(--gnt-gold); border-color:var(--gnt-gold); }
+.menu-scroll::-webkit-scrollbar-thumb { background:var(--gnt-gold); }
+.live-price-panel {
+    position:fixed; z-index:900; right:20px; bottom:22px; width:min(310px,calc(100vw - 32px));
+    padding:18px 19px 15px; border-radius:18px; color:#f7f5ef;
+    background:linear-gradient(145deg,rgba(25,37,45,.97),rgba(14,24,31,.97));
+    border:1px solid rgba(201,166,107,.38); box-shadow:0 18px 55px rgba(0,0,0,.30);
+    backdrop-filter:blur(18px); transition:opacity .2s,transform .2s;
+}
+.live-price-panel.is-hidden { opacity:0; transform:translateY(12px); pointer-events:none; }
+.live-price-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.live-price-head > div { display:flex; flex-direction:column; gap:5px; }
+.live-price-kicker { color:var(--gnt-gold); font-size:9px; letter-spacing:1.7px; font-weight:800; }
+.live-price-head strong { font-size:12px; font-weight:600; color:#e9e8e3; }
+.live-price-value { margin:13px 0 3px; font-size:30px; font-weight:800; letter-spacing:-.8px; color:#fff; }
+.live-price-note { color:#aeb8bd; font-size:10px; line-height:1.45; }
+.live-price-details { display:flex; justify-content:space-between; width:100%; margin:14px 0 0; padding:10px 0 0; border:0; border-top:1px solid rgba(255,255,255,.12); border-radius:0; background:transparent; color:#e4c58f; font-size:11px; text-align:left; }
+.live-price-details span { font-size:16px; }
+#priceWarnings { margin-top:9px; padding:9px; border-radius:8px; background:rgba(255,190,70,.12); color:#f2d49c; font-size:10px; line-height:1.4; }
+.price-visibility-toggle { width:38px; height:22px; position:relative; flex-shrink:0; cursor:pointer; }
+.price-visibility-toggle input { position:absolute; opacity:0; width:1px; height:1px; }
+.toggle-track { position:absolute; inset:0; border-radius:99px; background:#52616a; transition:.2s; }
+.toggle-track:after { content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; border-radius:50%; background:white; transition:.2s; }
+.price-visibility-toggle input:checked + .toggle-track { background:#b18b50; }
+.price-visibility-toggle input:checked + .toggle-track:after { transform:translateX(16px); }
+#canvas-container { background:#dce1e2; }
+@media (max-width:768px) {
+    .brand-lockup { min-height:40px; padding:3px 9px 3px 5px; gap:6px; }
+    .brand-mark { width:29px; height:29px; }
+    .brand-copy strong { font-size:12px; }
+    .brand-copy small { font-size:6px; }
+    .live-price-panel { right:12px; bottom:12px; width:calc(100vw - 24px); padding:13px 15px 11px; border-radius:15px; }
+    .live-price-value { font-size:25px; margin:8px 0 2px; }
+    .live-price-details { margin-top:9px; padding-top:8px; }
+}
