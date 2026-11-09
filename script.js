@@ -4732,7 +4732,11 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
         row.material === material && row.product === product &&
         dimensionKeys.every(key => Number(row[key] || 0) === target[key]) &&
         (product !== 'stele' || Number(row.depth_mm || 0) === 0) &&
-        String(row.finish || '') === String(finish || '')
+        String(row.finish || '') === String(finish || '') &&
+        (product !== 'tile' || (
+            (Number(row.width_mm) === 200 && Number(row.height_mm) === 200) ||
+            (Number(row.width_mm) === 200 && Number(row.height_mm) === 100)
+        ))
     );
     return candidates.length === 1 ? { price: Number(candidates[0].price), dimensions: target } : null;
 }
