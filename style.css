@@ -2499,3 +2499,11 @@ select:focus, input:focus, textarea:focus { border-color:var(--gnt-gold); }
     .live-price-value { font-size:25px; margin:8px 0 2px; }
     .live-price-details { margin-top:9px; padding-top:8px; }
 }
+
+.top-price-toggle { margin-left:2px; align-self:center; display:flex; align-items:center; gap:7px; width:auto; min-width:52px; height:38px; padding:0 9px; border-radius:12px; background:rgba(20,29,35,.88); border:1px solid rgba(201,166,107,.35); }
+.top-price-toggle .toggle-caption { color:#e5c68e; font-size:12px; font-weight:800; }
+.live-price-status { color:#c9a66b; font-size:9px; font-weight:800; letter-spacing:1px; white-space:nowrap; }
+@media(max-width:768px) {
+    .top-price-toggle { height:34px; min-width:45px; padding:0 7px; }
+    .live-price-panel.is-hidden { display:none; }
+}
