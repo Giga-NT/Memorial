@@ -4725,7 +4725,9 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
     };
     const dimensionKeys = product === 'stele'
         ? ['width_mm', 'height_mm', 'thickness_mm']
-        : ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'];
+        : product === 'tile'
+            ? ['depth_mm', 'thickness_mm']
+            : ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'];
     const candidates = materialPriceRows.filter(row =>
         row.material === material && row.product === product &&
         dimensionKeys.every(key => Number(row[key] || 0) === target[key]) &&
@@ -5268,7 +5270,7 @@ function buildPriceBreakdown() {
                 : (state.pathPaverMaterial || material);
             const tileSize = Math.max(0.01, Number(state.pathTileSize) || 0.3);
             const tileDepthMm = surfaceType === 'slab' ? 60 : 60;
-            const tileCount = coverageArea / (tileSize * tileSize);
+            // Каталожная цена плитки/брусчатки хранится за м², а не за отдельный элемент.
             addCatalogComponent(
                 `🛤️ Покрытие площадки — ${surfaceLabel}`,
                 'tile',
@@ -5280,7 +5282,7 @@ function buildPriceBreakdown() {
                     thickness_mm: tileDepthMm
                 },
                 surfaceType,
-                tileCount
+                coverageArea
             );
             const tileWorkPrice = surfaceType === 'slab'
                 ? (getPriceValue('path_slab_work_per_m2') || getPriceValue('path_tile_work_per_m2'))
