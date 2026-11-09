@@ -2809,11 +2809,21 @@ async function createPathBetweenGraveAndFence() {
         }
     }
     
+    // Считываем актуальный выбор прямо из интерфейса перед созданием 3D-покрытия.
+    // Это не даёт старому состоянию проекта подменить выбранную тротуарную плитку брусчаткой.
+    const surfaceSelect = document.getElementById('pathSurfaceType');
+    const liveSurfaceType = surfaceSelect?.value || state.pathSurfaceType || 'paver';
+    const liveMaterial = liveSurfaceType === 'slab'
+        ? (document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray')
+        : (document.getElementById('pathMaterial')?.value || state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
+    state.pathSurfaceType = liveSurfaceType;
+    state.pathMaterial = liveMaterial;
+
     let material;
     const isTile = state.pathMaterial && state.pathMaterial.startsWith('tile_');
     
     if (isTile) {
-        const isSlab = (state.pathSurfaceType || 'paver') === 'slab';
+        const isSlab = state.pathSurfaceType === 'slab';
         const slabFormat = state.pathSlabFormat || 'square300';
         const texture = isSlab
             ? createSlabTexture(slabFormat, state.pathMaterial, state.pathJointColor || '#666666')
