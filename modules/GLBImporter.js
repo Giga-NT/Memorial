@@ -146,6 +146,7 @@ export class GLBImportManager {
 
             const bounds = new THREE.Box3().setFromObject(model);
             if (bounds.isEmpty()) throw new Error('В GLB нет видимой геометрии');
+            const originalSize = bounds.getSize(new THREE.Vector3());
 
             const center = bounds.getCenter(new THREE.Vector3());
             model.position.x -= center.x;
@@ -176,7 +177,12 @@ export class GLBImportManager {
             this.onActiveModel(pivot);
 
             const id = `glb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            this.assets.set(id, { id, name: file.name, pivot, meshTargets });
+            this.assets.set(id, {
+                id, name: file.name, pivot, meshTargets,
+                modelRoot: model,
+                originalSize: originalSize.clone(),
+                originalModelScale: model.scale.clone()
+            });
             window.calculatePrice?.();
             const select = document.getElementById('glbImportedSelect');
             if (select) {
@@ -192,6 +198,54 @@ export class GLBImportManager {
             console.error('GLB import failed:', error);
             this.onToast(error?.message || 'Не удалось загрузить GLB', 'error');
         }
+    }
+
+    applyStoneMaterial(materialKey) {
+        const item = this.assets.get(this.activeId);
+        if (!item) return false;
+        const presets = {
+            granite: { color: 0x1a1a1a, roughness: 0.2, metalness: 0.05 },
+            rombak: { color: 0x090909, roughness: 0.16, metalness: 0.06 },
+            black_galaxy: { color: 0x111111, roughness: 0.15, metalness: 0.08 },
+            ninimyaki: { color: 0x1a2a1a, roughness: 0.25, metalness: 0.03 },
+            marble: { color: 0xf5f5f5, roughness: 0.15, metalness: 0.02 },
+            red_granite: { color: 0x8b0000, roughness: 0.25, metalness: 0.05 },
+            beige_granite: { color: 0xd4b896, roughness: 0.2, metalness: 0.03 },
+            gray_granite: { color: 0x808080, roughness: 0.2, metalness: 0.04 }
+        };
+        const preset = presets[materialKey];
+        if (!preset) return false;
+        item.modelRoot.traverse(object => {
+            if (!object.isMesh || !object.material) return;
+            const apply = source => {
+                const material = source.clone();
+                if (material.color) material.color.setHex(preset.color);
+                if ('roughness' in material) material.roughness = preset.roughness;
+                if ('metalness' in material) material.metalness = preset.metalness;
+                material.needsUpdate = true;
+                return material;
+            };
+            object.material = Array.isArray(object.material)
+                ? object.material.map(apply)
+                : apply(object.material);
+        });
+        return true;
+    }
+
+    applyDimensions(width, height, depth) {
+        const item = this.assets.get(this.activeId);
+        if (!item) return false;
+        const values = [width, height, depth].map(Number);
+        if (values.some(value => !Number.isFinite(value) || value <= 0)) return false;
+        const size = item.originalSize;
+        if (size.x <= 0 || size.y <= 0 || size.z <= 0) return false;
+        item.modelRoot.scale.set(
+            item.originalModelScale.x * values[0] / size.x,
+            item.originalModelScale.y * values[1] / size.y,
+            item.originalModelScale.z * values[2] / size.z
+        );
+        item.modelRoot.updateMatrixWorld(true);
+        return true;
     }
 
     select(id) {
