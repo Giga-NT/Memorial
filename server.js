@@ -1188,6 +1188,10 @@ async function initDB() {
 
     await ensurePrices();
 
+    // Заполняем только нулевые значения новых тарифов; ручные цены администратора не перезаписываем.
+    await dbRun("UPDATE prices SET value = 1200 WHERE key = 'path_tile_work_per_m2' AND value = 0");
+    await dbRun("UPDATE prices SET value = 1000 WHERE key = 'path_slab_work_per_m2' AND value = 0");
+
 
     // ========================================
     // ФЛАГИ И ПАРАМЕТРЫ ПРАЙСА
