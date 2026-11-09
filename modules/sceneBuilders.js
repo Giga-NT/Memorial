@@ -981,7 +981,7 @@ function createSlabSurfaceTexture(format, tileType, jointColor) {
             ctx.lineWidth = 1;
             ctx.stroke();
         }
-    else grid(300, 300);
+    } else grid(300, 300);
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
     texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter;
