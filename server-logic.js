@@ -5067,7 +5067,50 @@ function generateEstimatePDF() {
         total += installPrice;
         tableRows.push({ name: '🔧 Установка', desc: 'Монтаж', price: installPrice });
     }
-    let screenshotFront = '', screenshotBack = '', screenshotSide = '', screenshotTop = '', screenshotSteleFront = '', screenshotSteleBack = '';
+    let screenshotFront = '', screenshotBack = '', screenshotSide = '', screenshotTop = '';
+    const monumentPrintViews = [];
+    function captureObjectView(objectGroup, angle, upperDetail = false) {
+        if (!objectGroup || !objectGroup.isObject3D) return '';
+        const visibility = [];
+        const candidates = [window.monumentGroup, ...(window.multiMonumentManager?.monuments || []).map(item => item.group)].filter(Boolean);
+        candidates.forEach(item => {
+            visibility.push([item, item.visible]);
+            item.visible = item === objectGroup;
+        });
+        const savedPos = camera.position.clone();
+        const savedTarget = controls.target.clone();
+        const savedZoom = camera.zoom;
+        try {
+            objectGroup.updateWorldMatrix(true, true);
+            const bounds = new THREE.Box3().setFromObject(objectGroup);
+            if (bounds.isEmpty()) return '';
+            const size = bounds.getSize(new THREE.Vector3());
+            const center = bounds.getCenter(new THREE.Vector3());
+            // Для общего вида оставляем весь памятник с цветником/плитой;
+            // детальный кадр фокусируется на стеле, но не обрезает её верх.
+            const target = center.clone();
+            if (upperDetail) target.y = bounds.min.y + size.y * 0.67;
+            const framingBounds = bounds.clone();
+            if (upperDetail) framingBounds.min.y = bounds.min.y + size.y * 0.34;
+            const fit = getEstimateCameraFit(framingBounds);
+            const distance = fit.distance * (upperDetail ? 0.82 : 1.08);
+            const rad = angle * Math.PI / 180;
+            const elevation = Math.max(0.28, size.y * (upperDetail ? 0.22 : 0.16));
+            camera.position.set(target.x + Math.sin(rad) * distance, target.y + elevation, target.z + Math.cos(rad) * distance);
+            controls.target.copy(target);
+            controls.update();
+            renderer.render(scene, camera);
+            return renderer.domElement.toDataURL('image/jpeg', 0.9);
+        } finally {
+            camera.position.copy(savedPos);
+            controls.target.copy(savedTarget);
+            camera.zoom = savedZoom;
+            camera.updateProjectionMatrix();
+            controls.update();
+            visibility.forEach(([item, visible]) => { item.visible = visible; });
+            renderer.render(scene, camera);
+        }
+    }
     try {
         const distance = 7.0;
         const height = 2.8;
@@ -5085,12 +5128,23 @@ function generateEstimatePDF() {
         camera.position.copy(savedPos);
         controls.target.copy(savedTarget);
         controls.update();
-        const steleHeight = state.height || 1.2;
-        const targetY = steleHeight / 2 + 0.2;
-        const closeDistance = 1.8;
-        const closeHeight = targetY + 0.1;
-        screenshotSteleFront = makeScreenshot(0, closeHeight, closeDistance, targetY, false);
-        screenshotSteleBack = makeScreenshot(180, closeHeight, closeDistance, targetY, false);
+
+        const manager = window.multiMonumentManager;
+        const objects = [{ group: window.monumentGroup, label: 'Памятник 1' }];
+        (manager?.monuments || []).forEach((item, index) => {
+            if (item?.group) objects.push({ group: item.group, label: `Памятник ${index + 2}` });
+        });
+        objects.forEach((item, index) => {
+            const frontAssembly = captureObjectView(item.group, 0, false);
+            const backAssembly = captureObjectView(item.group, 180, false);
+            const frontStele = captureObjectView(item.group, 0, true);
+            monumentPrintViews.push({
+                label: item.label || `Памятник ${index + 1}`,
+                frontAssembly,
+                backAssembly,
+                frontStele
+            });
+        });
     } catch(e) {
         console.warn('Ошибка создания скриншотов:', e);
     }
@@ -5211,11 +5265,15 @@ function generateEstimatePDF() {
         ${screenshotBack ? `<div class="screenshot-box"><img src="${screenshotBack}"><div class="caption">📷 Вид сзади</div></div>` : ''}
         ${screenshotTop ? `<div class="screenshot-box screenshot-box-top"><img src="${screenshotTop}"><div class="caption">📷 Вид сверху</div></div>` : ''}
     </div>
-    <div class="screenshots-stele">
-        <div class="stele-title"><span>🔍 Крупный план стелы</span></div>
-        ${screenshotSteleFront ? `<div class="screenshot-box screenshot-box-stele"><img src="${screenshotSteleFront}"><div class="caption">📷 Стела (вид спереди)</div></div>` : ''}
-        ${screenshotSteleBack ? `<div class="screenshot-box screenshot-box-stele"><img src="${screenshotSteleBack}"><div class="caption">📷 Стела (вид сзади)</div></div>` : ''}
-    </div>
+    ${monumentPrintViews.length ? monumentPrintViews.map((view, index) => `
+    <div class="screenshots-stele" style="page-break-inside:avoid;margin-top:24px;">
+        <div class="stele-title"><span>🪦 ${escapeHTML(view.label)} — стела и цветник / надгробная плита</span></div>
+        <div class="screenshots-2">
+            ${view.frontAssembly ? `<div class="screenshot-box screenshot-box-stele"><img src="${view.frontAssembly}"><div class="caption">Весь памятник спереди</div></div>` : ''}
+            ${view.backAssembly ? `<div class="screenshot-box screenshot-box-stele"><img src="${view.backAssembly}"><div class="caption">Весь памятник сзади</div></div>` : ''}
+        </div>
+        ${view.frontStele ? `<div class="screenshot-box screenshot-box-stele" style="width:100%;max-width:760px;margin:12px auto;"><img src="${view.frontStele}" style="width:100%;max-height:620px;object-fit:contain;"><div class="caption">Стела крупным планом — лицевая сторона</div></div>` : ''}
+    </div>`).join('') : ''}
     <div class="section">
         <div class="section-title">💰 Стоимость</div>
         <table class="price-table">
