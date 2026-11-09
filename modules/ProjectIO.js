@@ -1611,98 +1611,6 @@ export class ProjectIO {
 
 
     // ============================================================
-    // ВОССТАНОВЛЕНИЕ МЕБЕЛИ И ВАЗ ИЗ СОХРАНЁННЫХ ДАННЫХ
-    // ============================================================
-
-    async waitForAccessoryManagers(timeoutMs = 6000) {
-        const started = Date.now();
-        while (Date.now() - started < timeoutMs) {
-            if (window.furniture3DManager && window.vasesManager) return true;
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        return !!(window.furniture3DManager && window.vasesManager);
-    }
-
-    async restoreAccessories(data) {
-        const furnitureRows = Array.isArray(data.furniture) ? data.furniture : [];
-        const vaseRows = Array.isArray(data.vases) ? data.vases : [];
-
-        this.state.savedFurniture = this.cloneData(furnitureRows);
-        this.state.savedVases = this.cloneData(vaseRows);
-
-        if (furnitureRows.length || vaseRows.length) {
-            await this.waitForAccessoryManagers();
-        }
-
-        const furnitureManager = window.furniture3DManager;
-        if (furnitureManager) {
-            furnitureManager.clearAll?.();
-            for (const saved of furnitureRows) {
-                const x = Number(saved.x) || 0;
-                const z = Number(saved.z) || 0;
-                const rotation = Number(saved.rotation) || 0;
-                const scale = Number(saved.scale) > 0 ? Number(saved.scale) : 1;
-                let created = null;
-                switch (saved.type) {
-                    case 'table':
-                        created = await furnitureManager.placeTable(x, z, rotation, scale);
-                        break;
-                    case 'bench':
-                        created = await furnitureManager.placeBench(x, z, rotation, scale);
-                        break;
-                    case 'table_garden':
-                        created = await furnitureManager.placeTableGarden(x, z, rotation, scale);
-                        break;
-                    case 'garden_bench':
-                        created = await furnitureManager.placeGardenBench(x, z, rotation, scale);
-                        break;
-                    default:
-                        console.warn('Неизвестный тип мебели в сохранённом проекте:', saved.type);
-                }
-                if (!created) throw new Error(`Не удалось восстановить мебель: ${saved.type || 'unknown'}`);
-            }
-        } else if (furnitureRows.length) {
-            throw new Error('Менеджер мебели не инициализирован: невозможно восстановить сохранённую мебель');
-        }
-
-        const vasesManager = window.vasesManager;
-        if (vasesManager) {
-            vasesManager.clearAll?.();
-            if (vasesManager.ready && typeof vasesManager.ready.then === 'function') {
-                await vasesManager.ready;
-            } else if (Object.keys(vasesManager.vasesConfig || {}).length === 0 &&
-                typeof vasesManager.loadVasesConfig === 'function') {
-                await vasesManager.loadVasesConfig();
-            }
-            for (const saved of vaseRows) {
-                const vaseType = saved.type || saved.vaseType || 'vase1';
-                const material = saved.material || 'marble';
-                vasesManager.vaseMaterial = material;
-                const created = await vasesManager.addVase(
-                    vaseType,
-                    Number(saved.x) || 0,
-                    Number(saved.z) || 0,
-                    Number(saved.scale) > 0 ? Number(saved.scale) : 1
-                );
-                if (!created) throw new Error(`Не удалось восстановить вазу: ${vaseType}`);
-                const rotation = Number(saved.rotation);
-                if (Number.isFinite(rotation)) {
-                    created.rotation = rotation;
-                    created.group.rotation.y = rotation;
-                    created.group.userData.rotation = rotation;
-                }
-                created.material = material;
-                created.group.userData.material = material;
-            }
-        } else if (vaseRows.length) {
-            throw new Error('Менеджер ваз не инициализирован: невозможно восстановить сохранённые вазы');
-        }
-
-        console.log(`♻️ Аксессуары восстановлены: мебель=${furnitureManager?.furniture?.length || 0}, вазы=${vasesManager?.vases?.length || 0}`);
-    }
-
-
-    // ============================================================
     // ЗАГРУЗКА ФАЙЛА
     // ============================================================
 
@@ -2122,12 +2030,6 @@ export class ProjectIO {
                     window._disableAutoMonument = true;
                     window._forceMainUpdate = true;
 
-                    // Убираем предыдущий GLB-режим ДО восстановления параметрического проекта,
-                    // иначе менеджеры аксессуаров останутся привязаны к временной модели.
-                    if (!data.glbProject && window.glbImportManager?.assets?.size) {
-                        window.glbImportManager.removeAllImported(true);
-                    }
-
                     this.updateAllUIFromState();
                     if (typeof window.refreshBurialRecordsUI === 'function') {
                         window.refreshBurialRecordsUI();
@@ -2228,9 +2130,19 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 10. ВОССТАНАВЛИВАЕМ МЕБЕЛЬ И ВАЗЫ В 3D-СЦЕНЕ
+                    // 10. МЕБЕЛЬ / ВАЗЫ
+                    //
+                    // Сохраняем данные аксессуаров в state. Их менеджеры
+                    // управляют созданием объектов в обычном конструкторе.
                     // ==================================================
-                    await this.restoreAccessories(data);
+
+                    if (Array.isArray(data.furniture)) {
+                        this.state.savedFurniture = this.cloneData(data.furniture);
+                    }
+
+                    if (Array.isArray(data.vases)) {
+                        this.state.savedVases = this.cloneData(data.vases);
+                    }
 
 
                     // ==================================================
@@ -2251,14 +2163,6 @@ export class ProjectIO {
                     // ==================================================
                     // 12. CALLBACK
                     // ==================================================
-
-                    if (data.glbProject && window.glbImportManager?.restoreProjectSnapshot) {
-                        await window.glbImportManager.restoreProjectSnapshot(data.glbProject);
-                    } else if (window.glbImportManager?.assets?.size) {
-                        // Обычный параметрический проект не должен наследовать GLB
-                        // от ранее открытого проекта.
-                        window.glbImportManager.removeAllImported(true);
-                    }
 
                     if (
                         typeof this.onLoadCallback ===
