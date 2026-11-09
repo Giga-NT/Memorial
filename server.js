@@ -3,13 +3,13 @@
 // ============================================
 require('dotenv').config();
 
-// Проверяем, что критичные переменные загружены
+// Секреты берутся только из окружения. Встроенных паролей и почтовых ключей нет.
 if (!process.env.ADMIN_PASSWORD) {
-    console.warn('⚠️ ADMIN_PASSWORD не задан в .env! Используется значение по умолчанию.');
+    console.warn('⚠️ ADMIN_PASSWORD не задан. Если администратор ещё не создан, запуск остановится.');
 }
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('⚠️ EMAIL не настроен в .env! Отправка писем не будет работать.');
+    console.warn('⚠️ EMAIL_USER/EMAIL_PASS не заданы. Отправка писем отключена.');
 }
 
 const express = require('express');
@@ -27,10 +27,10 @@ const app = express();
 // КОНСТАНТЫ ИЗ .ENV
 // ============================================
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-const EMAIL_USER = process.env.EMAIL_USER || 'gipsogen2008@gmail.com';
-const EMAIL_PASS = process.env.EMAIL_PASS || 'yzhv gyam rbai rune';
+const EMAIL_USER = process.env.EMAIL_USER || '';
+const EMAIL_PASS = process.env.EMAIL_PASS || '';
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'storage', 'database.db');
 
@@ -152,8 +152,8 @@ app.use(compression({
     threshold: 1024
 }));
 
-// JSON лимит
-app.use(express.json({ limit: '50mb' }));
+// Ограничиваем размер JSON-тела, чтобы один запрос не мог занять чрезмерно много памяти.
+app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
 // ============================================
@@ -231,6 +231,38 @@ async function downloadThreeJS() {
 
 // Запускаем скачивание
 downloadThreeJS().catch(console.error);
+
+// Не публикуем внутренние каталоги и файлы через корневую раздачу статики.
+app.use((req, res, next) => {
+    let requestPath;
+    try {
+        requestPath = decodeURIComponent(req.path || '/');
+    } catch (error) {
+        return res.status(400).end();
+    }
+
+    const normalizedPath = path.posix.normalize(requestPath).toLowerCase();
+    const segments = normalizedPath.split('/').filter(Boolean);
+    const blockedDirectories = new Set([
+        'storage', 'data', 'tests', '.git', 'node_modules', 'blender'
+    ]);
+    const blockedFiles = new Set([
+        '.env', '.env.local', '.env.production',
+        'database.db', 'fake_admin.txt', 'audit_report.html',
+        'security_report.json', 'server.js', 'models.py', 'dast.py'
+    ]);
+    const fileName = segments[segments.length - 1] || '';
+    const hasBlockedDirectory = segments.some(segment => blockedDirectories.has(segment));
+    const hasBlockedFile = blockedFiles.has(fileName) ||
+        /\\.(?:db|sqlite|sqlite3|log|backup|bak)$/i.test(fileName) ||
+        /^package(?:-lock)?\\.json$/i.test(fileName);
+
+    if (hasBlockedDirectory || hasBlockedFile) {
+        return res.status(404).end();
+    }
+
+    next();
+});
 
 // Статика с кэшированием
 app.use(express.static(__dirname, {
@@ -1002,6 +1034,10 @@ async function createInitialAdmin() {
 
     if (!admin) {
 
+        if (!ADMIN_PASSWORD) {
+            throw new Error('ADMIN_PASSWORD обязателен для первичного создания администратора. Задайте его в .env.');
+        }
+
         console.log(
             `👤 Создание администратора: ${ADMIN_LOGIN}`
         );
@@ -1082,6 +1118,10 @@ async function resetAdminPasswordIfRequested() {
         return;
     }
 
+
+    if (!ADMIN_PASSWORD) {
+        throw new Error('ADMIN_PASSWORD обязателен при ADMIN_RESET_PASSWORD=true.');
+    }
 
     const passwordHash =
         await hashPassword(
@@ -1555,8 +1595,17 @@ async function requireAdmin(req, res, next) {
 // API: ADMIN LOGIN
 // ============================================
 
+const adminLoginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Слишком много попыток входа. Повторите позже.' }
+});
+
 app.post(
     '/api/admin/login',
+    adminLoginLimiter,
     async (req, res) => {
 
         try {
@@ -1629,6 +1678,7 @@ app.post(
                     'HttpOnly',
                     'SameSite=Lax',
                     'Path=/',
+                    ...(process.env.NODE_ENV === 'production' ? ['Secure'] : []),
                     `Max-Age=${ADMIN_SESSION_DAYS * 24 * 60 * 60}`
                 ].join('; ')
             );
@@ -3207,6 +3257,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📍 Главная: http://localhost:${PORT}/`);
     console.log(`🔐 Админка: http://localhost:${PORT}/admin`);
     console.log(`📡 API: http://localhost:${PORT}/api/prices`);
-    console.log(`🔑 Пароль админа: ${ADMIN_PASSWORD}`);
     console.log(`📦 Кэш памяти: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}MB`);
 });
