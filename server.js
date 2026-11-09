@@ -2374,11 +2374,14 @@ app.post('/api/admin/material-prices', requireAdmin, async (req, res) => {
     }
     try {
         await dbRun('BEGIN TRANSACTION');
-        await dbRun('DELETE FROM material_price_rows');
+        // Сохраняем каталог добавлением/обновлением строк: отсутствие строки в форме
+        // не должно удалять другие типоразмеры и цены из общей базы.
         for (const row of normalized) {
             await dbRun(`INSERT INTO material_price_rows
                 (material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+                DO UPDATE SET price = excluded.price, updated_at = CURRENT_TIMESTAMP`,
             [row.material,row.product,row.width_mm,row.height_mm,row.depth_mm,row.thickness_mm,row.finish,row.price]);
         }
         await dbRun('COMMIT');
