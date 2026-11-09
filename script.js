@@ -2934,14 +2934,18 @@ function createSlabTexture(format, tileType, jointColor) {
         }
     };
     if (format === 'old_city') {
-        // Классический модуль 1200×1200: 600×400, 400×400, 400×200 и 200×200.
+        // Классический модуль 1200×1200 мм: 2 плиты 600×400,
+        // 3 плиты 400×400 и 6 плит 400×200. Укладка без перекрытий.
         const u = 200 * px;
-        const patterns = [
-            [[0,0,3,2],[3,0,3,2],[0,2,2,4],[2,2,4,1],[2,3,4,3]],
-            [[0,0,2,2],[2,0,4,2],[0,2,3,4],[3,2,3,1],[3,3,3,3]]
+        const tiles = [
+            [0,0,3,2], [3,0,3,2],
+            [0,2,2,1], [2,2,2,1], [4,2,2,1],
+            [0,3,2,1], [2,3,2,1], [4,3,2,1],
+            [0,4,2,2], [2,4,2,2], [4,4,2,2]
         ];
-        const tiles = patterns[0];
-        tiles.forEach((t, i) => paintTile(t[0]*u, t[1]*u, t[2]*u, t[3]*u, i+1));
+        tiles.forEach((tile, index) => {
+            paintTile(tile[0] * u, tile[1] * u, tile[2] * u, tile[3] * u, index + 1);
+        });
     } else if (format === 'stone') {
         // Камень природной формы: соседние ячейки Вороного имеют общие, неразорванные швы.
         const count = 4, step = size / count, points = [];
@@ -5505,7 +5509,7 @@ function buildPriceBreakdown() {
                 square300: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 },
                 square500: { width_mm: 500, height_mm: 500, depth_mm: 50, thickness_mm: 50 },
                 rectangle: { width_mm: 200, height_mm: 100, depth_mm: 60, thickness_mm: 60 },
-                old_city: { width_mm: 300, height_mm: 300, depth_mm: 60, thickness_mm: 60 },
+                old_city: { width_mm: 1200, height_mm: 1200, depth_mm: 60, thickness_mm: 60 },
                 stone: { width_mm: 300, height_mm: 300, depth_mm: 50, thickness_mm: 50 }
             };
             const tileDimensions = surfaceType === 'slab'
