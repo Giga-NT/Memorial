@@ -3044,17 +3044,34 @@ app.post('/api/order', async (req, res) => {
     // ============================================================
     // 5. ГЕНЕРИРУЕМ PDF
     // ============================================================
+    let pdfBrowser = null;
     try {
         const puppeteer = require('puppeteer');
-        const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-        const page = await browser.newPage();
+        pdfBrowser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+        const page = await pdfBrowser.newPage();
         await page.setContent(htmlContent);
         await page.pdf({ path: fullPdfPath, format: 'A4', margin: { top: '20px', bottom: '20px' } });
-        await browser.close();
+        await pdfBrowser.close();
+        pdfBrowser = null;
         console.log(`✅ PDF смета создана: ${pdfFileName}`);
     } catch (error) {
         console.error('❌ Ошибка генерации PDF:', error);
-        return res.status(500).json({ success: false, message: 'Ошибка генерации PDF' });
+        if (pdfBrowser) {
+            try { await pdfBrowser.close(); } catch (closeError) {
+                console.error('❌ Ошибка закрытия браузера PDF:', closeError);
+            }
+        }
+        // JSON проекта уже записан: не сообщаем клиенту, будто заявка потеряна.
+        return res.status(200).json({
+            success: true,
+            filesSaved: true,
+            jsonSaved: true,
+            pdfCreated: false,
+            emailSent: false,
+            projectName,
+            fileName: `project_${projectName.replace(/\\s+/g, '_')}_${timestamp}.json`,
+            message: 'Заявка и JSON проекта сохранены, но PDF сформировать не удалось. Мы свяжемся с вами.'
+        });
     }
     
     // ============================================================
