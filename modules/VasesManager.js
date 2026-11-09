@@ -38,7 +38,7 @@ export class VasesManager {
         this.highlightColor = 0x00ff88;
         this.originalColors = new Map();
         
-        this.loadVasesConfig();
+        this.ready = this.loadVasesConfig();
         this.bindEvents();
     }
     
