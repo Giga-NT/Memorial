@@ -1308,10 +1308,12 @@ export function createPavingTexture(
                 const b =
                     ((j % periods) + periods) % periods;
 
+                // Диагональная укладка поворачивает прямоугольный камень,
+                // а не превращает его в квадрат.
                 paintStone(
-                    i * diamondPx + jointPx / 2,
+                    i * diamondPx * 2 + jointPx / 2,
                     j * diamondPx + jointPx / 2,
-                    diamondPx - jointPx,
+                    diamondPx * 2 - jointPx,
                     diamondPx - jointPx,
                     brightnessFor(a, b)
                 );
