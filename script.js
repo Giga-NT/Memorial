@@ -4870,7 +4870,9 @@ function buildPriceBreakdown() {
             const d = match?.dimensions || Object.fromEntries(
                 Object.entries(dimensions).map(([key,value]) => [key, roundDimensionUp100(value)])
             );
-            missingCatalogPrices.push(`${name}: ${material}, ${d.width_mm || 0}×${d.height_mm || 0}×${d.depth_mm || 0} мм, толщина ${d.thickness_mm || 0} мм${finish ? ', ' + finish : ''}`);
+            const missingMaterialLabel = materialPriceLabels[material] || 'Материал';
+            const missingFinishLabel = catalogFinishLabels[finish] || finish;
+            missingCatalogPrices.push(`${name}: ${missingMaterialLabel}, ${d.width_mm || 0}×${d.height_mm || 0}×${d.depth_mm || 0} мм${missingFinishLabel ? ', ' + missingFinishLabel : ''}`);
             return 0;
         }
         const amount = match.price * count;
