@@ -82,9 +82,10 @@ function disposeObject(root) {
 }
 
 export class GLBImportManager {
-    constructor({ scene, camera, domElement, orbitControls, onToast }) {
+    constructor({ scene, camera, domElement, orbitControls, onToast, onActiveModel }) {
         this.scene = scene;
         this.onToast = onToast || (() => {});
+        this.onActiveModel = typeof onActiveModel === 'function' ? onActiveModel : () => {};
         this.loader = new GLTFLoader();
         this.assets = new Map();
         this.activeId = null;
@@ -172,6 +173,7 @@ export class GLBImportManager {
             pivot.userData.glbImportedAsset = true;
             pivot.add(model);
             this.scene.add(pivot);
+            this.onActiveModel(pivot);
 
             const id = `glb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             this.assets.set(id, { id, name: file.name, pivot, meshTargets });
@@ -302,7 +304,10 @@ export class GLBImportManager {
             partSelect.appendChild(option);
         }
 
-        if (restoreScene) this.restoreOriginalScene();
+        if (restoreScene) {
+            this.onActiveModel(null);
+            this.restoreOriginalScene();
+        }
         window.calculatePrice?.();
     }
 
