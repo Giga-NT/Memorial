@@ -4678,6 +4678,12 @@ function findMaterialPrice(product, material, dimensions = {}, finish = '') {
             (Number(row.width_mm) === 200 && Number(row.height_mm) === 100)
         ))
     );
+    if (product === 'tile' && candidates.length > 0) {
+        const uniquePrices = [...new Set(candidates.map(row => Number(row.price)))];
+        return uniquePrices.length === 1
+            ? { price: uniquePrices[0], dimensions: { ...target, width_mm: 200, height_mm: 200 } }
+            : null;
+    }
     return candidates.length === 1 ? { price: Number(candidates[0].price), dimensions: target } : null;
 }
 
