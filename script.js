@@ -5359,6 +5359,13 @@ function buildPriceBreakdown() {
         photoTotal
     );
 
+    const importedGlbCount = Number(window.glbImportManager?.assets?.size) || 0;
+    if (importedGlbCount > 0) {
+        missingCatalogPrices.push(
+            `Импортированные GLB-модели (${importedGlbCount} шт.) не включены в смету: для них не настроена цена`
+        );
+    }
+
     const decorations = Array.isArray(state.decorations) ? state.decorations : [];
     if (decorations.length) {
         const labels = decorations.map((item, index) => {
