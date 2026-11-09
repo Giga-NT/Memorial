@@ -155,7 +155,8 @@ export class ProjectIO {
             'curbGateOpeningEnabled',
             'flowerEnabled',
             'showFurniture',
-            'showVases'
+            'showVases',
+            'includeDuplicatorsInPrice'
         ];
 
         checkboxFields.forEach(id => {
