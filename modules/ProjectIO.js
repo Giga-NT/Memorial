@@ -1630,7 +1630,9 @@ export class ProjectIO {
         this.state.savedFurniture = this.cloneData(furnitureRows);
         this.state.savedVases = this.cloneData(vaseRows);
 
-        await this.waitForAccessoryManagers();
+        if (furnitureRows.length || vaseRows.length) {
+            await this.waitForAccessoryManagers();
+        }
 
         const furnitureManager = window.furniture3DManager;
         if (furnitureManager) {
@@ -1660,7 +1662,7 @@ export class ProjectIO {
                 if (!created) throw new Error(`Не удалось восстановить мебель: ${saved.type || 'unknown'}`);
             }
         } else if (furnitureRows.length) {
-            console.warn('Менеджер мебели не готов: мебель сохранена в данных проекта, но не создана в сцене');
+            throw new Error('Менеджер мебели не инициализирован: невозможно восстановить сохранённую мебель');
         }
 
         const vasesManager = window.vasesManager;
@@ -1691,7 +1693,7 @@ export class ProjectIO {
                 created.group.userData.material = material;
             }
         } else if (vaseRows.length) {
-            console.warn('Менеджер ваз не готов: вазы сохранены в данных проекта, но не созданы в сцене');
+            throw new Error('Менеджер ваз не инициализирован: невозможно восстановить сохранённые вазы');
         }
 
         console.log(`♻️ Аксессуары восстановлены: мебель=${furnitureManager?.furniture?.length || 0}, вазы=${vasesManager?.vases?.length || 0}`);
@@ -2117,6 +2119,13 @@ export class ProjectIO {
                     window._isLoadingProject = true;
                     window._disableAutoMonument = true;
                     window._forceMainUpdate = true;
+
+                    // Убираем предыдущий GLB-режим ДО восстановления параметрического проекта,
+                    // иначе менеджеры аксессуаров останутся привязаны к временной модели.
+                    if (!data.glbProject && window.glbImportManager?.assets?.size) {
+                        window.glbImportManager.removeAllImported(true);
+                    }
+
                     this.updateAllUIFromState();
                     if (typeof window.refreshBurialRecordsUI === 'function') {
                         window.refreshBurialRecordsUI();
