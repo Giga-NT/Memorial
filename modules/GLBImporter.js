@@ -285,6 +285,43 @@ export class GLBImportManager {
         if (target?.object) this.transform.attach(target.object);
     }
 
+    async getProjectSnapshot() {
+        const item = this.assets.get(this.activeId);
+        if (!item) return null;
+        const result = await exportObjectsToGLB(item.pivot);
+        const bytes = new Uint8Array(await result.blob.arrayBuffer());
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+            binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+        }
+        return {
+            format: 'glb-project-asset',
+            version: 1,
+            fileName: item.name,
+            mimeType: 'model/gltf-binary',
+            dataBase64: btoa(binary),
+            byteLength: bytes.length
+        };
+    }
+
+    async restoreProjectSnapshot(snapshot) {
+        if (!snapshot || snapshot.format !== 'glb-project-asset' ||
+            snapshot.version !== 1 || typeof snapshot.dataBase64 !== 'string') {
+            throw new Error('Неподдерживаемый формат GLB в проекте');
+        }
+        const binary = atob(snapshot.dataBase64);
+        if (!binary.length || binary.length > MAX_GLB_SIZE) {
+            throw new Error('Размер встроенной GLB-модели недопустим');
+        }
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const file = new File([bytes], snapshot.fileName || 'project-model.glb', {
+            type: 'model/gltf-binary'
+        });
+        await this.loadFile(file);
+    }
+
     async exportActive() {
         const item = this.assets.get(this.activeId);
         if (!item) {
