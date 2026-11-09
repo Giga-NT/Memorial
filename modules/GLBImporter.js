@@ -162,6 +162,11 @@ export class GLBImportManager {
                 });
             });
 
+            // GLB работает как временная замена сцены конструктора.
+            // Предыдущие импортированные файлы удаляем, но исходную сцену не уничтожаем.
+            this.removeAllImported(false);
+            this.hideOriginalScene();
+
             const pivot = new THREE.Group();
             pivot.name = file.name.replace(/\.glb$/i, '').slice(0, 100) || 'Импортированная GLB-модель';
             pivot.userData.glbImportedAsset = true;
@@ -251,21 +256,62 @@ export class GLBImportManager {
         }
     }
 
+    hideOriginalScene() {
+        if (this.sceneVisibilitySnapshot) return;
+        this.sceneVisibilitySnapshot = new Map();
+
+        this.scene.children.forEach(child => {
+            if (child === this.helper || child.userData?.glbImportedAsset ||
+                child.isLight || child.isCamera) return;
+            this.sceneVisibilitySnapshot.set(child, child.visible);
+            child.visible = false;
+        });
+    }
+
+    restoreOriginalScene() {
+        if (!this.sceneVisibilitySnapshot) return;
+        this.sceneVisibilitySnapshot.forEach((wasVisible, object) => {
+            if (object.parent === this.scene) object.visible = wasVisible;
+        });
+        this.sceneVisibilitySnapshot = null;
+    }
+
+    removeAllImported(restoreScene = true) {
+        this.transform.detach();
+        this.assets.forEach(item => {
+            this.scene.remove(item.pivot);
+            disposeObject(item.pivot);
+        });
+        this.assets.clear();
+        this.activeId = null;
+
+        const select = document.getElementById('glbImportedSelect');
+        if (select) {
+            select.replaceChildren();
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Нет загруженных моделей';
+            select.appendChild(placeholder);
+        }
+        const partSelect = document.getElementById('glbPartSelect');
+        if (partSelect) {
+            partSelect.replaceChildren();
+            const option = document.createElement('option');
+            option.value = '__model__';
+            option.textContent = 'Вся модель';
+            partSelect.appendChild(option);
+        }
+
+        if (restoreScene) this.restoreOriginalScene();
+        window.calculatePrice?.();
+    }
+
     removeActive() {
-        const item = this.assets.get(this.activeId);
-        if (!item) {
-            this.onToast('Сначала выберите импортированную модель', 'info');
+        if (!this.assets.size) {
+            this.onToast('Сначала загрузите GLB-модель', 'info');
             return;
         }
-        this.transform.detach();
-        this.scene.remove(item.pivot);
-        disposeObject(item.pivot);
-        this.assets.delete(item.id);
-        window.calculatePrice?.();
-        document.querySelector(`#glbImportedSelect option[value="${CSS.escape(item.id)}"]`)?.remove();
-        this.activeId = null;
-        const next = this.assets.keys().next().value;
-        if (next) this.select(next);
-        this.onToast('Импортированная модель удалена', 'success');
+        this.removeAllImported(true);
+        this.onToast('Импортированная модель удалена. Исходная сцена восстановлена.', 'success');
     }
 }
