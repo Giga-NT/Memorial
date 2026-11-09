@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
@@ -139,10 +140,10 @@ export class GLBImportManager {
             const model = gltf.scene;
             if (!model) throw new Error('В файле не найдена 3D-сцена');
 
-            const bounds = new (await import('three')).Box3().setFromObject(model);
+            const bounds = new THREE.Box3().setFromObject(model);
             if (bounds.isEmpty()) throw new Error('В GLB нет видимой геометрии');
 
-            const center = bounds.getCenter(new (await import('three')).Vector3());
+            const center = bounds.getCenter(new THREE.Vector3());
             model.position.x -= center.x;
             model.position.y -= bounds.min.y;
             model.position.z -= center.z;
@@ -153,7 +154,7 @@ export class GLBImportManager {
                 object.receiveShadow = true;
             });
 
-            const pivot = new (await import('three')).Group();
+            const pivot = new THREE.Group();
             pivot.name = file.name.replace(/\.glb$/i, '').slice(0, 100) || 'Импортированная GLB-модель';
             pivot.userData.glbImportedAsset = true;
             pivot.add(model);
