@@ -37,7 +37,6 @@ import { initDragManagers } from './modules/drag/index.js';
 import { VasesManager } from './modules/VasesManager.js';
 import { ProjectIO } from './modules/ProjectIO.js';
 import { downloadProjectAsGLB, formatFileSize } from './modules/GLBExporter.js';
-import { GLBImportManager } from './modules/GLBImporter.js';
 import { MultiMonumentManager } from './modules/multiMonumentManager.js';
 import { MonumentController } from './modules/Monument/MonumentController.js';
 import { renderSteleGrid, getPreviewUrl, selectSteleModelGrid } from './modules/previews/stelePreview.js';
@@ -5351,13 +5350,6 @@ function buildPriceBreakdown() {
         photoTotal
     );
 
-    const importedGlbCount = Number(window.glbImportManager?.assets?.size) || 0;
-    if (importedGlbCount > 0) {
-        missingCatalogPrices.push(
-            `Импортированные GLB-модели (${importedGlbCount} шт.) не включены в смету: для них не настроена цена`
-        );
-    }
-
     const decorations = Array.isArray(state.decorations) ? state.decorations : [];
     if (decorations.length) {
         const labels = decorations.map((item, index) => {
@@ -6112,31 +6104,6 @@ setTimeout(() => {
 	const projectIO = new ProjectIO(state, null);
 	window.projectIO = projectIO;
 
-    // Импорт внешних GLB-моделей с перемещением, вращением и масштабированием.
-    const glbImportManager = new GLBImportManager({
-        scene,
-        camera,
-        domElement: renderer.domElement,
-        orbitControls: controls,
-        onToast: showToast,
-        onActiveModel: (modelRoot) => {
-            const furnitureManager = initFurniture3D();
-            const vaseManager = initVasesManager();
-            if (typeof furnitureManager?.setParent === 'function') {
-                furnitureManager.setParent(modelRoot, modelRoot);
-            } else {
-                console.warn('⚠️ Furniture3DManager без setParent: мебель останется в основной сцене');
-            }
-            if (typeof vaseManager?.setParent === 'function') {
-                vaseManager.setParent(modelRoot, modelRoot);
-            } else {
-                console.warn('⚠️ VasesManager без setParent: вазы останутся в основной сцене');
-            }
-        }
-    });
-    glbImportManager.bindUI();
-    window.glbImportManager = glbImportManager;
-
     // Привязываем обработчики кнопок
     document.getElementById('saveProjectBtn')?.addEventListener('click', async () => {
         const saved = await projectIO.saveToFile();
@@ -6599,26 +6566,11 @@ if (materialSelect) {
         textureCache.invalidateFront();
         textureCache.invalidateBack();
         updateCurrentCustomSteleMaterial(state.material);
-        window.glbImportManager?.applyStoneMaterial(state.material);
         resetTileManager();
         throttledUpdate();
         calculatePrice();
     });
 }
-
-// При активной GLB-модели размерные поля управляют её габаритами,
-// а не перестраивают скрытый параметрический памятник.
-const applyActiveGlbDimensions = () => {
-    if (!window.glbImportManager?.assets?.size) return;
-    window.glbImportManager.applyDimensions(
-        parseFloat(document.getElementById('widthRange')?.value),
-        parseFloat(document.getElementById('heightRange')?.value),
-        parseFloat(document.getElementById('depthRange')?.value)
-    );
-};
-['widthRange', 'heightRange', 'depthRange'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', applyActiveGlbDimensions);
-});
 
 const isDuplicatorMode = () =>
     window.multiMonumentManager?.currentMode === 'duplicator';
