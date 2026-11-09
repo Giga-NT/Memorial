@@ -113,8 +113,14 @@ export async function createGraveSlab(params = {}) {
         modelInfo.thickness ||
         0.06;
 
+    // Ноль — корректная высота, когда надгробное основание скрыто.
+    const parsedBaseHeight = Number(params.baseHeight);
     const baseHeight =
-        Number(params.baseHeight) || 0.15;
+        params.baseHeight !== undefined &&
+        params.baseHeight !== null &&
+        Number.isFinite(parsedBaseHeight)
+            ? parsedBaseHeight
+            : 0.15;
 
     const slab =
         await loadGraveSlabModel(modelId);
