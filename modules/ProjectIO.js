@@ -1668,7 +1668,9 @@ export class ProjectIO {
         const vasesManager = window.vasesManager;
         if (vasesManager) {
             vasesManager.clearAll?.();
-            if (Object.keys(vasesManager.vasesConfig || {}).length === 0 &&
+            if (vasesManager.ready && typeof vasesManager.ready.then === 'function') {
+                await vasesManager.ready;
+            } else if (Object.keys(vasesManager.vasesConfig || {}).length === 0 &&
                 typeof vasesManager.loadVasesConfig === 'function') {
                 await vasesManager.loadVasesConfig();
             }
