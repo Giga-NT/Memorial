@@ -37,6 +37,7 @@ import { initDragManagers } from './modules/drag/index.js';
 import { VasesManager } from './modules/VasesManager.js';
 import { ProjectIO } from './modules/ProjectIO.js';
 import { downloadProjectAsGLB, formatFileSize } from './modules/GLBExporter.js';
+import { GLBImportManager } from './modules/GLBImporter.js';
 import { MultiMonumentManager } from './modules/multiMonumentManager.js';
 import { MonumentController } from './modules/Monument/MonumentController.js';
 import { renderSteleGrid, getPreviewUrl, selectSteleModelGrid } from './modules/previews/stelePreview.js';
@@ -6071,6 +6072,17 @@ setTimeout(() => {
     // ИНИЦИАЛИЗАЦИЯ МОДУЛЯ СОХРАНЕНИЯ ПРОЕКТА
 	const projectIO = new ProjectIO(state, null);
 	window.projectIO = projectIO;
+
+    // Импорт внешних GLB-моделей с перемещением, вращением и масштабированием.
+    const glbImportManager = new GLBImportManager({
+        scene,
+        camera,
+        domElement: renderer.domElement,
+        orbitControls: controls,
+        onToast: showToast
+    });
+    glbImportManager.bindUI();
+    window.glbImportManager = glbImportManager;
 
     // Привязываем обработчики кнопок
     document.getElementById('saveProjectBtn')?.addEventListener('click', () => {
