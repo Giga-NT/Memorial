@@ -254,6 +254,57 @@ export function formatFileSize(bytes) {
     return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function embedProjectMetadataInGLB(buffer, projectData) {
+    const view = new DataView(buffer);
+    if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
+        throw new Error('Не удалось добавить данные проекта: некорректный GLB');
+    }
+    const totalLength = view.getUint32(8, true);
+    let offset = 12;
+    let jsonOffset = -1;
+    let jsonLength = 0;
+    while (offset + 8 <= totalLength) {
+        const length = view.getUint32(offset, true);
+        const type = view.getUint32(offset + 4, true);
+        if (length > totalLength - offset - 8) throw new Error('Повреждён блок GLB');
+        if (type === 0x4e4f534a) {
+            jsonOffset = offset + 8;
+            jsonLength = length;
+            break;
+        }
+        offset += 8 + length;
+    }
+    if (jsonOffset < 0) throw new Error('В GLB не найден JSON-блок');
+    const gltfJson = JSON.parse(new TextDecoder().decode(
+        new Uint8Array(buffer, jsonOffset, jsonLength)
+    ).trim());
+    const safeProject = JSON.parse(JSON.stringify(projectData));
+    gltfJson.asset = gltfJson.asset || { version: '2.0' };
+    gltfJson.asset.extras = gltfJson.asset.extras || {};
+    gltfJson.asset.extras.memorialProject = {
+        format: 'GigaNT-Memorial-Project',
+        version: 1,
+        project: safeProject
+    };
+    const encoded = new TextEncoder().encode(JSON.stringify(gltfJson));
+    const paddedLength = Math.ceil(encoded.length / 4) * 4;
+    const jsonChunk = new Uint8Array(paddedLength);
+    jsonChunk.set(encoded);
+    jsonChunk.fill(0x20, encoded.length);
+    const chunkHeaderOffset = jsonOffset - 8;
+    const before = new Uint8Array(buffer, 0, chunkHeaderOffset);
+    const after = new Uint8Array(buffer, jsonOffset + jsonLength, totalLength - jsonOffset - jsonLength);
+    const output = new Uint8Array(before.length + 8 + jsonChunk.length + after.length);
+    output.set(before, 0);
+    const outView = new DataView(output.buffer);
+    outView.setUint32(before.length, paddedLength, true);
+    outView.setUint32(before.length + 4, 0x4e4f534a, true);
+    output.set(jsonChunk, before.length + 8);
+    output.set(after, before.length + 8 + paddedLength);
+    outView.setUint32(8, output.length, true);
+    return output.buffer;
+}
+
 export async function exportObjectsToGLB(objects, options = {}) {
     const roots = (Array.isArray(objects) ? objects : [objects])
         .filter(isObject3D);
@@ -317,10 +368,21 @@ export async function exportProjectToGLB(options = {}) {
     });
 
     const result = await exportObjectsToGLB(roots, options);
+    const projectData = await scope.projectIO?.saveToFile?.({ returnData: true });
+    if (!projectData || typeof projectData !== 'object') {
+        throw new Error('Не удалось собрать данные конструктора для GLB. Проверьте инициализацию ProjectIO.');
+    }
+    const embeddedBuffer = embedProjectMetadataInGLB(
+        await result.blob.arrayBuffer(),
+        projectData
+    );
+    const blob = new Blob([embeddedBuffer], { type: GLB_MIME_TYPE });
 
     return {
         ...result,
-        fileName: options.fileName || buildGLBFileName(state?.projectName)
+        blob,
+        byteLength: embeddedBuffer.byteLength,
+        fileName: options.fileName || buildGLBFileName(projectData.projectName || state?.projectName)
     };
 }
 
