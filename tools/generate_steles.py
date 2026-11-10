@@ -31,7 +31,7 @@ BEVEL = 0.006
 def reset_scene():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablocks in (bpy.data.meshes, bpy.data.curves):
         for block in list(datablocks):
             if block.users == 0:
                 datablocks.remove(block)
