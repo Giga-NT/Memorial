@@ -1638,7 +1638,7 @@ document.addEventListener('contextmenu', event => event.preventDefault());
      fence:['fenceEnabled','curbVisible']
    };
    toggles.forEach(t=>{
-     const section=document.querySelector('.customer-module-section[data-module="'+t.dataset.moduleToggle+'"]');
+     const section=document.querySelector('.accordion-section[data-module="'+t.dataset.moduleToggle+'"]');
      if(section)section.hidden=!t.checked;
      if(!t.checked){
        (disableControls[t.dataset.moduleToggle]||[]).forEach(id=>{
