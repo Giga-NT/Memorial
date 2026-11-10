@@ -6,7 +6,7 @@ Blender 4.x/5.x:
   blender --background --python tools/generate_steles.py
 
 Результат:
-  models/generated/F10.glb ... F36.glb
+  models/generated/F40.glb ... F59.glb (новая партия)
   models/generated/models-list.generated.json
 
 Каждая GLB содержит отдельные объекты: стела, верхняя/нижняя база,
@@ -103,10 +103,22 @@ def outline(kind, w, h):
         "scroll": [(-a,0),(-a,h*.72),(-a*.92,h*.83),(-a*.72,h*.92),(-a*.48,h*.90),(-a*.42,h*.98),(0,h),(a*.42,h*.98),(a*.48,h*.90),(a*.72,h*.92),(a*.92,h*.83),(a,h*.72),(a,0)],
         "baroque": [(-a,0),(-a,h*.70),(-a*.90,h*.78),(-a*.78,h*.88),(-a*.58,h*.86),(-a*.48,h*.96),(-a*.22,h*.93),(0,h),(a*.22,h*.93),(a*.48,h*.96),(a*.58,h*.86),(a*.78,h*.88),(a*.90,h*.78),(a,h*.70),(a,0)],
         "asymmetric": [(-a,0),(-a,h*.72),(-a*.92,h*.83),(-a*.65,h*.94),(-a*.25,h),(a*.20,h*.97),(a*.56,h*.88),(a*.86,h*.82),(a,h*.70),(a,0)],
+        "chinese_41": [(-a,0),(-a,h*.72),(-a*.94,h*.86),(-a*.88,h*.97),(-a*.48,h),(0,h*.96),(a*.48,h*.99),(a*.88,h*.90),(a,h*.76),(a,h*.68),(a*.92,h*.48),(a*.95,h*.18),(a*.84,0)],
+        "chinese_42": [(-a,0),(-a,h*.72),(-a*.94,h*.83),(-a*.92,h*.97),(-a*.55,h*.99),(0,h*.93),(a*.50,h*.99),(a*.94,h*.94),(a,h*.78),(a,h*.30),(a*.92,.04*h)],
+        "chinese_48": [(-a,0),(-a,h*.72),(-a*.95,h*.84),(-a*.92,h*.97),(-a*.55,h),(0,h*.94),(a*.52,h*.99),(a*.94,h*.90),(a,h*.74),(a,h*.22),(a*.88,0)],
+        "chinese_49": [(-a,0),(-a,h*.72),(-a*.94,h*.80),(-a*.84,h*.91),(-a*.60,h*.90),(-a*.42,h*.98),(-a*.18,h*.95),(0,h),(a*.18,h*.95),(a*.42,h*.98),(a*.60,h*.90),(a*.84,h*.91),(a*.94,h*.80),(a,h*.72),(a,0)],
+        "chinese_53": [(-a,0),(-a,h*.20),(-a*.86,h*.32),(-a*.70,h*.42),(-a*.88,h*.54),(-a*.94,h*.76),(-a*.60,h*.88),(-a*.18,h*.94),(a*.28,h),(a*.78,h*.92),(a,h*.76),(a*.82,h*.54),(a*.72,h*.30),(a*.92,h*.16),(a,0)],
+        "chinese_55": [(-a,0),(-a,h*.18),(-a*.90,h*.34),(-a,h*.58),(-a*.72,h*.76),(-a*.30,h*.94),(a*.10,h),(a*.64,h*.94),(a,h*.78),(a*.86,h*.48),(a*.90,h*.18),(a,0)],
+        "chinese_56": [(-a,0),(-a,h*.22),(-a*.92,h*.40),(-a*.78,h*.60),(-a*.94,h*.76),(-a*.62,h*.96),(-a*.15,h),(a*.35,h*.96),(a*.88,h*.88),(a,h*.70),(a*.86,h*.50),(a,h*.32),(a*.90,h*.14),(a,0)],
+        "chinese_57": [(-a,0),(-a,h*.20),(-a*.90,h*.38),(-a*.80,h*.62),(-a*.95,h*.82),(-a*.56,h*.98),(0,h*.94),(a*.52,h),(a*.88,h*.84),(a*.78,h*.62),(a,h*.42),(a*.92,h*.18),(a,0)],
+        "chinese_58": [(-a,0),(-a,h*.20),(-a*.94,h*.40),(-a*.82,h*.60),(-a*.94,h*.78),(-a*.60,h*.96),(-a*.18,h),(a*.22,h*.98),(a*.88,h*.82),(a*.78,h*.58),(a*.94,h*.34),(a*.84,h*.14),(a,0)],
+        "cross": [(-a*.25,0),(-a*.40,h*.12),(-a*.42,h*.32),(-a*.20,h*.38),(-a*.20,h*.55),(-a,h*.55),(-a,h*.68),(-a*.20,h*.68),(-a*.20,h*.83),(-a*.43,h*.83),(-a*.43,h*.94),(-a*.20,h*.94),(-a*.20,h),(a*.20,h),(a*.20,h*.94),(a*.43,h*.94),(a*.43,h*.83),(a*.20,h*.83),(a*.20,h*.68),(a,h*.68),(a,h*.55),(a*.20,h*.55),(a*.20,h*.38),(a*.42,h*.32),(a*.40,h*.12),(a*.25,0)],
+        "oval": [(a*math.cos(2*math.pi*i/48), h*.5+h*.5*math.sin(2*math.pi*i/48)) for i in range(48)],
+        "heart": [(a*.5*math.sin(2*math.pi*i/64)**3, h*(.78-(.28*(.8125*math.cos(2*math.pi*i/64)-.3125*math.cos(2*math.pi*2*i/64)-.125*math.cos(2*math.pi*3*i/64)-.0625*math.cos(2*math.pi*4*i/64)))) for i in range(64)],
     }
     raw = shapes[kind]
     # Smooth only profiles without deliberate rectangular notches.
-    if kind in ("crown", "notched", "gable"):
+    if kind in ("crown", "notched", "gable", "cross"):
         return raw
     # Keep bottom corners crisp; interpolate upper outline only.
     upper = smooth_profile(raw[1:-1], 5)
@@ -189,25 +201,34 @@ def make_model(spec, stone, accent, polish):
         (width*1.045, depth*1.12, .024), polish, .004
     ))
 
-    silhouette = outline(profile, width, height)
-    body = extruded_polygon(model_id + "_Стела", silhouette, depth, stele_z, stone)
-    objects.append(body)
-
-    # Front inset: restrained dark stone panel, not a flat sticker.
-    panel_w = width * .48
-    panel_h = height * .53
-    panel_z = stele_z + height * .43
-    objects.append(bevelled_box(
-        model_id + "_Лицевая_вставка",
-        (0, -depth/2 - .003, panel_z),
-        (panel_w, .012, panel_h), accent, .006
-    ))
-    # Small polished top medallion / accent strip, independently editable.
-    objects.append(bevelled_box(
-        model_id + "_Декоративная_полоса",
-        (0, -depth/2 - .010, stele_z + height*.79),
-        (width*.22, .008, .012), polish, .003
-    ))
+    if profile.startswith("double_"):
+        head_profile = profile[len("double_"):]
+        head_w, head_h = width * .43, height * .88
+        for side, x in (("Левая", -width*.235), ("Правая", width*.235)):
+            pts = [(px + x, pz) for px, pz in outline(head_profile, head_w, head_h)]
+            objects.append(extruded_polygon(model_id + "_" + side + "_Стела", pts, depth, stele_z, stone))
+            objects.append(bevelled_box(
+                model_id + "_" + side + "_Вставка",
+                (x, -depth/2 - .003, stele_z + head_h*.43),
+                (head_w*.66, .012, head_h*.52), accent, .005
+            ))
+        objects.append(bevelled_box(
+            model_id + "_Соединительная_полоса",
+            (0, 0, stele_z + .018), (width*.88, depth*1.18, .036), polish, .005
+        ))
+    else:
+        silhouette = outline(profile, width, height)
+        objects.append(extruded_polygon(model_id + "_Стела", silhouette, depth, stele_z, stone))
+        objects.append(bevelled_box(
+            model_id + "_Лицевая_вставка",
+            (0, -depth/2 - .003, stele_z + height*.43),
+            (width*.48, .012, height*.53), accent, .006
+        ))
+        objects.append(bevelled_box(
+            model_id + "_Декоративная_полоса",
+            (0, -depth/2 - .010, stele_z + height*.79),
+            (width*.22, .008, .012), polish, .003
+        ))
 
     # Set a useful origin at ground centre for configurator placement.
     for obj in objects:
@@ -253,25 +274,25 @@ def export_glb(model_id, objects):
 # Catalog identifiers and silhouette families are based on the supplied
 # frontal catalogue sheet. Dimensions are proportional starting values.
 SPECS = [
-    ("F10", "Фигурная стела с арочным верхом", "classic_arch", .62, 1.18, .105, "standard"),
-    ("F11", "Стела с выраженными плечами", "shoulder", .64, 1.20, .105, "wide"),
-    ("F12", "Стела с короной", "crown", .62, 1.18, .11, "standard"),
-    ("F13", "Стела с волнистым верхом", "wave", .64, 1.18, .105, "standard"),
-    ("F15", "Стела с фигурным плечом", "ogee", .64, 1.20, .105, "wide"),
-    ("F18", "Стела с наклонным силуэтом слева", "slant_left", .62, 1.18, .105, "standard"),
-    ("F20", "Стела с наклонным силуэтом справа", "slant_right", .62, 1.18, .105, "standard"),
-    ("F21", "Стела с двойной волной", "double_wave", .66, 1.20, .105, "wide"),
-    ("F23", "Стела с мягким округлым верхом", "round", .62, 1.16, .105, "standard"),
-    ("F26", "Стела с фронтоном", "gable", .64, 1.18, .105, "wide"),
-    ("F27", "Стела с расширенным верхом", "flared", .64, 1.20, .11, "wide"),
-    ("F29", "Стела с уступчатой короной", "notched", .62, 1.18, .105, "standard"),
-    ("F31", "Стела с крыловидными плечами", "wing", .68, 1.20, .11, "wide"),
-    ("F32", "Стела с плавными плечами", "soft_shoulder", .64, 1.20, .105, "standard"),
-    ("F33", "Стела со смещённой короной", "offset_crown", .66, 1.20, .105, "wide"),
-    ("F34", "Стела с завитками", "scroll", .68, 1.20, .11, "wide"),
-    ("F35", "Стела с барочным верхом", "baroque", .68, 1.22, .11, "wide"),
-    ("F36", "Асимметричная фигурная стела", "asymmetric", .66, 1.20, .105, "wide"),
-]
+    ("F40", "Китайская стела с крестом", "cross", .62, 1.12, .105, "wide"),
+    ("F41", "Китайская стела с плавными плечами", "chinese_41", .64, 1.18, .105, "standard"),
+    ("F42", "Китайская стела с вогнутой короной", "chinese_42", .64, 1.18, .105, "standard"),
+    ("F42E", "Китайская стела с растительным декором", "chinese_42", .64, 1.18, .105, "standard"),
+    ("F45", "Овальная стела на фигурной опоре", "oval", .62, 1.12, .105, "standard"),
+    ("F48", "Китайская стела с мягкой короной", "chinese_48", .64, 1.18, .105, "standard"),
+    ("F48E", "Китайская стела с нижним растительным декором", "chinese_48", .64, 1.18, .105, "standard"),
+    ("F49E", "Китайская стела с зубчатой короной", "chinese_49", .62, 1.18, .105, "standard"),
+    ("F53", "Китайская стела с S-образным силуэтом", "chinese_53", .66, 1.18, .11, "wide"),
+    ("F55", "Китайская стела с крыловидным контуром", "chinese_55", .66, 1.18, .11, "wide"),
+    ("F56", "Китайская стела с боковыми уступами", "chinese_56", .66, 1.18, .11, "wide"),
+    ("F57", "Китайская стела с асимметричными плечами", "chinese_57", .66, 1.18, .11, "wide"),
+    ("F58", "Китайская стела с фигурным левым плечом", "chinese_58", .66, 1.18, .11, "wide"),
+    ("F16", "Двойная стела с прямым верхом", "double_chinese_42", .98, 1.10, .105, "wide"),
+    ("F17", "Двойная стела с прямыми коронами", "double_chinese_48", 1.02, 1.10, .105, "wide"),
+    ("F46", "Двойная стела с округлыми плечами", "double_round", 1.02, 1.08, .105, "wide"),
+    ("F54", "Двойная стела с сердцевидной формой", "double_heart", 1.02, 1.10, .105, "wide"),
+    ("F59", "Двойная стела с фигурными плечами", "double_chinese_49", 1.02, 1.08, .105, "wide"),
+
 
 
 def main():
@@ -295,7 +316,7 @@ def main():
             "modelType": "vertical",
             "rotation": "",
             "catalogReference": "pamyatnik-kupit.ru catalogue sheet",
-            "components": ["Стела", "Основание", "Постамент", "Профиль", "Лицевая вставка", "Декоративная полоса"],
+            "components": (["Две стелы", "Общее основание", "Постамент", "Соединительная полоса"] if profile.startswith("double_") else ["Стела", "Основание", "Постамент", "Профиль", "Лицевая вставка", "Декоративная полоса"]),
             "sourceNote": "Параметрическая 3D-интерпретация фронтального изображения; размеры ориентировочные."
         })
         print("GLB OK:", model_id, target.name, target.stat().st_size, "bytes")
