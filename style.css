@@ -2806,3 +2806,7 @@ hr, .divider { border-color: rgba(255,201,40,.18); }
 a { color: var(--gnt-gold-bright); }
 a:hover { color: #fff0b0; }
 ::selection { color: #111; background: var(--gnt-gold); }
+
+
+/* Hide any configurable accordion module, not only the two split-out sections */
+.accordion-section[data-module][hidden] { display: none !important; }
