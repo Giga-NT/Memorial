@@ -3,31 +3,6 @@ import * as THREE from 'three';
 
 // Константы (копируем из старого скрипта)
 const GLOBAL_SECTION_WIDTH = 0.25;
-const FENCE_POST_SIZE = 0.04; // 4 см: единый размер всех столбов
-
-function addFencePost(position, state, fenceGroup) {
-    // Не создаём повторный столб в той же точке (стык секций/ворот).
-    const key = [
-        position.x.toFixed(4),
-        position.z.toFixed(4)
-    ].join(':');
-
-    const keys = fenceGroup.userData.fencePostKeys ||
-        (fenceGroup.userData.fencePostKeys = []);
-
-    if (keys.includes(key)) return;
-    keys.push(key);
-
-    const post = new THREE.Mesh(
-        new THREE.BoxGeometry(FENCE_POST_SIZE, state.fenceHeight, FENCE_POST_SIZE),
-        fenceMaterials[state.fenceMaterial] || fenceMaterials.steel
-    );
-    post.position.set(position.x, state.fenceHeight / 2, position.z);
-    post.castShadow = true;
-    post.receiveShadow = true;
-    fenceGroup.add(post);
-}
-
 const fenceMaterials = {
     black_metal: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.6, metalness: 0.4 }),
     steel: new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.2, metalness: 0.9 })
@@ -171,8 +146,17 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
     if (totalLength < 0.3) return;
     const direction = pEnd.clone().sub(pStart).normalize();
     
-    addFencePost(pStart, state, fenceGroup);
-    addFencePost(pEnd, state, fenceGroup);
+    const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
+    leftPost.position.copy(pStart);
+    leftPost.position.y = state.fenceHeight / 2;
+    leftPost.castShadow = true;
+    fenceGroup.add(leftPost);
+    
+    const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
+    rightPost.position.copy(pEnd);
+    rightPost.position.y = state.fenceHeight / 2;
+    rightPost.castShadow = true;
+    fenceGroup.add(rightPost);
     
     // ============================================================
     // ⭐ 1. ЕСЛИ ВЫБРАНА 3D МОДЕЛЬ (11.glb)
@@ -224,39 +208,16 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
     // ⭐ 2. ЕСЛИ ВЫБРАНО ЛИТЬЁ (fence_section.glb) - ОСТАЛЬНАЯ ЛОГИКА
     // ============================================================
     if (state.fenceType === 'casting') {
-        // Ставим секции номинальной шириной 1 м.
-        // Остаток оформляем одной отдельной подрезанной по ширине секцией,
-        // а не делим всю длину на одинаковые узкие секции.
-        const nominalWidth = 1.0;
-        const fullSections = Math.floor(totalLength / nominalWidth);
-        const remainder = totalLength - fullSections * nominalWidth;
-        const sectionWidths = [];
-
-        for (let i = 0; i < fullSections; i++) {
-            sectionWidths.push(nominalWidth);
-        }
-
-        // Не создаём микроскопический остаток: добавляем его к последней секции.
-        if (remainder > 0.05) {
-            sectionWidths.push(remainder);
-        } else if (sectionWidths.length > 0) {
-            sectionWidths[sectionWidths.length - 1] += remainder;
-        } else {
-            // Короткий участок возле ворот — одна секция на всю доступную длину.
-            sectionWidths.push(totalLength);
-        }
-
-        const heightScale = state.fenceHeight / 0.5;
-        let offset = 0;
-
-        for (const sectionWidth of sectionWidths) {
-            const sectionStart = pStart.clone().add(direction.clone().multiplyScalar(offset));
-            offset += sectionWidth;
-            const sectionEnd = pStart.clone().add(direction.clone().multiplyScalar(offset));
-
+        let numSections = Math.round(totalLength / 1.0); 
+        if (numSections < 1) numSections = 1;
+        const actualSectionWidth = totalLength / numSections;
+        const heightScale = state.fenceHeight / 0.5; 
+        for (let i = 0; i < numSections; i++) {
+            const sectionStart = pStart.clone().add(direction.clone().multiplyScalar(i * actualSectionWidth));
+            const sectionEnd = pStart.clone().add(direction.clone().multiplyScalar((i + 1) * actualSectionWidth));
             placeSectionModel(sectionStart, sectionEnd, heightScale, false, state, fenceGroup);
         }
-        return;
+        return; 
     }
     
     // ============================================================
@@ -305,14 +266,31 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     
     if (halfRemaining > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup);
     else if (halfRemaining > 0.05) {
-        addFencePost(gateStartPoint, state, fenceGroup);
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
+        post.position.copy(gateStartPoint);
+        post.position.y = state.fenceHeight / 2;
+        post.castShadow = true;
+        fenceGroup.add(post);
     }
     if (halfRemaining > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup);
     else if (halfRemaining > 0.05) {
-        addFencePost(gateEndPoint, state, fenceGroup);
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
+        post.position.copy(gateEndPoint);
+        post.position.y = state.fenceHeight / 2;
+        post.castShadow = true;
+        fenceGroup.add(post);
     }
-    addFencePost(gateStartPoint, state, fenceGroup);
-    addFencePost(gateEndPoint, state, fenceGroup);
+    const gatePostGeo = new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08);
+    const gp1 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
+    gp1.position.copy(gateStartPoint);
+    gp1.position.y = state.fenceHeight / 2;
+    gp1.castShadow = true;
+    fenceGroup.add(gp1);
+    const gp2 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
+    gp2.position.copy(gateEndPoint);
+    gp2.position.y = state.fenceHeight / 2;
+    gp2.castShadow = true;
+    fenceGroup.add(gp2);
 }
 
 // ============================================================
