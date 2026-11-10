@@ -3,7 +3,7 @@ import * as THREE from 'three';
 
 // Константы (копируем из старого скрипта)
 const GLOBAL_SECTION_WIDTH = 0.25;
-const FENCE_POST_SIZE = 0.08; // 8 см: единый размер всех столбов
+const FENCE_POST_SIZE = 0.04; // 4 см: единый размер всех столбов
 
 function addFencePost(position, state, fenceGroup) {
     // Не создаём повторный столб в той же точке (стык секций/ворот).
@@ -146,10 +146,8 @@ function placeSectionModel(pStart, pEnd, heightScale, is3DModel, state, fenceGro
     });
     const midPoint = pStart.clone().add(pEnd).multiplyScalar(0.5);
     const distance = pStart.distanceTo(pEnd);
-    // fence_section.glb имеет фактическую ширину около 1.04 м по локальной оси X.
-    // Кватернион выше уже направляет локальную ось X вдоль секции.
-    const modelBaseWidth = 1.04;
-    clone.scale.set(distance / modelBaseWidth, heightScale / 1.5, 1.0);
+    const modelBaseWidth = 1.0; 
+    clone.scale.set(distance / modelBaseWidth, heightScale/1.5, 1.0);
     clone.position.copy(midPoint);
     clone.position.y = (state.fenceHeight / 4);
     const direction = new THREE.Vector3().subVectors(pEnd, pStart).normalize();
@@ -158,10 +156,8 @@ function placeSectionModel(pStart, pEnd, heightScale, is3DModel, state, fenceGro
         direction
     );
     clone.quaternion.copy(quaternion);
-    // Для casting не поворачиваем модель дополнительно на 90°:
-    // её длина уже расположена по локальной X и направлена вдоль pStart -> pEnd.
-    if (is3DModel && state.fenceType !== 'casting') {
-        clone.rotateY(Math.PI / 2);
+    if (is3DModel) {
+        clone.rotateY(Math.PI / 2); 
     }
     fenceGroup.add(clone);
 }
