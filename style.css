@@ -2966,3 +2966,100 @@ a:hover { color: #fff0b0; }
 .accordion-menu small {
     color: #aaa79e !important;
 }
+
+
+/* ============================================================
+   FINAL GOLD ACCENTS: BURIAL RECORDS + STELE MODEL PICKER
+   These components set some colors inline from JavaScript,
+   so use scoped !important overrides for their interactive states.
+   ============================================================ */
+
+/* People on stele */
+.accordion-menu .burial-panel {
+    background: #111315 !important;
+    border: 1px solid rgba(255,201,40,.28) !important;
+}
+.accordion-menu .burial-panel__title {
+    color: #ffda45 !important;
+}
+.accordion-menu .burial-panel__count {
+    background: rgba(255,201,40,.15) !important;
+    color: #ffda45 !important;
+    border: 1px solid rgba(255,201,40,.3);
+}
+.accordion-menu .burial-list::-webkit-scrollbar-thumb {
+    background: #ffc928 !important;
+}
+.accordion-menu .burial-card {
+    background: #191c1f !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
+}
+.accordion-menu .burial-card:hover {
+    background: #222426 !important;
+    border-color: rgba(255,201,40,.35) !important;
+}
+.accordion-menu .burial-card.is-active {
+    background: rgba(255,201,40,.12) !important;
+    border: 1px solid #ffc928 !important;
+    box-shadow: 0 0 0 2px rgba(255,201,40,.12) !important;
+}
+.accordion-menu .burial-card__btn {
+    color: #f5f1e6 !important;
+    background: #252729 !important;
+    border: 1px solid rgba(255,201,40,.2) !important;
+}
+.accordion-menu .burial-card__btn:hover:not(:disabled),
+.accordion-menu .burial-card__btn--del:hover:not(:disabled) {
+    color: #111 !important;
+    background: #ffda45 !important;
+}
+.accordion-menu .burial-panel__add-btn {
+    color: #111 !important;
+    background: linear-gradient(135deg,#ffda45,#d99d00) !important;
+    border: 1px solid #ffda45 !important;
+    box-shadow: 0 3px 12px rgba(255,201,40,.14);
+}
+.accordion-menu .burial-panel__add-btn:hover {
+    box-shadow: 0 4px 16px rgba(255,201,40,.25) !important;
+}
+.accordion-menu .extra-epitaph-row.is-selected textarea {
+    border-color: #ffc928 !important;
+    box-shadow: 0 0 0 2px rgba(255,201,40,.16) !important;
+}
+.accordion-menu .burial-panel__hint {
+    color: #aaa79e !important;
+    background: #171a1c !important;
+    border: 1px solid rgba(255,201,40,.12);
+}
+
+/* Stele model tiles */
+.accordion-menu .stele-grid-item {
+    background: #171a1c !important;
+    border: 2px solid rgba(255,255,255,.1) !important;
+    color: #f4f1e9 !important;
+    box-shadow: none !important;
+}
+.accordion-menu .stele-grid-item:hover {
+    border-color: rgba(255,201,40,.65) !important;
+    background: #222426 !important;
+}
+.accordion-menu .stele-grid-item.selected,
+.accordion-menu .stele-grid-item.active {
+    border: 2px solid #ffc928 !important;
+    background: rgba(255,201,40,.12) !important;
+    box-shadow: 0 0 18px rgba(255,201,40,.18) !important;
+}
+.accordion-menu .stele-grid-name {
+    color: #f2f0e9 !important;
+}
+.accordion-menu .stele-placeholder {
+    color: #ffda45 !important;
+    background: #101214 !important;
+}
+.accordion-menu .stele-preview-panel {
+    border-color: rgba(255,201,40,.24) !important;
+    background: rgba(255,201,40,.045) !important;
+}
+.accordion-menu .stele-preview-title {
+    color: #ffda45 !important;
+}
