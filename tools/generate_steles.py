@@ -114,11 +114,11 @@ def outline(kind, w, h):
         "chinese_58": [(-a,0),(-a,h*.20),(-a*.94,h*.40),(-a*.82,h*.60),(-a*.94,h*.78),(-a*.60,h*.96),(-a*.18,h),(a*.22,h*.98),(a*.88,h*.82),(a*.78,h*.58),(a*.94,h*.34),(a*.84,h*.14),(a,0)],
         "cross": [(-a*.25,0),(-a*.40,h*.12),(-a*.42,h*.32),(-a*.20,h*.38),(-a*.20,h*.55),(-a,h*.55),(-a,h*.68),(-a*.20,h*.68),(-a*.20,h*.83),(-a*.43,h*.83),(-a*.43,h*.94),(-a*.20,h*.94),(-a*.20,h),(a*.20,h),(a*.20,h*.94),(a*.43,h*.94),(a*.43,h*.83),(a*.20,h*.83),(a*.20,h*.68),(a,h*.68),(a,h*.55),(a*.20,h*.55),(a*.20,h*.38),(a*.42,h*.32),(a*.40,h*.12),(a*.25,0)],
         "oval": [(a*math.cos(2*math.pi*i/48), h*.5+h*.5*math.sin(2*math.pi*i/48)) for i in range(48)],
-        "heart": [(a*.5*math.sin(2*math.pi*i/64)**3, h*(.78-(.28*(.8125*math.cos(2*math.pi*i/64)-.3125*math.cos(2*math.pi*2*i/64)-.125*math.cos(2*math.pi*3*i/64)-.0625*math.cos(2*math.pi*4*i/64)))) for i in range(64)],
+        "heart": [(a * (16 * math.sin(2*math.pi*i/64)**3) / 32, h * (0.52 + (13*math.cos(2*math.pi*i/64) - 5*math.cos(4*math.pi*i/64) - 2*math.cos(6*math.pi*i/64) - math.cos(8*math.pi*i/64)) / 34) for i in range(64)],
     }
     raw = shapes[kind]
     # Smooth only profiles without deliberate rectangular notches.
-    if kind in ("crown", "notched", "gable", "cross"):
+    if kind in ("crown", "notched", "gable", "cross", "oval", "heart"):
         return raw
     # Keep bottom corners crisp; interpolate upper outline only.
     upper = smooth_profile(raw[1:-1], 5)
