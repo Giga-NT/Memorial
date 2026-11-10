@@ -2810,3 +2810,159 @@ a:hover { color: #fff0b0; }
 
 /* Hide any configurable accordion module, not only the two split-out sections */
 .accordion-section[data-module][hidden] { display: none !important; }
+
+
+/* ============================================================
+   GIGA-NT MENU FINISH — remove legacy teal / red / blue accents
+   Keep the 3D scene and its natural material colors untouched.
+   ============================================================ */
+.accordion-menu {
+    background: rgba(8,9,10,.99) !important;
+    color: #f7f5ef !important;
+}
+.accordion-menu .menu-scroll { background: transparent !important; }
+.accordion-menu .hint-text {
+    background: #17191b !important;
+    color: #d8d5cc !important;
+    border: 1px solid rgba(255,201,40,.22);
+}
+.accordion-menu .accordion-section,
+.accordion-menu .section-content,
+.accordion-menu .subsection {
+    background-color: #111315 !important;
+    color: #f2f0e9 !important;
+}
+.accordion-menu .section-header {
+    background: linear-gradient(100deg,#191b1d,#101112) !important;
+    color: #eeeae0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+}
+.accordion-menu .section-header:hover,
+.accordion-menu .accordion-section.active > .section-header {
+    background: linear-gradient(100deg,rgba(255,201,40,.17),rgba(255,201,40,.035)) !important;
+    color: #ffda45 !important;
+}
+.accordion-menu .subsection {
+    border: 1px solid rgba(255,201,40,.16) !important;
+    box-shadow: none !important;
+}
+.accordion-menu .subsection-title,
+.accordion-menu .stele-preview-title,
+.accordion-menu .grave-area-info span,
+.accordion-menu .value-display,
+.accordion-menu .price-note strong {
+    color: #ffda45 !important;
+}
+.accordion-menu .grave-area-info,
+.accordion-menu .selected-monument-info,
+.accordion-menu .stele-preview-panel,
+.accordion-menu .stele-preview-frame,
+.accordion-menu .price-note,
+.accordion-menu .hint-text,
+.accordion-menu .info-box,
+.accordion-menu .preview-info,
+.accordion-menu .status-box {
+    background: #171a1c !important;
+    border-color: rgba(255,201,40,.2) !important;
+    color: #c9c7bf !important;
+}
+.accordion-menu .checkbox-group {
+    background: rgba(255,201,40,.055) !important;
+    border: 1px solid rgba(255,201,40,.2) !important;
+    color: #f2f0e9 !important;
+}
+.accordion-menu .checkbox-group:hover,
+.accordion-menu .checkbox-group:focus-within {
+    background: rgba(255,201,40,.12) !important;
+    border-color: rgba(255,201,40,.52) !important;
+}
+.accordion-menu .checkbox-group input[type="checkbox"] {
+    accent-color: #ffc928 !important;
+    background: #090a0b !important;
+    border-color: rgba(255,201,40,.55) !important;
+}
+.accordion-menu .checkbox-group input[type="checkbox"]:checked {
+    background: #ffc928 !important;
+    border-color: #ffc928 !important;
+}
+.accordion-menu input[type="checkbox"],
+.accordion-menu input[type="radio"],
+.accordion-menu input[type="range"] {
+    accent-color: #ffc928 !important;
+}
+.accordion-menu input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.accordion-menu select,
+.accordion-menu textarea {
+    background-color: #090b0c !important;
+    color: #f7f5ef !important;
+    border-color: rgba(255,201,40,.22) !important;
+}
+.accordion-menu select option {
+    background: #111315;
+    color: #f7f5ef;
+}
+.accordion-menu input:focus,
+.accordion-menu select:focus,
+.accordion-menu textarea:focus {
+    border-color: #ffc928 !important;
+    box-shadow: 0 0 0 2px rgba(255,201,40,.13) !important;
+}
+.accordion-menu .btn,
+.accordion-menu button {
+    color: #f5f1e6;
+    background: #1a1c1e;
+    border: 1px solid rgba(255,201,40,.32);
+}
+.accordion-menu .btn:hover,
+.accordion-menu button:hover {
+    color: #ffda45;
+    background: #252321;
+    border-color: rgba(255,201,40,.72);
+}
+.accordion-menu .btn-add-monument,
+.accordion-menu .btn-duplicate-monument,
+.accordion-menu .btn-export-glb,
+.accordion-menu .btn-force-font,
+.accordion-menu .btn-secondary {
+    color: #111 !important;
+    background: linear-gradient(135deg,#ffda45,#d99d00) !important;
+    border-color: #ffda45 !important;
+}
+.accordion-menu .btn-danger {
+    color: #ffda45 !important;
+    background: #211b0c !important;
+    border-color: rgba(255,201,40,.48) !important;
+}
+.accordion-menu .btn-danger:hover {
+    background: #30250b !important;
+}
+.accordion-menu .order-status,
+.accordion-menu .success,
+.accordion-menu .text-success {
+    color: #ffda45 !important;
+}
+.accordion-menu .error,
+.accordion-menu .text-danger,
+.accordion-menu .warning {
+    color: #f0c45a !important;
+}
+.accordion-menu a {
+    color: #ffda45 !important;
+}
+.accordion-menu [style*="background:#f5f7fa"],
+.accordion-menu [style*="background: #f5f7fa"],
+.accordion-menu [style*="background:#fff"],
+.accordion-menu [style*="background: #fff"] {
+    background: #171a1c !important;
+}
+.accordion-menu [style*="border:1px solid #d7dce2"],
+.accordion-menu [style*="border: 1px solid #d7dce2"],
+.accordion-menu [style*="border:1px solid #cbd5e1"],
+.accordion-menu [style*="border: 1px solid #cbd5e1"] {
+    border-color: rgba(255,201,40,.25) !important;
+}
+.accordion-menu .stele-preview-caption,
+.accordion-menu .hint-text small,
+.accordion-menu small {
+    color: #aaa79e !important;
+}
