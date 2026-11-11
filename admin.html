@@ -353,7 +353,8 @@
                     <input class="price-input" type="number" data-key="site_curb_install_per_m" min="0" step="1">
                 </div>
                 <div class="intro" style="padding: 12px 18px 16px;">
-                    Тип оградки влияет только на 3D-модель. Цена ограды рассчитывается отдельно от бордюра. Для бордюра материал и монтаж настраиваются независимо.
+                    Цена оградки рассчитывается по формуле: (периметр участка минус ширина калитки) × цена за погонный метр × (фактическая высота / типовая высота).
+                    Бордюр площадки — отдельная позиция: его материал задаётся в клиентском прайсе, монтаж — по цене выше.
                 </div>
 
             </div>
@@ -435,9 +436,15 @@
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">Гравировка</div>
+                    <div class="price-name">Гравировка изображения</div>
                     <div class="price-unit">₽/шт.</div>
                     <input class="price-input" type="number" data-key="engraving" min="0">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">Нанесение текста</div>
+                    <div class="price-unit">₽/символ</div>
+                    <input class="price-input" type="number" data-key="text_character_price" min="0" step="1">
                 </div>
 
                 <div class="price-row">
@@ -489,7 +496,7 @@
             <div class="category-content">
 
                 <div class="price-row">
-                    <div class="price-name">Доставка</div>
+                    <div class="price-name">Доставка по городу</div>
                     <div class="price-unit">₽/заказ</div>
                     <input class="price-input" type="number" data-key="delivery" min="0">
                 </div>
@@ -566,7 +573,7 @@
                 <div class="intro" style="padding: 12px 18px;">
                     Отметьте позиции, для которых нулевая цена задана намеренно: в смете она останется 0 ₽.
                     Без отметки ноль считается незаданной ценой и отображается как предупреждение.
-                    Эти флажки управляют предупреждениями в админке, а не меняют формулы калькулятора.
+                    Для большинства позиций флажок управляет предупреждением в админке. Для фотографии он также фиксирует нулевую цену и отключает резервное старое значение.
                 </div>
 
                 <div id="zero-flags-list"></div>
@@ -666,7 +673,17 @@
         'base_other',
         'path_work_per_m2',
         'path_material_per_m2',
-        'photo'
+        'photo',
+        'install',
+        'install_full_set',
+        'install_flowerbed_base',
+        'install_flowerbed_only',
+        'install_pedestal_percent',
+        'decoration_volume',
+        'decoration_engraving',
+        'pipe',
+        'chain',
+        'casting'
     ]);
 
     const PRICE_LABELS = {
@@ -1475,12 +1492,11 @@
     }
 
     function renderSupplierPriceEditor() {
-        const productOptions = PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
         supplierWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Поставщик</th><th>Материал</th><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм</th><th>Толщина, мм</th><th>Исполнение</th><th>Закупочная цена, ₽</th></tr></thead><tbody>'+
             supplierRows.map((row,index)=>'<tr data-supplier-index="'+index+'">'+
             '<td><input type="text" maxlength="160" data-supplier-field="supplier" value="'+escText(row.supplier||'')+'" placeholder="Поставщик"></td>'+
             '<td><select data-supplier-field="material">'+supplierSelectOptions(MATERIALS,row.material)+'</select></td>'+
-            '<td><select data-supplier-field="product">'+productOptions+'</select></td>'+
+            '<td><select data-supplier-field="product">'+supplierSelectOptions(PRODUCTS,row.product)+'</select></td>'+
             ['width_mm','height_mm','depth_mm','thickness_mm'].map(key=>'<td><input type="number" min="0" step="1" data-supplier-field="'+key+'" value="'+Number(row[key]||0)+'"></td>').join('')+
             '<td><input type="text" maxlength="100" data-supplier-field="finish" value="'+escText(row.finish||'')+'"></td>'+
             '<td><input type="number" min="0" step="0.01" data-supplier-field="purchase_price" value="'+Number(row.purchase_price||0)+'"></td>'+
