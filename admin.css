@@ -283,3 +283,113 @@ button.danger, .delete-row { border-color: #f0d1cf; background: #fff4f3; color: 
     font-size: 13px;
     font-weight: 500;
 }
+
+
+/* =========================================================
+   ЕДИНАЯ ЧЁРНО-ЗОЛОТАЯ ТЕМА GIGA-NT
+   ========================================================= */
+:root {
+    color-scheme: dark;
+    --brand: #ffd700;
+    --brand-dark: #e2b900;
+    --brand-soft: rgba(255,215,0,.12);
+    --gold: #ffd700;
+    --ink: #f5f5f5;
+    --muted: #aaa69a;
+    --line: rgba(255,215,0,.20);
+    --surface: #111111;
+    --canvas: #050505;
+    --danger: #ff7770;
+    --shadow: 0 16px 42px rgba(0,0,0,.55);
+}
+html, body { background: #050505; color: #f5f5f5; }
+body { background: radial-gradient(ellipse at 50% -20%, rgba(255,215,0,.075), transparent 48%), #050505; }
+#login-panel {
+    border-color: rgba(255,215,0,.3);
+    background: linear-gradient(145deg,#151515,#090909);
+    box-shadow: 0 24px 70px rgba(0,0,0,.72), 0 0 35px rgba(255,215,0,.07);
+}
+#login-panel::before, .page-heading .eyebrow { color: #ffd700; }
+#login-panel h1, .page-heading h1, .admin-name { color: #fff; }
+#login-panel label, .identity-label, .page-heading p, .intro,
+.price-note, .price-unit, .setting-description { color: #b8b3a6; }
+#login-panel input, input, select, textarea {
+    border-color: rgba(255,215,0,.25);
+    background: #090909;
+    color: #fff;
+}
+#login-panel input:focus, input:focus, select:focus, textarea:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 0 3px rgba(255,215,0,.15);
+}
+button {
+    border-color: #ffd700;
+    background: linear-gradient(135deg,#ffe45c,#d5a900);
+    color: #090909;
+}
+button:hover { background: linear-gradient(135deg,#fff08a,#e5b900); color:#000; box-shadow: 0 5px 20px rgba(255,215,0,.24); }
+button.secondary {
+    border-color: rgba(255,215,0,.35);
+    background: #171717;
+    color: #f5d76e;
+}
+button.secondary:hover { border-color:#ffd700; background:#242018; color:#fff; }
+button.danger, .delete-row { border-color:rgba(255,105,97,.4); background:#281312; color:#ff928a; }
+.message.success { border-color:rgba(255,215,0,.4); background:rgba(255,215,0,.09); color:#ffe77a; }
+.message.error { border-color:rgba(255,105,97,.45); background:rgba(120,20,16,.2); color:#ffaaa4; }
+.container { color:#f5f5f5; }
+.admin-sidebar {
+    border-color:rgba(255,215,0,.22);
+    background:linear-gradient(180deg,#151515,#080808);
+    box-shadow:0 18px 50px rgba(0,0,0,.65), inset -1px 0 rgba(255,215,0,.05);
+}
+.brand-mark { border-color:rgba(255,215,0,.55); color:#ffd700; }
+.brand-copy small, .sidebar-caption { color:#a99b6b; }
+.sidebar-link { color:#d1cec4; }
+.sidebar-link:hover { background:rgba(255,215,0,.09); color:#fff; }
+.sidebar-link.active { border-color:rgba(255,215,0,.45); background:rgba(255,215,0,.13); color:#ffe36a; }
+.nav-icon { color:#ffd700; }
+.sidebar-divider, .sidebar-footer { border-color:rgba(255,215,0,.15); }
+.sidebar-footer { color:#a9a294; }
+.status-dot { background:#ffd700; box-shadow:0 0 0 4px rgba(255,215,0,.12),0 0 12px rgba(255,215,0,.45); }
+.header { border-color:rgba(255,215,0,.2); }
+.admin-welcome {
+    border-color:rgba(255,215,0,.32);
+    background:linear-gradient(110deg,rgba(255,215,0,.13),rgba(20,20,20,.96) 78%);
+}
+.welcome-mark { background:rgba(255,215,0,.16); color:#ffd700; }
+.admin-welcome strong { color:#ffe47a; }
+.admin-welcome p { color:#c5bd9e; }
+.welcome-tag { color:#d2b94c; }
+.intro, .admin-category, .material-pricing, .supplier-pricing,
+#material-pricing, #supplier-pricing, .price-category {
+    border-color:rgba(255,215,0,.18);
+    background:#111;
+    color:#e9e5d9;
+    box-shadow:0 5px 20px rgba(0,0,0,.28);
+}
+.admin-category.open { border-color:rgba(255,215,0,.48); box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 18px rgba(255,215,0,.045); }
+.category-header { background:#141414; color:#f7f4e9; }
+.category-header:hover { background:#201d12; color:#ffe16a; }
+.category-arrow { background:rgba(255,215,0,.13); color:#ffd700; }
+.category-count { background:#242116; color:#e5cd6e; }
+.category-content { border-color:rgba(255,215,0,.17); }
+.price-row, .setting-row { border-color:rgba(255,255,255,.075); }
+.price-name, .setting-name, label { color:#f1eee5; }
+.price-key { display:none !important; }
+.price-note { background:rgba(255,215,0,.055); border-color:rgba(255,215,0,.2); }
+.price-warnings { color:#ffe47a; }
+.material-price-table { color:#eee; background:#101010; }
+.material-price-table th { background:#211d10; color:#ffe16a; border-color:rgba(255,215,0,.25); }
+.material-price-table td { background:#111; border-color:rgba(255,255,255,.08); }
+.material-price-table tr:hover td { background:#1b190f; }
+.material-price-table input, .material-price-table select { background:#080808; color:#fff; border-color:rgba(255,215,0,.22); }
+.delete-row:hover { background:#421b18; }
+#material-price-message, #supplier-price-message { color:#e6d58e; }
+.material-section, .supplier-section, .pricing-toolbar, .table-wrap { background:#111; color:#eee; border-color:rgba(255,215,0,.18); }
+a { color:#ffd700; }
+a:hover { color:#fff0a0; }
+@media (max-width: 900px) {
+    .admin-sidebar { background:linear-gradient(180deg,#151515,#080808); }
+    .container { color:#f5f5f5; }
+}
