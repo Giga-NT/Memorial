@@ -1153,11 +1153,36 @@
         });
 
         if (priceWarnings) {
-            priceWarnings.textContent =
-                missing > 0
-                    ? `Не задано позиций: ${missing}. Для них расчёт не подставляет цены из кода — проверьте прайс и флаги.`
-                    : '';
+            if (missing > 0) {
+                const positionWord = missing === 1 ? 'позиции' : (missing < 5 ? 'позициям' : 'позиций');
+                priceWarnings.innerHTML = `
+                    <div class="price-warning-content" role="alert">
+                        <span class="price-warning-icon" aria-hidden="true">!</span>
+                        <div class="price-warning-copy">
+                            <strong>Не все цены настроены</strong>
+                            <p>Для ${missing} ${positionWord} не указана цена. Они не будут учтены в расчёте.</p>
+                            <span>Проверьте цены и правила расчёта для этих позиций.</span>
+                        </div>
+                        <button type="button" class="price-warning-action">
+                            Посмотреть позиции <span aria-hidden="true">→</span>
+                        </button>
+                    </div>`;
+            } else {
+                priceWarnings.innerHTML = '';
+            }
         }
+    }
+
+    if (priceWarnings) {
+        priceWarnings.addEventListener('click', event => {
+            if (!event.target.closest('.price-warning-action')) return;
+            const firstMissing = document.querySelector('.price-input.warning');
+            if (!firstMissing) return;
+            const category = firstMissing.closest('.price-category');
+            if (category) category.classList.add('open');
+            firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.setTimeout(() => firstMissing.focus({ preventScroll: true }), 350);
+        });
     }
 
 
