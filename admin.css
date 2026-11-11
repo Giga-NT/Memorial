@@ -393,3 +393,65 @@ a:hover { color:#fff0a0; }
     .admin-sidebar { background:linear-gradient(180deg,#151515,#080808); }
     .container { color:#f5f5f5; }
 }
+
+
+/* Финальная настройка таблиц, фильтров и подсказок на тёмном фоне. */
+.flag-label { color: #f1eee5 !important; }
+.flag-hint { color: #b8b09a; }
+.flag-row { border-color: rgba(255,255,255,.08); }
+.price-input.warning, .setting-input.warning {
+    border-color: #e5bd36;
+    background: #211d10;
+    color: #fff2b8;
+}
+.material-price-toolbar input,
+.material-price-toolbar select,
+#material-pricing input,
+#material-pricing select,
+#supplier-pricing input,
+#supplier-pricing select {
+    border-color: rgba(255,215,0,.25) !important;
+    background: #090909 !important;
+    color: #f5f5f5 !important;
+}
+.material-price-toolbar input::placeholder,
+.material-price-table input::placeholder { color: #888273; }
+.material-price-table {
+    min-width: 940px;
+    border-color: rgba(255,215,0,.18);
+}
+.material-price-table th {
+    background: #211d10 !important;
+    color: #ffe16a !important;
+}
+.material-price-table td,
+.material-price-table tr td {
+    background: #111 !important;
+    color: #eee;
+    border-color: rgba(255,255,255,.08) !important;
+}
+.material-price-table tr:hover td { background: #1b190f !important; }
+.material-price-table td:nth-child(7) input { color: #ffe16a !important; }
+#material-price-table-wrap,
+#supplier-price-table-wrap {
+    border-color: rgba(255,215,0,.2);
+    border-radius: 12px;
+    background: #101010;
+}
+#material-price-message, #supplier-price-message { color: #e6d58e; }
+#material-pricing .intro, #supplier-pricing .intro {
+    color: #c5bd9e;
+    background: #17150f;
+    border-color: rgba(255,215,0,.16);
+}
+#material-pricing .material-price-toolbar,
+#supplier-pricing .material-price-toolbar { color: #eee; }
+#material-pricing .actions, #supplier-pricing .actions {
+    background: rgba(12,12,12,.96);
+    border-color: rgba(255,215,0,.2);
+}
+@media (max-width: 720px) {
+    .material-category .category-content { padding: 12px !important; }
+    .material-price-table { min-width: 900px; }
+    #material-pricing .actions, #supplier-pricing .actions { gap: 8px; }
+}
