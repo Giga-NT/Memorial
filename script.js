@@ -5317,8 +5317,11 @@ function buildPriceBreakdown() {
         );
     }
 
-    const photoBasePrice = prices && Object.prototype.hasOwnProperty.call(prices, 'photo_price')
-        ? getPriceValue('photo_price')
+    const hasPhotoPrice = prices && Object.prototype.hasOwnProperty.call(prices, 'photo_price');
+    const configuredPhotoPrice = hasPhotoPrice ? getPriceValue('photo_price') : 0;
+    const photoPriceIsIntentionallyZero = priceFlags?.photo_price?.zero_means_included === true;
+    const photoBasePrice = hasPhotoPrice && (configuredPhotoPrice > 0 || photoPriceIsIntentionallyZero)
+        ? configuredPhotoPrice
         : getPriceValue('photo');
     const photoTypicalWidthMm = 300;
     const photoTypicalHeightMm = 150;

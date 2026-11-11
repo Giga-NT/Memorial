@@ -271,3 +271,15 @@ button.danger, .delete-row { border-color: #f0d1cf; background: #fff4f3; color: 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+
+/* Внутренние ключи API не показываем администраторам. */
+.price-key,
+.flag-key {
+    display: none !important;
+}
+.flag-label {
+    color: var(--text-primary, #28313b);
+    font-size: 13px;
+    font-weight: 500;
+}
