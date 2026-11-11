@@ -1259,6 +1259,25 @@ async function initDB() {
         )
     `);
 
+    // Отдельный закупочный каталог. Не используется клиентским калькулятором.
+    // Таблица создаётся без очистки и не зависит от material_price_rows.
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS supplier_material_price_rows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            supplier TEXT NOT NULL DEFAULT '',
+            material TEXT NOT NULL,
+            product TEXT NOT NULL,
+            width_mm INTEGER NOT NULL DEFAULT 0,
+            height_mm INTEGER NOT NULL DEFAULT 0,
+            depth_mm INTEGER NOT NULL DEFAULT 0,
+            thickness_mm INTEGER NOT NULL DEFAULT 0,
+            finish TEXT NOT NULL DEFAULT '',
+            purchase_price REAL NOT NULL CHECK(purchase_price >= 0),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+        )
+    `);
+
     // Рыночные ориентиры по брусчатке, ₽/м². Оба формата имеют одну цену за площадь.
     // INSERT OR IGNORE не затрагивает существующие и вручную отредактированные записи.
     const paverPrices = {
@@ -1313,8 +1332,7 @@ async function initDB() {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, row);
     }
 
-    // Удаляем прежний отдельный закупочный каталог: используется единый клиентский прайс.
-    await dbRun('DROP TABLE IF EXISTS supplier_material_prices');
+    // Закупочный каталог хранится отдельно. Старые таблицы поставщиков не удаляем.
 
     // ========================================
     // ПРАЙС РОМБАК (историческая таблица БД; не используется в интерфейсе или расчёте)
@@ -2479,6 +2497,76 @@ app.get('/api/material-prices', async (req, res) => {
     }
 });
 
+
+
+/* ============================================
+   API: ОТДЕЛЬНЫЙ ЗАКУПОЧНЫЙ КАТАЛОГ
+   Не участвует в публичном калькуляторе.
+============================================ */
+app.get('/api/admin/supplier-material-prices', requireAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT id, supplier, material, product, width_mm, height_mm, depth_mm,
+                   thickness_mm, finish, purchase_price
+            FROM supplier_material_price_rows
+            ORDER BY supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ success:true, rows });
+    } catch (error) {
+        console.error('Ошибка загрузки закупочных цен:', error);
+        res.status(500).json({ success:false, message:'Не удалось загрузить закупочные цены' });
+    }
+});
+
+app.post('/api/admin/supplier-material-prices', requireAdmin, async (req, res) => {
+    const rows = req.body?.rows;
+    const allowedMaterials = /^[a-z0-9_-]{1,64}$/;
+    const allowedProducts = new Set(['stele','pedestal','flowerbed','grave_slab','tile','curb','other']);
+    if (!Array.isArray(rows) || rows.length > 5000) {
+        return res.status(400).json({ success:false, message:'Некорректный список закупочных позиций' });
+    }
+    const normalized = [];
+    const seen = new Set();
+    for (const row of rows) {
+        const supplier = String(row?.supplier || '').trim().slice(0,160);
+        const material = String(row?.material || '').trim();
+        const product = String(row?.product || '').trim();
+        const finish = String(row?.finish || '').trim().slice(0,100);
+        const dims = ['width_mm','height_mm','depth_mm','thickness_mm'].map(key => Number(row?.[key] || 0));
+        if (product === 'stele') dims[2] = 0;
+        const purchasePrice = Number(row?.purchase_price);
+        if (!allowedMaterials.test(material) || !allowedProducts.has(product) ||
+            dims.some(value => !Number.isInteger(value) || value < 0 || value > 10000) ||
+            !Number.isFinite(purchasePrice) || purchasePrice < 0 || purchasePrice > 100000000) {
+            return res.status(400).json({ success:false, message:'Проверьте поставщика, материал, изделие, размеры и закупочную цену' });
+        }
+        const item = { supplier, material, product, width_mm:dims[0], height_mm:dims[1], depth_mm:dims[2], thickness_mm:dims[3], finish, purchase_price:purchasePrice };
+        const uniqueKey = [supplier,material,product,...dims,finish].join('|');
+        if (seen.has(uniqueKey)) return res.status(400).json({ success:false, message:'В закупочном прайсе есть повторяющиеся строки' });
+        seen.add(uniqueKey);
+        normalized.push(item);
+    }
+    try {
+        await dbRun('BEGIN TRANSACTION');
+        // Только добавление и обновление по уникальному ключу; отсутствующие строки не удаляются.
+        for (const row of normalized) {
+            await dbRun(`INSERT INTO supplier_material_price_rows
+                (supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, purchase_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+                DO UPDATE SET purchase_price = excluded.purchase_price, updated_at = CURRENT_TIMESTAMP`,
+            [row.supplier,row.material,row.product,row.width_mm,row.height_mm,row.depth_mm,row.thickness_mm,row.finish,row.purchase_price]);
+        }
+        await dbRun('COMMIT');
+        res.set('Cache-Control', 'no-store');
+        res.json({ success:true, rows:normalized, saved:normalized.length });
+    } catch (error) {
+        try { await dbRun('ROLLBACK'); } catch (_) {}
+        console.error('Ошибка сохранения закупочных цен:', error);
+        res.status(500).json({ success:false, message:'Не удалось сохранить закупочные цены' });
+    }
+});
 
 // ============================================
 // API: ПУБЛИЧНЫЕ ЦЕНЫ
