@@ -5266,16 +5266,20 @@ function buildPriceBreakdown() {
         );
     }
 
-    // Стоимость нанесения текста: 80 ₽ за каждый символ ФИО, дат и эпитафии.
+    // Текст включается в стоимость только для активных разделов комплектации.
+    const inscriptionsEnabled = document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false;
+    const epitaphEnabled = document.querySelector('[data-module-toggle="epitaph"]')?.checked !== false;
     const textCharacterPrice = getPriceValueOrDefault('text_character_price', 80);
     let textCharacterCount = 0;
     const textCharacterParts = [];
     monuments.forEach((monument, index) => {
-        const fields = [
-            ['ФИО', monument.fullName],
-            ['Даты', monument.dates],
-            ['Эпитафия', monument.epitaph]
-        ];
+        const fields = [];
+        if (inscriptionsEnabled) {
+            fields.push(['ФИО', monument.fullName], ['Даты', monument.dates]);
+        }
+        if (epitaphEnabled) {
+            fields.push(['Эпитафия', monument.epitaph]);
+        }
         fields.forEach(([label, value]) => {
             const count = Array.from(String(value || '').replace(/[\\r\\n]/g, '')).length;
             if (!count) return;
@@ -5775,6 +5779,8 @@ function calculatePrice() {
 }
 
 window.calculatePrice = calculatePrice;
+
+document.addEventListener('memorial:configuration-changed', calculatePrice);
 
 const includeDuplicatorsCheckbox = document.getElementById('includeDuplicatorsInPrice');
 if (includeDuplicatorsCheckbox) {
