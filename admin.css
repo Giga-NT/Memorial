@@ -455,3 +455,79 @@ a:hover { color:#fff0a0; }
     .material-price-table { min-width: 900px; }
     #material-pricing .actions, #supplier-pricing .actions { gap: 8px; }
 }
+
+
+/* Понятное предупреждение о незаполненных ценах */
+.price-warnings {
+    margin: 0 0 20px;
+    padding: 0;
+    border: 1px solid rgba(231, 190, 67, .34);
+    border-radius: 14px;
+    background: linear-gradient(115deg, #211d10 0%, #15130d 100%);
+    color: #f2ead0;
+    font-size: 13px;
+    overflow: hidden;
+}
+.price-warnings:empty { display: none; }
+.price-warning-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+}
+.price-warning-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(255, 215, 0, .55);
+    border-radius: 50%;
+    color: #ffe16a;
+    font-size: 19px;
+    font-weight: 700;
+}
+.price-warning-copy { flex: 1; min-width: 0; }
+.price-warning-copy strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #ffe16a;
+    font-size: 14px;
+}
+.price-warning-copy p {
+    margin: 0 0 3px;
+    color: #f4f0e4;
+    line-height: 1.5;
+}
+.price-warning-copy > span {
+    color: #bdb49a;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.price-warning-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 215, 0, .5);
+    border-radius: 9px;
+    background: rgba(255, 215, 0, .09);
+    color: #ffe16a;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.price-warning-action:hover {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, .17);
+    transform: translateY(-1px);
+}
+@media (max-width: 640px) {
+    .price-warning-content { align-items: flex-start; flex-wrap: wrap; padding: 14px; gap: 11px; }
+    .price-warning-copy { flex: 1 1 calc(100% - 48px); }
+    .price-warning-action { width: 100%; margin-top: 2px; }
+}
