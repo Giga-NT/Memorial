@@ -142,7 +142,7 @@ function createFrontTexture(params) {
     let currentY = 80 + offsetY;
     const fontFamily = params.fontFamily || 'Arial, sans-serif';
     
-    if (params.fullName && params.fullName.trim()) {
+    if (params.inscriptionsEnabled !== false && params.fullName && params.fullName.trim()) {
         const safeFullName = sanitizeText(params.fullName);
         const fontSize = (params.nameFontSize || 24) * (isMobile ? 0.8 : 1.5);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
@@ -167,7 +167,7 @@ function createFrontTexture(params) {
         currentY += isMobile ? 12 : 25;
     }
     
-    if (params.dates && params.dates.trim()) {
+    if (params.inscriptionsEnabled !== false && params.dates && params.dates.trim()) {
         const safeDates = sanitizeText(params.dates);
         const fontSize = (params.datesFontSize || 24) * (isMobile ? 0.8 : 1.3);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
@@ -1668,6 +1668,8 @@ export async function updateMainMonument(
             state.depth !== undefined
                 ? Number(state.depth)
                 : 0.07,
+
+        inscriptionsEnabled: document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false,
 
         fullName:
             state.fullName || '',

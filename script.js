@@ -1724,7 +1724,7 @@ function updateDecalsForCustomStele(steleMesh) {
     const center = boundingBox.getCenter(new THREE.Vector3());
     const frontZ = boundingBox.max.z + 0.015;
     const backZ = boundingBox.min.z - 0.015;
-    if (state.fullName.trim() || state.dates.trim()) {
+    if ((isCustomerModuleEnabled('inscriptions') && (state.fullName.trim() || state.dates.trim()))) {
         let texture;
         if (state.frontTextureNeedsUpdate || !state.frontTextureCache) {
             texture = createFrontTexture();
@@ -1915,6 +1915,12 @@ function updateDecals() {
 // ============================================================
 // ⭐ СОЗДАНИЕ ТЕКСТУР (С УМЕНЬШЕННЫМ РАЗМЕРОМ)
 // ============================================================
+// Проверка активных разделов комплектации для отображения текста на памятнике.
+function isCustomerModuleEnabled(moduleName) {
+    const toggle = document.querySelector('[data-module-toggle="' + moduleName + '"]');
+    return !toggle || toggle.checked;
+}
+
 function createFrontTexture() {
     const canvasSize = isMobile ? 512 : 1024;
     const canvas = document.createElement('canvas');
@@ -1930,7 +1936,7 @@ function createFrontTexture() {
     const offsetX = state.textOffsetX * canvas.width;
     const offsetY = state.textOffsetY * canvas.height;
     let currentY = isMobile ? 40 : 80 + offsetY;
-    if (state.fullName.trim()) {
+    if (isCustomerModuleEnabled('inscriptions') && state.fullName.trim()) {
         const safeFullName = sanitizeText(state.fullName);
         let fontFamily = state.fontFamily;
         if (fontFamily.includes('Yermak')) fontFamily = 'Yermak';
@@ -1965,7 +1971,7 @@ function createFrontTexture() {
         });
         currentY += isMobile ? 12 : 25;
     }
-    if (state.dates.trim()) {
+    if (isCustomerModuleEnabled('inscriptions') && state.dates.trim()) {
         const safeDates = sanitizeText(state.dates);
         let fontFamily = state.fontFamily;
         if (fontFamily.includes('Yermak')) {
@@ -3180,7 +3186,7 @@ function createFrontTextureWithOffset() {
     
     let currentY = 80 + offsetY;
     
-    if (state.fullName.trim()) {
+    if (isCustomerModuleEnabled('inscriptions') && state.fullName.trim()) {
         const safeFullName = sanitizeText(state.fullName);
         let fontFamily = state.fontFamily;
         if (fontFamily.includes('Yermak')) fontFamily = 'Yermak';
@@ -3219,7 +3225,7 @@ function createFrontTextureWithOffset() {
         currentY += isMobile ? 12 : 25;
     }
     
-    if (state.dates.trim()) {
+    if (isCustomerModuleEnabled('inscriptions') && state.dates.trim()) {
         const safeDates = sanitizeText(state.dates);
         let fontFamily = state.fontFamily;
         if (fontFamily.includes('Yermak')) fontFamily = 'Yermak';
@@ -3528,7 +3534,7 @@ function createBackTextureWithOffset() {
             // const backZ = center.z - state.depth / 2 - 0.015;
             
             // Передняя сторона (ФИО + Даты)
-            // if (state.fullName.trim() || state.dates.trim()) {
+            // if ((isCustomerModuleEnabled('inscriptions') && (state.fullName.trim() || state.dates.trim()))) {
                 // let texture;
                 // if (state.frontTextureNeedsUpdate || !state.frontTextureCache) {
                     // texture = createFrontTextureWithOffset();
@@ -4528,7 +4534,7 @@ function addDecalsToCustomStele(center, frontZ, backZ, modelType = 'custom_stl')
     // ⛔️ ТЕКСТ НА ЛИЦЕВОЙ СТОРОНЕ (ОТКЛЮЧЕН)
     // ============================================================
     /*
-    if (state.fullName.trim() || state.dates.trim()) {
+    if ((isCustomerModuleEnabled('inscriptions') && (state.fullName.trim() || state.dates.trim()))) {
         let texture;
         if (state.frontTextureNeedsUpdate || !state.frontTextureCache) {
             texture = createFrontTexture();
@@ -5780,7 +5786,12 @@ function calculatePrice() {
 
 window.calculatePrice = calculatePrice;
 
-document.addEventListener('memorial:configuration-changed', calculatePrice);
+document.addEventListener('memorial:configuration-changed', () => {
+    calculatePrice();
+    state.frontTextureNeedsUpdate = true;
+    if (typeof updateScene === 'function') updateScene();
+    if (typeof updateStelePreview === 'function') updateStelePreview();
+});
 
 const includeDuplicatorsCheckbox = document.getElementById('includeDuplicatorsInPrice');
 if (includeDuplicatorsCheckbox) {
