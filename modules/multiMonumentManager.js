@@ -4370,7 +4370,7 @@ if (photoDrag && decalsGroup) {
 		
 		if (type === 'front') {
 			// ФИО
-			if (data.fullName && data.fullName.trim()) {
+			if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && data.fullName && data.fullName.trim()) {
 				const safeFullName = data.fullName.trim();
 				const fontSize = (data.nameFontSize || 24) * (isMobile ? 0.8 : 1.5);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
@@ -4396,7 +4396,7 @@ if (photoDrag && decalsGroup) {
 			}
 			
 			// Даты
-			if (data.dates && data.dates.trim()) {
+			if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && data.dates && data.dates.trim()) {
 				const safeDates = data.dates.trim();
 				const fontSize = (data.datesFontSize || 24) * (isMobile ? 0.8 : 1.3);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
