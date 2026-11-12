@@ -129,7 +129,7 @@ export class RectangleTextDrag extends DragManager {
         });
         
         // ⭐ СОЗДАЁМ ТЕКСТ (КАК В КАСТОМНЫХ)
-        if (this.state.fullName.trim() || this.state.dates.trim()) {
+        if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && (this.state.fullName.trim() || this.state.dates.trim())) {
             // Создаём текстуру со смещением
             const texture = createFrontTextureWithOffset(
                 this.state, 
