@@ -5146,46 +5146,36 @@ function buildPriceBreakdown() {
             getSteleThicknessMm(row) > 0 &&
             Number(row.price) > 0
         );
-        // Базовая позиция выбирается детерминированно: минимальный объём,
-        // затем цена. Порядок строк в прайсе больше не влияет на расчёт.
-        baseRows.sort((a, b) => {
-            const volume = row =>
-                Number(row.width_mm) * Number(row.height_mm) * getSteleThicknessMm(row);
-            return volume(a) - volume(b) ||
-                Number(a.price) - Number(b.price) ||
-                Number(a.width_mm) - Number(b.width_mm) ||
-                Number(a.height_mm) - Number(b.height_mm);
-        });
-        // Если в клиентском прайсе есть строка с точными размерами,
-        // используем её цену напрямую, а не пересчитываем от базовой позиции.
-        // Одинаковые дубли с одной ценой допустимы; при разных ценах для
-        // одинакового размера остаёмся на безопасном расчёте от базовой строки.
+        // Для стел используем только цену конкретного размера из клиентского прайса.
+        // Ширина и высота могут быть записаны в обратном порядке: поворот стелы
+        // не меняет её цену. Пропорциональный пересчёт от маленькой заготовки запрещён.
         const requestedWidthMm = Math.round(dimensions.width_mm);
         const requestedHeightMm = Math.round(dimensions.height_mm);
         const requestedThicknessMm = Math.round(dimensions.thickness_mm);
-        const exactRows = baseRows.filter(row =>
-            Number(row.width_mm) === requestedWidthMm &&
-            Number(row.height_mm) === requestedHeightMm &&
-            getSteleThicknessMm(row) === requestedThicknessMm &&
-            Number(row.depth_mm || 0) === 0
-        );
+        const exactRows = baseRows.filter(row => {
+            const rowWidthMm = Number(row.width_mm);
+            const rowHeightMm = Number(row.height_mm);
+            const sameOrientation =
+                rowWidthMm === requestedWidthMm && rowHeightMm === requestedHeightMm;
+            const rotatedOrientation =
+                rowWidthMm === requestedHeightMm && rowHeightMm === requestedWidthMm;
+            return (sameOrientation || rotatedOrientation) &&
+                getSteleThicknessMm(row) === requestedThicknessMm &&
+                Number(row.depth_mm || 0) === 0;
+        });
         const exactPrices = [...new Set(exactRows.map(row => Number(row.price)))];
         const exactPrice = exactPrices.length === 1 ? exactPrices[0] : null;
-        const baseRow = baseRows[0] || null;
         if (exactPrice !== null) {
             steleTotal += exactPrice;
             steleParts.push(`Основной памятник: ${requestedWidthMm}×${requestedHeightMm}×${requestedThicknessMm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}; точная цена из клиентского прайса: ${exactPrice} ₽`);
-        } else if (baseRow) {
-            const baseThicknessMm = getSteleThicknessMm(baseRow);
-            const baseVolume = Number(baseRow.width_mm) * Number(baseRow.height_mm) * baseThicknessMm;
-            const currentVolume = dimensions.width_mm * dimensions.height_mm * dimensions.thickness_mm;
-            const calculatedPrice = baseVolume > 0
-                ? Number(baseRow.price) * currentVolume / baseVolume
-                : 0;
-            steleTotal += calculatedPrice;
-            steleParts.push(`Основной памятник: ${dimensions.width_mm}×${dimensions.height_mm}×${dimensions.thickness_mm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}; базовая цена ${Number(baseRow.price)} ₽ за ${baseRow.width_mm}×${baseRow.height_mm}×${baseThicknessMm} мм; расчётная цена ${Math.round(calculatedPrice)} ₽`);
+        } else if (exactPrices.length > 1) {
+            missingCatalogPrices.push(
+                `Стела: для ${requestedWidthMm}×${requestedHeightMm}×${requestedThicknessMm} мм, ${materialPriceLabels[material] || material}, в клиентском прайсе указаны разные цены (${exactPrices.join(' ₽, ')} ₽). Требуется проверить прайс`
+            );
         } else {
-            missingCatalogPrices.push(`Стела: в прайсе не задана базовая цена для материала ${material}`);
+            missingCatalogPrices.push(
+                `Стела: в клиентском прайсе нет точной цены для ${requestedWidthMm}×${requestedHeightMm}×${requestedThicknessMm} мм, ${materialPriceLabels[material] || material}. Пропорциональный расчёт не применяется`
+            );
         }
 
         if (monument.pedestalEnabled !== false) {
