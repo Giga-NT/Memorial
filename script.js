@@ -5156,8 +5156,26 @@ function buildPriceBreakdown() {
                 Number(a.width_mm) - Number(b.width_mm) ||
                 Number(a.height_mm) - Number(b.height_mm);
         });
+        // Если в клиентском прайсе есть строка с точными размерами,
+        // используем её цену напрямую, а не пересчитываем от базовой позиции.
+        // Одинаковые дубли с одной ценой допустимы; при разных ценах для
+        // одинакового размера остаёмся на безопасном расчёте от базовой строки.
+        const requestedWidthMm = Math.round(dimensions.width_mm);
+        const requestedHeightMm = Math.round(dimensions.height_mm);
+        const requestedThicknessMm = Math.round(dimensions.thickness_mm);
+        const exactRows = baseRows.filter(row =>
+            Number(row.width_mm) === requestedWidthMm &&
+            Number(row.height_mm) === requestedHeightMm &&
+            getSteleThicknessMm(row) === requestedThicknessMm &&
+            Number(row.depth_mm || 0) === 0
+        );
+        const exactPrices = [...new Set(exactRows.map(row => Number(row.price)))];
+        const exactPrice = exactPrices.length === 1 ? exactPrices[0] : null;
         const baseRow = baseRows[0] || null;
-        if (baseRow) {
+        if (exactPrice !== null) {
+            steleTotal += exactPrice;
+            steleParts.push(`Основной памятник: ${requestedWidthMm}×${requestedHeightMm}×${requestedThicknessMm} мм (Ш×В×Т), ${materialPriceLabels[material] || material}; точная цена из клиентского прайса: ${exactPrice} ₽`);
+        } else if (baseRow) {
             const baseThicknessMm = getSteleThicknessMm(baseRow);
             const baseVolume = Number(baseRow.width_mm) * Number(baseRow.height_mm) * baseThicknessMm;
             const currentVolume = dimensions.width_mm * dimensions.height_mm * dimensions.thickness_mm;
