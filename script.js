@@ -7346,7 +7346,23 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         // ============================================================
         // ФОРМИРУЕМ ДАННЫЕ ДЛЯ ОТПРАВКИ
         // ============================================================
+        // Синхронизируем состояние конструктора перед отправкой заказа.
+        // Это сохраняет и те настройки, которые не перечислены отдельно в форме заказа.
+        const orderProjectIO = window.projectIO;
+        if (orderProjectIO) {
+            orderProjectIO.syncStateFromUI();
+        }
+        const orderMonuments = orderProjectIO
+            ? [
+                orderProjectIO.getMainMonumentData(),
+                ...orderProjectIO.getDuplicatorsData()
+            ]
+            : [];
+        const orderCamera = orderProjectIO?.getCameraState?.() || null;
+
         const orderData = {
+            // Полный state конструктора — дополнительные и новые параметры тоже попадут в JSON.
+            ...state,
             // Клиент
             clientName,
             clientPhone,
@@ -7432,6 +7448,10 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             engravingsFront: frontEngravings,
             engravingsBack: backEngravings,
             
+            // Основной памятник и все дополнительные памятники в формате ProjectIO.
+            monuments: orderMonuments,
+            camera: orderCamera,
+
             // ⭐ МЕБЕЛЬ
             furniture: furnitureData,
             furnitureScale: furnitureScale,
