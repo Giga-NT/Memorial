@@ -358,6 +358,66 @@ if (!isMobile) {
 scene.add(dirLight);
 
 // ============================================================
+// РЕЖИМЫ ОСВЕЩЕНИЯ: ЯРКО / ПАСМУРНО
+// Меняются только параметры света и фон сцены.
+// Материалы, текстуры и геометрия не затрагиваются.
+// ============================================================
+const lightingModeButton = document.getElementById('lightingModeBtn');
+const lightingModeStorageKey = 'memorialLightingMode';
+
+function applyLightingMode(mode, persist = false) {
+    const isCloudy = mode === 'cloudy';
+    ambientLight.intensity = isMobile
+        ? (isCloudy ? 1.05 : 0.95)
+        : (isCloudy ? 0.95 : 0.75);
+    dirLight.intensity = isMobile
+        ? (isCloudy ? 0.55 : 1.15)
+        : (isCloudy ? 0.65 : 1.35);
+
+    const backgroundColor = isCloudy ? 0xd7dde3 : 0xf0f2f5;
+    scene.background = new THREE.Color(backgroundColor);
+    if (scene.fog) {
+        scene.fog.color.setHex(backgroundColor);
+        scene.fog.near = isCloudy ? 4 : 5;
+        scene.fog.far = isCloudy ? 18 : 20;
+    }
+
+    if (lightingModeButton) {
+        lightingModeButton.textContent = isCloudy ? '☁ Пасмурно' : '☀ Ярко';
+        lightingModeButton.setAttribute('aria-pressed', String(isCloudy));
+        lightingModeButton.title = isCloudy
+            ? 'Переключить на яркое освещение'
+            : 'Переключить на пасмурное освещение';
+    }
+
+    if (persist) {
+        try {
+            localStorage.setItem(lightingModeStorageKey, isCloudy ? 'cloudy' : 'bright');
+        } catch (error) {
+            console.warn('Не удалось сохранить режим освещения:', error);
+        }
+    }
+}
+
+let initialLightingMode = 'bright';
+try {
+    const savedLightingMode = localStorage.getItem(lightingModeStorageKey);
+    if (savedLightingMode === 'cloudy' || savedLightingMode === 'bright') {
+        initialLightingMode = savedLightingMode;
+    }
+} catch (error) {
+    // Если localStorage недоступен, используем яркий режим.
+}
+applyLightingMode(initialLightingMode);
+
+lightingModeButton?.addEventListener('click', () => {
+    const nextMode = lightingModeButton.getAttribute('aria-pressed') === 'true'
+        ? 'bright'
+        : 'cloudy';
+    applyLightingMode(nextMode, true);
+});
+
+// ============================================================
 // ⭐ УПРАВЛЕНИЕ
 // ============================================================
 const controls = new OrbitControls(camera, renderer.domElement);
