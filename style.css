@@ -3063,3 +3063,31 @@ a:hover { color: #fff0b0; }
 .accordion-menu .stele-preview-title {
     color: #ffda45 !important;
 }
+
+
+/* Переключатель освещения 3D-сцены */
+.lighting-mode-btn {
+    min-width: 92px;
+    justify-content: center;
+    border: 1px solid rgba(201, 166, 107, .48);
+    background: rgba(201, 166, 107, .14);
+    color: #f4dfb9;
+    font-weight: 700;
+}
+.lighting-mode-btn:hover {
+    background: rgba(201, 166, 107, .25);
+    border-color: rgba(201, 166, 107, .8);
+}
+.lighting-mode-btn[aria-pressed="true"] {
+    background: rgba(180, 197, 211, .18);
+    border-color: rgba(190, 207, 221, .55);
+    color: #e1edf5;
+}
+@media (max-width: 768px) {
+    .lighting-mode-btn {
+        min-width: 76px;
+        height: 34px;
+        padding: 0 7px;
+        font-size: 11px;
+    }
+}
