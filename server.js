@@ -2982,7 +2982,16 @@ app.post('/api/order', async (req, res) => {
             hasFurniture: (tableCount + benchCount + picnicCount) > 0,
             hasVases: (data.vases?.length || 0) > 0,
             savedAt: new Date().toISOString()
-        }
+        },
+
+        // JSON-вложение должно содержать исходный state конструктора.
+        // sanitizeObject() предназначен только для отображаемых HTML-данных:
+        // он заменяет символы в data URI и строках настроек HTML-сущностями.
+        // Сохраняем исходные поля поверх нормализованных значений, не используя
+        // rawData для HTML/PDF ниже — там остаются только санитизированные data.
+        ...rawData,
+        version: '3.1',
+        savedAt: new Date().toISOString()
     };
         
     fs.writeFileSync(fullJsonPath, JSON.stringify(cleanProjectData, null, 2));
