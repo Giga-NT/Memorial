@@ -63,6 +63,16 @@ export class ProjectIO {
 
     syncStateFromUI() {
 
+        // При редактировании дублера общие поля UI показывают его настройки.
+        // Не переносим их в state основного памятника: иначе при экспорте
+        // материалы и текстуры главного памятника будут заменены данными дублера.
+        const monumentManager = this.getMonumentManager();
+
+        if (monumentManager?.currentMode === 'duplicator') {
+            console.log('⏭️ Синхронизация основного state пропущена: активен дублер');
+            return;
+        }
+
         const numericFields = [
             'width', 'height', 'depth',
             'graveWidth', 'graveLength', 'baseHeight',
