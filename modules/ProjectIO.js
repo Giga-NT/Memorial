@@ -2107,21 +2107,19 @@ export class ProjectIO {
                     // 7. ПЕРЕСТРАИВАЕМ ОСНОВНОЙ
                     // ==================================================
 
-                    // Вызываем полное обновление напрямую: throttledUpdate
-                    // может быть пропущен из-за _disableAutoMonument и не обязан
-                    // возвращать Promise завершения построения.
+                    // updateSceneReal намеренно блокируется флагом загрузки.
+                    // Снимаем только этот флаг на время построения основного объекта,
+                    // затем возвращаем его до восстановления дублеров.
+                    window._disableAutoMonument = false;
                     if (typeof window.updateScene === 'function') {
                         await window.updateScene();
                     } else if (typeof window.updateMainMonument === 'function') {
-                        await window.updateMainMonument(
-                            this.state,
-                            window.monumentGroup,
-                            window.decalsGroup
-                        );
+                        throw new Error('Для восстановления основного памятника требуется window.updateScene');
                     }
+                    window._disableAutoMonument = true;
 
                     // Даём браузеру применить изменения сцены и выполнить
-                    // хотя бы один полный цикл рендеринга до скрытия индикатора.
+                    // два цикла рендеринга до перехода к следующему этапу.
                     await new Promise(resolve => requestAnimationFrame(() => {
                         requestAnimationFrame(resolve);
                     }));
