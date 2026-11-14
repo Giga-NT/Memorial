@@ -2107,21 +2107,22 @@ export class ProjectIO {
                     // 7. ПЕРЕСТРАИВАЕМ ОСНОВНОЙ
                     // ==================================================
 
-                    if (
-                        typeof window.throttledUpdate ===
-                        'function'
-                    ) {
-
-                        await window.throttledUpdate();
-
-                    } else if (
-                        typeof window.updateMonument ===
-                        'function'
-                    ) {
-
-                        await window.updateMonument();
-
+                    // updateSceneReal намеренно блокируется флагом загрузки.
+                    // Снимаем только этот флаг на время построения основного объекта,
+                    // затем возвращаем его до восстановления дублеров.
+                    window._disableAutoMonument = false;
+                    if (typeof window.updateScene === 'function') {
+                        await window.updateScene();
+                    } else if (typeof window.updateMainMonument === 'function') {
+                        throw new Error('Для восстановления основного памятника требуется window.updateScene');
                     }
+                    window._disableAutoMonument = true;
+
+                    // Даём браузеру применить изменения сцены и выполнить
+                    // два цикла рендеринга до перехода к следующему этапу.
+                    await new Promise(resolve => requestAnimationFrame(() => {
+                        requestAnimationFrame(resolve);
+                    }));
 
 
                     setLoadingMessage('Восстанавливаем дополнительные объекты…');
@@ -2213,15 +2214,13 @@ export class ProjectIO {
                     // 11. СНИМАЕМ БЛОКИРОВКИ
                     // ==================================================
 
-					setTimeout(() => {
-						window._disableAutoMonument = false;
-						window._forceMainUpdate = false;
-						window._isLoadingProject = false;
+                    window._disableAutoMonument = false;
+                    window._forceMainUpdate = false;
+                    window._isLoadingProject = false;
 
-						console.log('🟢 Защита загрузки проекта снята');
-						console.log('🏛️ Итоговый steleType:', this.state.steleType);
-						console.log('🏛️ Итоговый steleModel:', this.state.steleModel);
-					}, 500);
+                    console.log('🟢 Защита загрузки проекта снята');
+                    console.log('🏛️ Итоговый steleType:', this.state.steleType);
+                    console.log('🏛️ Итоговый steleModel:', this.state.steleModel);
 
 
                     // ==================================================
