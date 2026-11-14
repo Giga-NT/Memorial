@@ -1626,6 +1626,52 @@ export class ProjectIO {
 
     async loadFromFile(file) {
 
+        // Показываем загрузку до начала чтения JSON и держим её,
+        // пока не завершится восстановление сцены.
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'project-loading-overlay';
+        loadingOverlay.setAttribute('role', 'status');
+        loadingOverlay.setAttribute('aria-live', 'polite');
+        loadingOverlay.innerHTML = `
+            <style>
+                #project-loading-overlay {
+                    position: fixed; inset: 0; z-index: 100000;
+                    display: flex; align-items: center; justify-content: center;
+                    background: rgba(10, 10, 10, .72); color: #f5f5f5;
+                    font: 600 16px Arial, sans-serif; text-align: center;
+                    padding: 20px; box-sizing: border-box;
+                }
+                #project-loading-overlay .project-loading-card {
+                    min-width: 220px; max-width: 90vw; padding: 26px 30px;
+                    border: 1px solid rgba(212, 175, 55, .45);
+                    border-radius: 14px; background: #181818;
+                    box-shadow: 0 12px 40px rgba(0,0,0,.4);
+                }
+                #project-loading-overlay .project-loading-spinner {
+                    width: 38px; height: 38px; margin: 0 auto 16px;
+                    border: 4px solid rgba(255,255,255,.2);
+                    border-top-color: #d4af37; border-radius: 50%;
+                    animation: project-loading-spin .8s linear infinite;
+                }
+                #project-loading-overlay .project-loading-hint {
+                    margin-top: 8px; color: #bdbdbd; font-size: 13px;
+                    font-weight: 400;
+                }
+                @keyframes project-loading-spin { to { transform: rotate(360deg); } }
+            </style>
+            <div class="project-loading-card">
+                <div class="project-loading-spinner"></div>
+                <div class="project-loading-message">Читаем файл проекта…</div>
+                <div class="project-loading-hint">Пожалуйста, не закрывайте конструктор</div>
+            </div>`;
+        document.body.appendChild(loadingOverlay);
+
+        const setLoadingMessage = message => {
+            const label = loadingOverlay.querySelector('.project-loading-message');
+            if (label) label.textContent = message;
+        };
+        const hideLoading = () => loadingOverlay.remove();
+
         return new Promise(resolve => {
 
             const reader =
@@ -1942,6 +1988,8 @@ export class ProjectIO {
                     }
 
 
+                    setLoadingMessage('Восстанавливаем параметры проекта…');
+
                     // ==================================================
                     // 3. ВОССТАНАВЛИВАЕМ ВЕСЬ STATE
                     // ==================================================
@@ -2053,6 +2101,8 @@ export class ProjectIO {
                     this.clearDuplicators();
 
 
+                    setLoadingMessage('Строим памятник и загружаем материалы…');
+
                     // ==================================================
                     // 7. ПЕРЕСТРАИВАЕМ ОСНОВНОЙ
                     // ==================================================
@@ -2074,6 +2124,8 @@ export class ProjectIO {
                     }
 
 
+                    setLoadingMessage('Восстанавливаем дополнительные объекты…');
+
                     // ==================================================
                     // 8. ВОССТАНАВЛИВАЕМ ДУБЛЕРОВ
                     // ==================================================
@@ -2087,6 +2139,8 @@ export class ProjectIO {
                         );
                     }
 
+
+                    setLoadingMessage('Завершаем настройку сцены…');
 
                     // ==================================================
                     // 9. ВОССТАНАВЛИВАЕМ КАМЕРУ
@@ -2214,6 +2268,7 @@ export class ProjectIO {
                     );
 
 
+                    hideLoading();
                     resolve(true);
 
 
@@ -2232,6 +2287,7 @@ export class ProjectIO {
                         false;
 
 
+                    hideLoading();
                     showToast(
                         '❌ Ошибка загрузки: ' +
                         error.message,
@@ -2251,6 +2307,7 @@ export class ProjectIO {
                     error
                 );
 
+                hideLoading();
                 showToast(
                     '❌ Не удалось прочитать файл',
                     'error'
