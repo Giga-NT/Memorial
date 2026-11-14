@@ -74,6 +74,7 @@ export function collectProjectRoots(scene, options = {}) {
     if (includeEnvironment) {
         scene.children.forEach((child) => {
             if (!isObject3D(child) || !child.visible) return;
+            if (child.userData?.excludeFromGLBExport) return;
             if (child.isCamera || child.isAmbientLight || child.isHemisphereLight) return;
             addRoot(child);
         });
@@ -253,6 +254,153 @@ export function formatFileSize(bytes) {
     return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function createGigaNTPricePlaque(THREE, roots, projectData, totalPrice) {
+    if (!THREE?.Group || !roots.length) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 640;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#17232b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#c9a66b';
+    ctx.lineWidth = 12;
+    ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
+    ctx.strokeStyle = 'rgba(201,166,107,.45)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(42, 42, canvas.width - 84, canvas.height - 84);
+
+    // Фирменный знак Giga-NT: лаконичная арка-стела с золотой центральной линией.
+    ctx.save();
+    ctx.translate(104, 105);
+    ctx.strokeStyle = '#f5f0e7';
+    ctx.lineWidth = 12;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 155); ctx.lineTo(0, 68);
+    ctx.bezierCurveTo(0, 18, 35, 0, 72, 0);
+    ctx.bezierCurveTo(109, 0, 144, 18, 144, 68);
+    ctx.lineTo(144, 155); ctx.stroke();
+    ctx.strokeStyle = '#c9a66b'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(72, 32); ctx.lineTo(72, 155); ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = '#f5f0e7';
+    ctx.font = '700 66px Arial, sans-serif';
+    ctx.fillText('GIGA-NT', 310, 166);
+    ctx.fillStyle = '#c9a66b';
+    ctx.font = '600 25px Arial, sans-serif';
+    ctx.fillText('МЕМОРИАЛЬНЫЙ КОНСТРУКТОР', 314, 211);
+
+    ctx.strokeStyle = 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(76, 280); ctx.lineTo(1124, 280); ctx.stroke();
+
+    ctx.fillStyle = '#c9a66b';
+    ctx.font = '600 27px Arial, sans-serif';
+    ctx.fillText('СТОИМОСТЬ ПРОЕКТА', 82, 365);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 76px Arial, sans-serif';
+    const formattedPrice = Number(totalPrice || 0).toLocaleString('ru-RU') + ' ₽';
+    ctx.fillText(formattedPrice, 80, 465);
+
+    const projectName = String(projectData?.projectName || 'Индивидуальный проект').slice(0, 54);
+    ctx.fillStyle = '#c7d0d4';
+    ctx.font = '28px Arial, sans-serif';
+    ctx.fillText(projectName, 82, 535);
+    ctx.fillStyle = '#9aa7ad';
+    ctx.font = '21px Arial, sans-serif';
+    ctx.fillText('Расчёт от ' + new Date().toLocaleDateString('ru-RU'), 82, 584);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    const group = new THREE.Group();
+    group.name = 'Giga-NT • Стоимость проекта';
+    const backing = new THREE.Mesh(
+        new THREE.BoxGeometry(1.12, 0.62, 0.045),
+        new THREE.MeshStandardMaterial({ color: 0x17232b, metalness: 0.45, roughness: 0.38 })
+    );
+    const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.08, 0.58),
+        new THREE.MeshBasicMaterial({ map: texture, toneMapped: false })
+    );
+    face.position.z = 0.024;
+    group.add(backing, face);
+
+    const target = roots.find(root => root === getGlobalScope().monumentGroup) || roots[0];
+    const bounds = new THREE.Box3().setFromObject(target);
+    if (!bounds.isEmpty()) {
+        const center = bounds.getCenter(new THREE.Vector3());
+        group.position.set(bounds.max.x + 0.72, center.y, bounds.max.z + 0.04);
+    } else {
+        group.position.set(1.5, 1, 0.2);
+    }
+    group.userData.excludeFromGLBExport = false;
+    group.userData.gigaNTPricePlaque = true;
+    group.updateMatrixWorld(true);
+    group.userData.disposeAfterExport = () => {
+        backing.geometry.dispose();
+        backing.material.dispose();
+        face.geometry.dispose();
+        face.material.dispose();
+        texture.dispose();
+    };
+    return group;
+}
+
+function embedProjectMetadataInGLB(buffer, projectData) {
+    const view = new DataView(buffer);
+    if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
+        throw new Error('Не удалось добавить данные проекта: некорректный GLB');
+    }
+    const totalLength = view.getUint32(8, true);
+    let offset = 12;
+    let jsonOffset = -1;
+    let jsonLength = 0;
+    while (offset + 8 <= totalLength) {
+        const length = view.getUint32(offset, true);
+        const type = view.getUint32(offset + 4, true);
+        if (length > totalLength - offset - 8) throw new Error('Повреждён блок GLB');
+        if (type === 0x4e4f534a) {
+            jsonOffset = offset + 8;
+            jsonLength = length;
+            break;
+        }
+        offset += 8 + length;
+    }
+    if (jsonOffset < 0) throw new Error('В GLB не найден JSON-блок');
+    const gltfJson = JSON.parse(new TextDecoder().decode(
+        new Uint8Array(buffer, jsonOffset, jsonLength)
+    ).trim());
+    const safeProject = JSON.parse(JSON.stringify(projectData));
+    gltfJson.asset = gltfJson.asset || { version: '2.0' };
+    gltfJson.asset.extras = gltfJson.asset.extras || {};
+    gltfJson.asset.extras.memorialProject = {
+        format: 'GigaNT-Memorial-Project',
+        version: 1,
+        project: safeProject
+    };
+    const encoded = new TextEncoder().encode(JSON.stringify(gltfJson));
+    const paddedLength = Math.ceil(encoded.length / 4) * 4;
+    const jsonChunk = new Uint8Array(paddedLength);
+    jsonChunk.set(encoded);
+    jsonChunk.fill(0x20, encoded.length);
+    const chunkHeaderOffset = jsonOffset - 8;
+    const before = new Uint8Array(buffer, 0, chunkHeaderOffset);
+    const after = new Uint8Array(buffer, jsonOffset + jsonLength, totalLength - jsonOffset - jsonLength);
+    const output = new Uint8Array(before.length + 8 + jsonChunk.length + after.length);
+    output.set(before, 0);
+    const outView = new DataView(output.buffer);
+    outView.setUint32(before.length, paddedLength, true);
+    outView.setUint32(before.length + 4, 0x4e4f534a, true);
+    output.set(jsonChunk, before.length + 8);
+    output.set(after, before.length + 8 + paddedLength);
+    outView.setUint32(8, output.length, true);
+    return output.buffer;
+}
+
 export async function exportObjectsToGLB(objects, options = {}) {
     const roots = (Array.isArray(objects) ? objects : [objects])
         .filter(isObject3D);
@@ -314,12 +462,34 @@ export async function exportProjectToGLB(options = {}) {
     const roots = collectProjectRoots(scene, {
         includeEnvironment: options.includeEnvironment !== false
     });
+    const projectData = await scope.projectIO?.saveToFile?.({ returnData: true });
+    if (!projectData || typeof projectData !== 'object') {
+        throw new Error('Не удалось собрать данные конструктора для GLB. Проверьте инициализацию ProjectIO.');
+    }
 
-    const result = await exportObjectsToGLB(roots, options);
+    const totalPrice = typeof scope.calculatePrice === 'function'
+        ? Number(scope.calculatePrice()) || 0
+        : 0;
+    const plaque = createGigaNTPricePlaque(scope.THREE, roots, projectData, totalPrice);
+    if (plaque) roots.push(plaque);
+
+    let result;
+    try {
+        result = await exportObjectsToGLB(roots, options);
+    } finally {
+        if (plaque) plaque.userData.disposeAfterExport?.();
+    }
+    const embeddedBuffer = embedProjectMetadataInGLB(
+        await result.blob.arrayBuffer(),
+        projectData
+    );
+    const blob = new Blob([embeddedBuffer], { type: GLB_MIME_TYPE });
 
     return {
         ...result,
-        fileName: options.fileName || buildGLBFileName(state?.projectName)
+        blob,
+        byteLength: embeddedBuffer.byteLength,
+        fileName: options.fileName || buildGLBFileName(projectData.projectName || state?.projectName)
     };
 }
 

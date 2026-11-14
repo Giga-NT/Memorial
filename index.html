@@ -9,7 +9,7 @@
     <meta name="keywords" content="3D конструктор памятников, памятник, надгробие, гранит, мрамор, стела, цветник, оградка">
     <title>3D Конструктор Памятника | Giga-NT</title>
     <link rel="canonical" href="https://giga-nt.ru/">
-    <link rel="stylesheet" href="style.css?v=20261021-1">
+    <link rel="stylesheet" href="style.css?v=20261109-gigant-premium">
     
 
 
@@ -27,6 +27,17 @@
         <span></span>
         <span></span>
     </button>
+    <div class="brand-lockup" aria-label="Giga-NT — конструктор памятников">
+        <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 44 44" role="img">
+                <path d="M8 36V18.5C8 10.5 14.2 5 22 5s14 5.5 14 13.5V36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M13 36V19c0-5.2 3.7-8.7 9-8.7s9 3.5 9 8.7v17" fill="none" stroke="#c9a66b" stroke-width="1.6"/>
+                <path d="M5 36h34M17 23h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="22" cy="18" r="2" fill="#c9a66b"/>
+            </svg>
+        </span>
+        <span class="brand-copy"><strong>GIGA-NT</strong><small>МЕМОРИАЛЬНЫЙ КОНСТРУКТОР</small></span>
+    </div>
     <!-- ПАНЕЛЬ БЫСТРЫХ ДЕЙСТВИЙ (СПРАВА, НА УРОВНЕ БУРГЕРА) -->
     <div class="quick-actions" id="quickActions">
         <button id="applyMainBtn" class="quick-btn apply-main-btn" title="Применить к основному">
@@ -38,11 +49,43 @@
             <span class="quick-label">К дублеру</span>
             <span class="badge" id="duplicatorBadge">0</span>
         </button>
-        <button id="resetViewBtn" class="quick-btn reset-view-btn" title="Сбросить вид">
-            <span class="quick-icon">⟲</span>
-            <span class="quick-label">Сброс</span>
-        </button>
+        <label class="price-visibility-toggle top-price-toggle" title="Показывать или скрывать стоимость"><input type="checkbox" id="showPricePanel" checked><span class="toggle-track"></span><span class="toggle-caption">₽</span></label>
     </div>
+</div>
+
+<!-- Постоянная панель стоимости -->
+<aside class="live-price-panel" id="livePricePanel" aria-label="Стоимость проекта">
+    <div class="live-price-head">
+        <div><span class="live-price-kicker">ВАШ ПРОЕКТ</span><strong>Предварительная стоимость</strong></div>
+        <span class="live-price-status">● АКТИВНЫЙ РАСЧЁТ</span>
+    </div>
+    <div class="live-price-value" id="totalPriceDisplay">0 ₽</div>
+    <div class="live-price-note">Расчёт обновляется при изменении комплектации</div>
+    <div id="priceWarnings" role="status" aria-live="polite" hidden></div>
+    <button type="button" class="live-price-details" id="openPriceDetailsBtn">Настроить стоимость <span>↗</span></button>
+</aside>
+
+<!-- Окно выбора комплектации -->
+<div class="configuration-backdrop" id="configurationBackdrop" hidden>
+  <section class="configuration-dialog" role="dialog" aria-modal="true" aria-labelledby="configurationTitle">
+    <div class="configuration-heading">
+      <div><span class="configuration-eyebrow">GIGA-NT · ВАШ ПРОЕКТ</span><h2 id="configurationTitle">Выберите комплектацию</h2><p>Отметьте только те элементы, которые хотите добавить. Их настройки появятся в меню конструктора.</p></div>
+      <button type="button" class="configuration-close" id="closeConfigurationBtn" aria-label="Закрыть">×</button>
+    </div>
+    <div class="configuration-grid">
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="base" checked><span class="configuration-icon">▰</span><span><strong>Основание</strong><small>Размеры и конструкция основания</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="flowerbed" checked><span class="configuration-icon">✿</span><span><strong>Цветник</strong><small>Форма, материал и наполнение</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="paving" checked><span class="configuration-icon">▦</span><span><strong>Покрытие</strong><small>Плитка, брусчатка и основание</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="fence" checked><span class="configuration-icon">⌗</span><span><strong>Ограда и бордюр</strong><small>Ограждение и периметр участка</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="background"><span class="configuration-icon">▧</span><span><strong>Фон</strong><small>Оформление заднего плана</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="inscriptions" checked><span class="configuration-icon">Aa</span><span><strong>Надписи</strong><small>ФИО, даты и шрифт</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="epitaph"><span class="configuration-icon">❝</span><span><strong>Эпитафия</strong><small>Текст и оформление</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="photo"><span class="configuration-icon">▣</span><span><strong>Фотография</strong><small>Портрет на памятнике</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="engravings"><span class="configuration-icon">✧</span><span><strong>Гравировки</strong><small>Изображения и декоративные элементы</small></span></label>
+      <label class="configuration-card"><input type="checkbox" data-module-toggle="landscaping"><span class="configuration-icon">⚱</span><span><strong>Мебель и вазы</strong><small>Дополнительное благоустройство</small></span></label>
+    </div>
+    <div class="configuration-footer"><span id="configurationSelectedCount">Выбрано: 7 разделов</span><button type="button" class="configuration-apply" id="applyConfigurationBtn">Применить комплектацию</button></div>
+  </section>
 </div>
 
 <!-- ============================================================
@@ -56,55 +99,17 @@
 <div class="accordion-menu" id="accordionMenu" role="navigation" aria-label="Главное меню">
     <div class="menu-scroll" id="menuScroll">
         
-        <!-- ============================================================
-        ШАГ 1: УПРАВЛЕНИЕ ПАМЯТНИКАМИ
-        ============================================================ -->
-        <div class="accordion-section active">
-            <div class="section-header" role="button" tabindex="0" aria-expanded="true">
-                📋 1. Управление памятниками (<span id="monumentCount">1</span>)
-            </div>
-            <div class="section-content">
-                <div id="monumentListContainer" class="monument-list-container">
-                    <div class="loading-placeholder">Загрузка...</div>
-                </div>
-                
-                <div class="btn-group-monument">
-                    <button id="addMonumentBtn" class="btn-add-monument">➕ Добавить</button>
-                    <button id="duplicateMonumentBtn" class="btn-duplicate-monument">📋 Копировать</button>
-                    <button id="deleteMonumentBtn" class="btn-delete-monument">🗑️ Удалить</button>
-                    <button id="selectMainMonumentBtn" class="btn-select-main">🏠 Основной</button>
-                </div>
-
-                <div class="move-mode-container">
-                    <div class="btn-group">
-                        <button id="toggleMoveModeBtn" class="btn-toggle-move">✋ Переместить</button>
-                        <button id="arrangeInRowBtn" class="btn-arrange-row">📐 Выровнять</button>
-                    </div>
-                    
-                    <div id="selectedMonumentInfo" class="selected-monument-info">
-                        <span class="empty">⬤</span>
-                        <span class="empty-text">Ничего не выбрано</span>
-                        <span id="selectedMonumentBadge" class="badge">ВЫБРАНО</span>
-                    </div>
-                    
-                    <div class="hint-text">
-                        💡 Кликни по памятнику в 3D, чтобы выбрать его<br>
-                        💡 Нажми «✋ Переместить», чтобы перетаскивать дублеры
-                    </div>
-                </div>
-
-                <div class="hint-text" style="margin-top:8px;">
-                    💡 Выбранный памятник подсвечивается зелёным
-                </div>
-            </div>
+        <div class="hint-text" style="margin:0 0 12px;padding:12px;border-radius:10px;background:#f5f7fa;color:#344054;line-height:1.5;">
+            <strong>Создайте памятник самостоятельно</strong><br>
+            Выберите форму, материалы и оформление. Настройки можно менять в любой момент, а итоговая стоимость будет пересчитываться по вашему выбору.
         </div>
 
         <!-- ============================================================
         ШАГ 2: ФОРМА И РАЗМЕРЫ СТЕЛЫ
         ============================================================ -->
-        <div class="accordion-section">
-            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                🪦 2. Форма и размеры стелы
+        <div class="accordion-section active" data-module="stele">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="true">
+                🪦 1. Стела — форма, материал и размеры
             </div>
             <div class="section-content">
                 <div class="stele-preview-panel" id="stelePreviewPanel">
@@ -133,6 +138,7 @@
                                 <option value="granite">⚫ Габбро-Диабаз</option>
                                 <option value="black_galaxy">⭐ Галактика черный</option>
                                 <option value="ninimyaki">🌲 Нинимяки</option>
+                                <option value="rombak">⚫ Ромбак</option>
                             </optgroup>
                             <optgroup label="Цветные граниты">
                                 <option value="marble">⚪ Белый Мрамор</option>
@@ -152,6 +158,7 @@
 								<option value="granite">⚫ Габбро-Диабаз</option>
 								<option value="black_galaxy">⭐ Галактика черный</option>
 								<option value="ninimyaki">🌲 Нинимяки</option>
+                                <option value="rombak">⚫ Ромбак</option>
 							</optgroup>
 
 							<optgroup label="Цветные граниты">
@@ -175,6 +182,7 @@
 								<option value="granite">⚫ Габбро-Диабаз</option>
 								<option value="black_galaxy">⭐ Галактика черный</option>
 								<option value="ninimyaki">🌲 Нинимяки</option>
+                                <option value="rombak">⚫ Ромбак</option>
 							</optgroup>
 
 							<optgroup label="Цветные граниты">
@@ -191,25 +199,7 @@
 					</div>
 				</div>
 
-				<div class="subsection">
-					<div class="subsection-title">🎨 Материал бордюра</div>
-					<div class="control-group">
-						<select id="borderMaterialSelect">
-							<optgroup label="Черные граниты">
-								<option value="granite">⚫ Габбро-Диабаз</option>
-								<option value="black_galaxy">⭐ Галактика черный</option>
-								<option value="ninimyaki">🌲 Нинимяки</option>
-							</optgroup>
 
-							<optgroup label="Цветные граниты">
-								<option value="marble">⚪ Белый Мрамор</option>
-								<option value="red_granite">🔴 Красный Гранит</option>
-								<option value="beige_granite">🏜️ Бежевый Гранит</option>
-								<option value="gray_granite">🌫️ Серый Гранит</option>
-							</optgroup>
-						</select>
-					</div>
-				</div>
 				
                 <div class="subsection">
                     <div class="subsection-title">📏 Размеры стелы</div>
@@ -265,13 +255,15 @@
         <!-- ============================================================
         ШАГ 3: ОСНОВАНИЕ И ОГРАДКА
         ============================================================ -->
-        <div class="accordion-section">
+        <div class="accordion-section" data-module="base">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                📐 3. Основание и оградка
+                📐 2. Основание, цветник и надгробная плита
             </div>
             <div class="section-content">
                 <div class="subsection">
-                    <div class="subsection-title">📐 Размеры основания</div>
+                    <div class="subsection-title">📐 Основание</div>
+                    <div id="baseControls">
+                        <div class="subsection-title">Размеры основания</div>
                     
                     <div class="control-group-with-input">
                         <label for="graveWidth">Ширина</label>
@@ -306,10 +298,30 @@
                     <div class="grave-area-info">
                         📐 Площадь: <span id="graveArea">1.35</span> м²
                     </div>
+                    </div>
                 </div>
 
-				<div class="subsection">
+				
+
+                
+
+                
+            </div>
+        </div>
+
+
+        
+        <div class="accordion-section customer-module-section" data-module="flowerbed">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">🌺 Цветник</div>
+            <div class="section-content"><div class="subsection">
 					<div class="subsection-title">🌺 Цветник</div>
+                    <div class="checkbox-group" style="margin:10px 0;">
+                        <input type="checkbox" id="baseEnabled" checked>
+                        <label for="baseEnabled">📐 Основание памятника под цветником</label>
+                    </div>
+                    <div class="price-note" style="text-align:left;">
+                        Отключает нижнюю плиту-основание, не отключая сам цветник.
+                    </div>
 
 					<div class="control-group">
 						<label for="flowerbedMode">Тип оформления</label>
@@ -361,6 +373,7 @@
 										<option value="granite">⚫ Габбро-Диабаз</option>
 										<option value="black_galaxy">⭐ Галактика черный</option>
 										<option value="ninimyaki">🌲 Нинимяки</option>
+                                <option value="rombak">⚫ Ромбак</option>
 									</optgroup>
 
 									<optgroup label="Цветные граниты">
@@ -382,6 +395,7 @@
 										<option value="granite">⚫ Габбро-Диабаз</option>
 										<option value="black_galaxy">⭐ Галактика черный</option>
 										<option value="ninimyaki">🌲 Нинимяки</option>
+                                <option value="rombak">⚫ Ромбак</option>
 									</optgroup>
 
 									<optgroup label="Цветные граниты">
@@ -401,6 +415,26 @@
 					</div>
 
 					<div id="flowerControls" class="flower-controls">
+				<div class="subsection">
+							<div class="subsection-title">🎨 Материал цветника</div>
+							<div class="control-group">
+								<select id="borderMaterialSelect">
+									<optgroup label="Черные граниты">
+										<option value="granite">⚫ Габбро-Диабаз</option>
+										<option value="black_galaxy">⭐ Галактика черный</option>
+										<option value="ninimyaki">🌲 Нинимяки</option>
+		                                <option value="rombak">⚫ Ромбак</option>
+									</optgroup>
+		
+									<optgroup label="Цветные граниты">
+										<option value="marble">⚪ Белый Мрамор</option>
+										<option value="red_granite">🔴 Красный Гранит</option>
+										<option value="beige_granite">🏜️ Бежевый Гранит</option>
+										<option value="gray_granite">🌫️ Серый Гранит</option>
+									</optgroup>
+								</select>
+							</div>
+						</div>
 						<div class="control-group-with-input">
 							<label for="flowerWidth">Ширина</label>
 
@@ -481,22 +515,118 @@
 							</select>
 						</div>
 					</div>
-				</div>
+				</div></div>
+        </div>
 
-                <div class="subsection">
+        <div class="accordion-section customer-module-section" data-module="paving">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">🛤️ Покрытие площадки</div>
+            <div class="section-content"><div class="subsection">
+                    <div class="subsection-title">🛤️ Покрытие площадки</div>
+                    <div class="control-group" id="pathSurfaceTypeControl" style="display:block !important; visibility:visible; opacity:1; margin:10px 0 14px; padding:10px; border:2px solid #64748b; border-radius:8px;">
+                        <label for="pathSurfaceType" style="display:block; font-weight:700; margin-bottom:6px;">Тип покрытия — выбери нужный вариант</label>
+                        <select id="pathSurfaceType" style="display:block !important; visibility:visible; width:100%; min-height:42px; font-size:16px;">
+                            <option value="slab">Тротуарная плитка</option>
+                            <option value="paver" selected>Брусчатка</option>
+                        </select>
+                    </div>
+                    <div id="pathControls" class="path-controls">
+                        <div class="checkbox-group" style="margin-bottom:12px;">
+                            <input type="checkbox" id="pathEnabled" checked>
+                            <label for="pathEnabled">Показывать покрытие и слои основания</label>
+                        </div>
+                        <div class="control-group-with-input">
+                            <label for="pathWidth">Ширина площадки</label>
+                            <div class="input-with-range">
+                                <input type="range" id="pathWidth" min="0.2" max="10.0" step="0.05" value="1.5">
+                                <input type="number" id="pathWidthInput" class="number-input" value="1.5" min="0.2" max="10.0" step="0.05">
+                                <span class="unit">м</span>
+                            </div>
+                            <span class="value-display" id="pathWidthVal">1.50 м</span>
+                        </div>
+
+                        <div id="pathSlabSettings" style="display:none; border:1px solid #d7dce2; border-radius:8px; padding:10px; margin:10px 0;">
+                            <div class="subsection-title">🧱 Тротуарная плитка</div>
+                            <div class="control-group">
+                                <label for="slabMaterial">Цвет и фактура плитки</label>
+                                <select id="slabMaterial">
+                                    <option value="tile_gray" selected>Серая плитка</option>
+                                    <option value="tile_black">Чёрная плитка</option>
+                                    <option value="tile_beige">Бежевая плитка</option>
+                                    <option value="tile_light">Светлая плитка</option>
+                                    <option value="tile_dark">Тёмная плитка</option>
+                                    <option value="tile_red">Красная плитка</option>
+                                    <option value="tile_marble">Под натуральный камень</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="pathSlabFormat">Формат и рисунок укладки</label>
+                                <select id="pathSlabFormat">
+                                    <option value="square300" selected>Квадратная 300×300×50 мм</option>
+                                    <option value="square500">Крупноформатная 500×500×50 мм</option>
+                                    <option value="rectangle">Прямоугольная 200×100×60 мм</option>
+                                    <option value="old_city">«Старый город» — 80×160×60 мм</option>
+                                    <option value="stone">Плитка с фактурой натурального камня 50 мм</option>
+                                </select>
+                            </div>
+                            <div class="hint-text">Форматы отображаются с отдельной раскладкой. Цена материала задаётся в админ-прайсе за м² для выбранного материала и размера; пока цена не внесена, она будет отмечена как отсутствующая.</div>
+                            <div class="hint-text">Профиль основания: песчаная постель, отсев, щебёночное основание и геотекстиль при необходимости.</div>
+                        </div>
+
+                        <div id="pathPaverSettings" style="display:block; border:1px solid #d7dce2; border-radius:8px; padding:10px; margin:10px 0;">
+                            <div class="subsection-title">🧱 Брусчатка</div>
+                            <div class="control-group">
+                                <label for="pathMaterial">Цвет и фактура брусчатки</label>
+                                <select id="pathMaterial">
+                                    <option value="tile_gray" selected>Серая брусчатка</option>
+                                    <option value="tile_black">Чёрная брусчатка</option>
+                                    <option value="tile_beige">Бежевая брусчатка</option>
+                                    <option value="tile_dark">Тёмная брусчатка</option>
+                                    <option value="tile_light">Светлая брусчатка</option>
+                                    <option value="tile_marble">Мраморная брусчатка</option>
+                                </select>
+                            </div>
+                            <div class="hint-text" style="margin:8px 0;">
+                                Формат брусчатки фиксированный: 200×200×60 мм и 200×100×60 мм. Толщина верхнего слоя — 60 мм.
+                            </div>
+                            <div class="control-group">
+                                <label for="pathJointColor">Цвет швов брусчатки</label>
+                                <div class="color-picker-row"><input type="color" id="pathJointColor" value="#666666"></div>
+                            </div>
+                            <div class="control-group">
+                                <label for="pathTileLayout">Схема укладки</label>
+                                <select id="pathTileLayout">
+                                    <option value="straight">Прямая</option>
+                                    <option value="brick" selected>Вразбежку</option>
+                                    <option value="diagonal">Диагональная</option>
+                                    <option value="herringbone">Ёлочка</option>
+                                </select>
+                            </div>
+                            <div class="hint-text">Профиль брусчатки: верхний элемент 6 см; ниже отображаются песчаная постель, отсев, щебень для расклинцовки, нижний щебёночный слой и геотекстиль при необходимости.</div>
+                        </div>
+                        <div id="pathLayerLegend" style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-top:12px;">
+                            <strong>Слои основания</strong>
+                            <div id="pathLayerLegendItems" style="margin-top:8px;"></div>
+                            <div class="hint-text">Это типовой пешеходный профиль для предварительного расчёта. Толщины следует корректировать с учётом грунта, водоотвода и предполагаемой нагрузки.</div>
+                        </div>
+                    </div>
+                    
+                </div></div>
+        </div>
+<div class="accordion-section" data-module="fence">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                🧱 3. Ограда и покрытие участка
+            </div>
+            <div class="section-content">
+<div class="subsection">
                     <div class="subsection-title">🚧 Оградка</div>
                     
                     <div class="checkbox-group" style="margin-bottom:10px;">
                         <input type="checkbox" id="fenceEnabled" checked>
                         <label for="fenceEnabled">🚧 Показать оградку</label>
                     </div>
-                    <div class="checkbox-group" style="margin-bottom:15px;">
-                        <input type="checkbox" id="pathEnabled" checked>
-                        <label for="pathEnabled">🛤️ Брусчатка по площади участка</label>
-                    </div>
                     
                     <div class="control-group-with-input">
-                        <label for="fenceWidth">Ширина оградки</label>
+                        <label for="fenceWidth">Ширина площадки / оградки</label>
                         <div class="input-with-range">
                             <input type="range" id="fenceWidth" min="1.0" max="10.0" step="0.1" value="1.5">
                             <input type="number" id="fenceWidthInput" class="number-input" value="1.5" min="1.0" max="10.0" step="0.1">
@@ -506,7 +636,7 @@
                     </div>
                     
                     <div class="control-group-with-input">
-                        <label for="fenceLength">Длина оградки</label>
+                        <label for="fenceLength">Длина площадки / оградки</label>
                         <div class="input-with-range">
                             <input type="range" id="fenceLength" min="1.0" max="10.0" step="0.1" value="2.5">
                             <input type="number" id="fenceLengthInput" class="number-input" value="2.5" min="1.0" max="10.0" step="0.1">
@@ -583,74 +713,64 @@
                     </div>
                 </div>
 
-                <div class="subsection">
-                    <div class="subsection-title">🛤️ Дорожка</div>
-                    <div id="pathControls" class="path-controls">
-                        <div class="control-group-with-input">
-                            <label for="pathWidth">Ширина</label>
-                            <div class="input-with-range">
-                                <input type="range" id="pathWidth" min="0.2" max="2.0" step="0.05" value="0.5">
-                                <input type="number" id="pathWidthInput" class="number-input" value="0.5" min="0.2" max="2.0" step="0.05">
-                                <span class="unit">м</span>
-                            </div>
-                            <span class="value-display" id="pathWidthVal">0.50 м</span>
-                        </div>
-                        
-                        <div class="control-group">
-                            <label for="pathMaterial">Покрытие</label>
-                            <select id="pathMaterial">
-                                <option value="tile_black">⬛ Чёрная брусчатка</option>
-                                <option value="tile_gray" selected>⬜ Серая брусчатка</option>
-                                <option value="tile_beige">🟨 Бежевая брусчатка</option>
-                                <option value="tile_dark">⬛ Тёмная брусчатка</option>
-                                <option value="tile_light">⬜ Светлая брусчатка</option>
-                                <option value="tile_marble">⚪ Мраморная брусчатка</option>
-                                <option value="gravel">🪨 Гравий</option>
-                                <option value="sand">🏜️ Песок</option>
-                                <option value="grass">🌿 Газон</option>
-                                <option value="flowers">🌸 Цветы</option>
-                            </select>
-                        </div>
-                        
-                        <div id="pathTileSettings" class="path-tile-settings">
-                            <div class="control-group-with-input">
-                                <label for="pathTileSize">Размер брусчатки</label>
-                                <div class="input-with-range">
-                                    <input type="range" id="pathTileSize" min="0.1" max="0.6" step="0.05" value="0.3">
-                                    <input type="number" id="pathTileSizeInput" class="number-input" value="0.3" min="0.1" max="0.6" step="0.05">
-                                    <span class="unit">м</span>
-                                </div>
-                                <span class="value-display" id="pathTileSizeVal">0.30 м</span>
-                            </div>
-                            
-                            <div class="control-group">
-                                <label for="pathJointColor">Цвет швов</label>
-                                <div class="color-picker-row">
-                                    <input type="color" id="pathJointColor" value="#666666">
-                                </div>
-                            </div>
-                            
-                            <div class="control-group">
-                                <label for="pathTileLayout">Укладка</label>
-                                <select id="pathTileLayout">
-                                    <option value="straight">📐 Прямая</option>
-                                    <option value="brick" selected>🧱 Вразбежку</option>
-                                    <option value="diagonal">🔲 Диагональная</option>
-                                    <option value="herringbone">〰️ Ёлочка</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                <div class="subsection" style="margin-top:0;">
+                                        
+                                        <div class="checkbox-group">
+                                            <input type="checkbox" id="curbVisible">
+                                            <label for="curbVisible">Показывать бордюр по периметру</label>
+                                        </div>
+                                        <div id="siteCurbControls" style="display:none;">
+                                            <div class="checkbox-group">
+                                                <input type="checkbox" id="curbGateOpeningEnabled">
+                                                <label for="curbGateOpeningEnabled">Оставить проём для входа</label>
+                                            </div>
+                                            <div class="control-group">
+                                                <label for="curbMaterial">Материал бордюра</label>
+                                                <select id="curbMaterial">
+                                                    <option value="granite">⚫ Чёрный гранит</option>
+                                                    <option value="black_galaxy">✨ Гранит Black Galaxy</option>
+                                                    <option value="red_granite">🟥 Красный гранит</option>
+                                                    <option value="beige_granite">🟨 Бежевый гранит</option>
+                                                    <option value="gray_granite">⬜ Серый гранит</option>
+                                                    <option value="marble">⚪ Мрамор</option>
+                                                    <option value="concrete">🧱 Бетон</option>
+                                                    <option value="brick">🧱 Кирпич</option>
+                                                </select>
+                                            </div>
+                                            <div class="control-group-with-input">
+                                                <label for="curbWidth">Ширина бордюра</label>
+                                                <div class="input-with-range">
+                                                    <input type="range" id="curbWidth" min="0.03" max="0.25" step="0.01" value="0.08">
+                                                    <input type="number" id="curbWidthInput" class="number-input" min="0.03" max="0.25" step="0.01" value="0.08">
+                                                    <span class="unit">м</span>
+                                                </div>
+                                                <span class="value-display" id="curbWidthVal">0.08 м</span>
+                                            </div>
+                                            <div class="control-group-with-input">
+                                                <label for="curbHeight">Высота бордюра</label>
+                                                <div class="input-with-range">
+                                                    <input type="range" id="curbHeight" min="0.03" max="0.3" step="0.01" value="0.12">
+                                                    <input type="number" id="curbHeightInput" class="number-input" min="0.03" max="0.3" step="0.01" value="0.12">
+                                                    <span class="unit">м</span>
+                                                </div>
+                                                <span class="value-display" id="curbHeightVal">0.12 м</span>
+                                            </div>
+                                            <div class="checkbox-group">
+                                                <input type="checkbox" id="curbInstallEnabled" checked>
+                                                <label for="curbInstallEnabled">Включить установку в заказ</label>
+                                            </div>
+                                            <div class="hint-text">Бордюр считается отдельно от металлической ограды и покрытия площадки. Материал покрытия выбирается независимо.</div>
+                                        </div>
+                                    </div>
             </div>
         </div>
 
 		<!-- ============================================================
 		ШАГ 3.1 : ФОН СТЕЛЫ
 		============================================================ -->
-		<div class="accordion-section">
+		<div class="accordion-section" data-module="background">
 			<div class="section-header" role="button" tabindex="0" aria-expanded="false">
-				🖼️ 4. Фон стелы
+				🖼️ 4. Внешний вид и фон
 			</div>
 
 			<div class="section-content">
@@ -729,9 +849,9 @@
         <!-- ============================================================
         ШАГ 4: ТЕКСТ НА ПАМЯТНИКЕ
         ============================================================ -->
-        <div class="accordion-section">
+        <div class="accordion-section" data-module="inscriptions">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                📝 4. Текст на памятнике
+                📝 5. Надписи на памятнике
             </div>
             <div class="section-content">
                 <div class="control-group">
@@ -797,21 +917,21 @@
                 <div class="control-group-with-input">
                     <label for="nameFontSize">Размер (ФИО)</label>
                     <div class="input-with-range">
-                        <input type="range" id="nameFontSize" min="5" max="80" step="1" value="48">
-                        <input type="number" id="nameFontSizeInput" class="number-input" value="48" min="5" max="80" step="1">
+                        <input type="range" id="nameFontSize" min="5" max="80" step="1" value="24">
+                        <input type="number" id="nameFontSizeInput" class="number-input" value="24" min="5" max="80" step="1">
                         <span class="unit">px</span>
                     </div>
-                    <span class="value-display" id="nameFontSizeVal">48</span>
+                    <span class="value-display" id="nameFontSizeVal">24</span>
                 </div>
                 
                 <div class="control-group-with-input">
                     <label for="datesFontSize">Размер (Даты)</label>
                     <div class="input-with-range">
-                        <input type="range" id="datesFontSize" min="10" max="60" step="1" value="32">
-                        <input type="number" id="datesFontSizeInput" class="number-input" value="32" min="10" max="60" step="1">
+                        <input type="range" id="datesFontSize" min="10" max="60" step="1" value="24">
+                        <input type="number" id="datesFontSizeInput" class="number-input" value="24" min="10" max="60" step="1">
                         <span class="unit">px</span>
                     </div>
-                    <span class="value-display" id="datesFontSizeVal">32</span>
+                    <span class="value-display" id="datesFontSizeVal">24</span>
                 </div>
 				<div class="checkbox-group" style="margin-bottom:10px;">
 					<input type="checkbox" id="enableDragText">
@@ -853,9 +973,9 @@
         <!-- ============================================================
         ШАГ 5: ЭПИТАФИЯ
         ============================================================ -->
-        <div class="accordion-section">
+        <div class="accordion-section" data-module="epitaph">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                ✍️ 5. Эпитафия
+                ✍️ 6. Эпитафия
             </div>
             <div class="section-content">
                 <div class="control-group">
@@ -880,11 +1000,11 @@
                 <div class="control-group-with-input">
                     <label for="epitaphFontSize">Размер шрифта</label>
                     <div class="input-with-range">
-                        <input type="range" id="epitaphFontSize" min="20" max="80" step="1" value="40">
-                        <input type="number" id="epitaphFontSizeInput" class="number-input" value="40" min="20" max="80" step="1">
+                        <input type="range" id="epitaphFontSize" min="20" max="80" step="1" value="24">
+                        <input type="number" id="epitaphFontSizeInput" class="number-input" value="24" min="20" max="80" step="1">
                         <span class="unit">px</span>
                     </div>
-                    <span class="value-display" id="epitaphFontSizeVal">40</span>
+                    <span class="value-display" id="epitaphFontSizeVal">24</span>
                 </div>
 
 				<div class="checkbox-group" style="margin-bottom:10px;">
@@ -919,9 +1039,9 @@
         <!-- ============================================================
         ШАГ 6: ФОТОГРАФИЯ
         ============================================================ -->
-        <div class="accordion-section">
+        <div class="accordion-section" data-module="photo">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                🖼️ 6. Фотография
+                🖼️ 7. Фотография
             </div>
             <div class="section-content">
                 <div class="control-group">
@@ -1020,9 +1140,9 @@
         <!-- ============================================================
         ШАГ 7: ГРАВИРОВКИ
         ============================================================ -->
-        <div class="accordion-section">
+        <div class="accordion-section" data-module="engravings">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                🎨 7. Гравировки
+                🎨 8. Гравировки и изображения
             </div>
             <div class="section-content">
                 <div class="engravings-subsection">
@@ -1111,9 +1231,9 @@
         <!-- ============================================================
         ШАГ 8: ДЕКОР
         ============================================================ -->
-        <div class="accordion-section">
+        <div class="accordion-section" data-module="landscaping">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                🪑 8. Декор
+                🪑 9. Благоустройство — мебель и вазы
             </div>
             <div class="section-content">
                 <!-- МЕБЕЛЬ -->
@@ -1220,22 +1340,68 @@
         </div>
 
         <!-- ============================================================
+        ШАГ 1: УПРАВЛЕНИЕ ПАМЯТНИКАМИ
+        ============================================================ -->
+        <div class="accordion-section">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+                📋 Дополнительные памятники и проекты (<span id="monumentCount">1</span>)
+            </div>
+            <div class="section-content">
+                <div id="monumentListContainer" class="monument-list-container">
+                    <div class="loading-placeholder">Загрузка...</div>
+                </div>
+
+                <div class="checkbox-group" style="margin: 10px 0 12px;">
+                    <input type="checkbox" id="includeDuplicatorsInPrice">
+                    <label for="includeDuplicatorsInPrice">💰 Учитывать дублёры в расчёте</label>
+                </div>
+                
+                <div class="btn-group-monument">
+                    <button id="addMonumentBtn" class="btn-add-monument">➕ Добавить</button>
+                    <button id="duplicateMonumentBtn" class="btn-duplicate-monument">📋 Копировать</button>
+                    <button id="deleteMonumentBtn" class="btn-delete-monument">🗑️ Удалить</button>
+                    <button id="selectMainMonumentBtn" class="btn-select-main">🏠 Основной</button>
+                </div>
+
+                <div class="move-mode-container">
+                    <div class="btn-group">
+                        <button id="toggleMoveModeBtn" class="btn-toggle-move">✋ Переместить</button>
+                        <button id="arrangeInRowBtn" class="btn-arrange-row">📐 Выровнять</button>
+                    </div>
+                    
+                    <div id="selectedMonumentInfo" class="selected-monument-info">
+                        <span class="empty">⬤</span>
+                        <span class="empty-text">Ничего не выбрано</span>
+                        <span id="selectedMonumentBadge" class="badge">ВЫБРАНО</span>
+                    </div>
+                    
+                    <div class="hint-text">
+                        💡 Кликни по памятнику в 3D, чтобы выбрать его<br>
+                        💡 Нажми «✋ Переместить», чтобы перетаскивать дублеры
+                    </div>
+                </div>
+
+                <div class="hint-text" style="margin-top:8px;">
+                    💡 Выбранный памятник подсвечивается зелёным
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ============================================================
         ШАГ 9: ИТОГИ И ЗАКАЗ
         ============================================================ -->
         <div class="accordion-section">
             <div class="section-header" role="button" tabindex="0" aria-expanded="false">
-                💰 9. Итоги и заказ
+                💰 10. Стоимость и оформление заказа
             </div>
             <div class="section-content">
                 <div class="checkbox-group" style="margin-bottom:12px;">
                     <input type="checkbox" id="includeInstall">
                     <label for="includeInstall">🔧 Включить установку в расчёт</label>
                 </div>
-                <div class="price-block">
-                    <div class="price-value" id="totalPriceDisplay">0 ₽</div>
-                    <div class="price-note">*Цена уточняется</div>
-                </div>
-                <button id="refreshPriceBtn" class="btn-secondary" style="width:100%;">🔄 Пересчитать</button>
+                <div class="price-note" style="text-align:left;">Стоимость рассчитывается автоматически по выбранным материалам и элементам.</div>
+                <button id="refreshPriceBtn" class="btn-secondary" style="width:100%;">🔄 Пересчитать стоимость</button>
                 
                 <hr>
                 
@@ -1306,7 +1472,7 @@
 <!-- ============================================================
 ПОДКЛЮЧАЕМ СКРИПТЫ
 ============================================================ -->
-<script type="module" src="script.js?v=20261021-1"></script>
+<script type="module" src="script.js?v=20261109-customer-flow"></script>
 <script src="modules/menu.js" defer></script>
 <script src="modules/modeManager.js" defer></script>
 
@@ -1369,7 +1535,6 @@ document.addEventListener('contextmenu', event => event.preventDefault());
         ['fenceHeight', 'fenceHeightInput', 'fenceHeightVal'],
         ['gateWidth', 'gateWidthInput', 'gateWidthVal'],
         ['pathWidth', 'pathWidthInput', 'pathWidthVal'],
-        ['pathTileSize', 'pathTileSizeInput', 'pathTileSizeVal'],
         ['photoScale', 'photoScaleInput', 'photoScaleVal'],
         ['nameFontSize', 'nameFontSizeInput', 'nameFontSizeVal'],
         ['datesFontSize', 'datesFontSizeInput', 'datesFontSizeVal'],
@@ -1414,5 +1579,103 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 })();
 
 </script>
+
+<script>
+(function () {
+    const toggle = document.getElementById('showPricePanel');
+    const panel = document.getElementById('livePricePanel');
+    const openDetails = document.getElementById('openPriceDetailsBtn');
+    const menu = document.getElementById('accordionMenu');
+    const overlay = document.getElementById('menuOverlay');
+    const burger = document.getElementById('burgerBtn');
+
+    if (toggle && panel) {
+        toggle.addEventListener('change', () => {
+            panel.classList.toggle('is-hidden', !toggle.checked);
+            panel.setAttribute('aria-hidden', String(!toggle.checked));
+        });
+    }
+
+    openDetails?.addEventListener('click', () => {
+        const section = document.getElementById('sendOrderBtn')?.closest('.accordion-section');
+        if (menu) menu.classList.add('open');
+        if (overlay) overlay.classList.add('active');
+        if (burger) burger.classList.add('active');
+        if (section) {
+            document.querySelectorAll('.accordion-section.active').forEach(item => {
+                if (item !== section) {
+                    item.classList.remove('active');
+                    item.querySelector('.section-header')?.setAttribute('aria-expanded', 'false');
+                }
+            });
+            section.classList.add('active');
+            section.querySelector('.section-header')?.setAttribute('aria-expanded', 'true');
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+})();
+</script>
+
+<script>
+(function(){
+ const backdrop=document.getElementById('configurationBackdrop');
+ const menu=document.getElementById('accordionMenu');
+ const overlay=document.getElementById('menuOverlay');
+ const openBtn=document.createElement('button');
+ openBtn.type='button';openBtn.id='openConfigurationBtn';openBtn.className='quick-btn configuration-open-btn';openBtn.textContent='Комплектация';
+ document.getElementById('quickActions')?.appendChild(openBtn);
+ const toggles=[...document.querySelectorAll('[data-module-toggle]')];
+ const count=document.getElementById('configurationSelectedCount');
+ const storageKey='gnt-customer-modules-v1';
+ const updateCount=()=>{const n=toggles.filter(t=>t.checked).length;if(count)count.textContent='Выбрано: '+n+' разделов';};
+ const show=()=>{if(backdrop){backdrop.hidden=false;document.body.classList.add('configuration-open');updateCount();}};
+ const hide=()=>{if(backdrop){backdrop.hidden=true;document.body.classList.remove('configuration-open');}};
+ const apply=(persist=true)=>{
+   const disableControls={
+     base:['baseEnabled'],
+     flowerbed:['flowerEnabled'],
+     paving:['pathEnabled'],
+     fence:['fenceEnabled','curbVisible']
+   };
+   toggles.forEach(t=>{
+     const section=document.querySelector('.accordion-section[data-module="'+t.dataset.moduleToggle+'"]');
+     if(section)section.hidden=!t.checked;
+     if(!t.checked){
+       (disableControls[t.dataset.moduleToggle]||[]).forEach(id=>{
+         const control=document.getElementById(id);
+         if(control && control.checked){control.checked=false;control.dispatchEvent(new Event('change',{bubbles:true}));}
+       });
+     }
+   });
+   if(persist){try{localStorage.setItem(storageKey,JSON.stringify(toggles.filter(t=>t.checked).map(t=>t.dataset.moduleToggle)));}catch(e){console.warn('Не удалось сохранить комплектацию',e);}}
+   hide();
+   document.dispatchEvent(new CustomEvent('memorial:configuration-changed'));
+ };
+ let saved=null;
+ try{saved=JSON.parse(localStorage.getItem(storageKey)||'null');}catch(e){saved=null;}
+ if(Array.isArray(saved)){
+   toggles.forEach(t=>t.checked=saved.includes(t.dataset.moduleToggle));
+   apply(false);
+ } else {
+   apply(false);
+   show();
+ }
+ openBtn.addEventListener('click',show);
+ document.getElementById('closeConfigurationBtn')?.addEventListener('click',hide);
+ document.getElementById('applyConfigurationBtn')?.addEventListener('click',()=>apply(true));
+ backdrop?.addEventListener('click',e=>{if(e.target===backdrop)hide();});
+ toggles.forEach(t=>t.addEventListener('change',updateCount));
+ document.getElementById('showPricePanel')?.addEventListener('change',e=>{
+   const panel=document.getElementById('livePricePanel');
+   panel?.classList.toggle('is-hidden',!e.target.checked);
+ });
+ document.getElementById('openPriceDetailsBtn')?.addEventListener('click',()=>{
+   const order=document.getElementById('sendOrderBtn')?.closest('.accordion-section');
+   if(order){order.hidden=false;order.classList.add('active');order.querySelector('.section-header')?.setAttribute('aria-expanded','true');}
+   menu?.classList.add('open');overlay?.classList.add('active');
+ });
+})();
+</script>
+
 </body>
 </html>

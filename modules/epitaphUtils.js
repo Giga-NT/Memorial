@@ -254,7 +254,7 @@ export function buildBackEpitaphLayout(data = {}, options = {}) {
 
     const isMobile = options.isMobile ??
         (typeof window !== 'undefined' && window.innerWidth < 768);
-    const baseFontSize = Number(data.epitaphFontSize) || 40;
+    const baseFontSize = Number(data.epitaphFontSize) || 24;
     const fontScale = isMobile ? 0.8 : 1.2;
     const lineHeightFactor = isMobile ? 0.9 : 1.5;
     const fontFamily = resolveEpitaphFontFamily(data.fontFamily);
@@ -393,7 +393,7 @@ export function drawBackEpitaphs(ctx, canvas, data = {}, options = {}) {
 
     const isMobile = options.isMobile ??
         (typeof window !== 'undefined' && window.innerWidth < 768);
-    const baseFontSize = Number(data.epitaphFontSize) || 40;
+    const baseFontSize = Number(data.epitaphFontSize) || 24;
     const fontScale = isMobile ? 0.8 : 1.2;
     const lineHeightFactor = isMobile ? 0.9 : 1.5;
     const blockGap = isMobile ? 18 : 30;

@@ -63,11 +63,22 @@ export class ProjectIO {
 
     syncStateFromUI() {
 
+        // При редактировании дублера общие поля UI показывают его настройки.
+        // Не переносим их в state основного памятника: иначе при экспорте
+        // материалы и текстуры главного памятника будут заменены данными дублера.
+        const monumentManager = this.getMonumentManager();
+
+        if (monumentManager?.currentMode === 'duplicator') {
+            console.log('⏭️ Синхронизация основного state пропущена: активен дублер');
+            return;
+        }
+
         const numericFields = [
             'width', 'height', 'depth',
             'graveWidth', 'graveLength', 'baseHeight',
             'flowerWidth', 'flowerLength',
             'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
+            'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
             'pathWidth', 'pathTileSize',
             'photoScale', 'furnitureScale', 'vaseScale',
@@ -108,7 +119,11 @@ export class ProjectIO {
             'fenceMaterial',
             'fenceGateSide',
             'pathMaterial',
+            'pathSurfaceType',
+            'slabMaterial',
+            'pathSlabFormat',
             'pathTileLayout',
+            'curbMaterial',
             'steleType',
             'steleModel',
             'material',
@@ -127,6 +142,11 @@ export class ProjectIO {
             }
         });
 
+        this.state.pathSurfaceType = document.getElementById('pathSurfaceType')?.value || this.state.pathSurfaceType || 'paver';
+        this.state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || this.state.pathSlabMaterial || 'tile_gray';
+        this.state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || this.state.pathPaverMaterial || 'tile_gray';
+        this.state.pathMaterial = this.state.pathSurfaceType === 'slab' ? this.state.pathSlabMaterial : this.state.pathPaverMaterial;
+
 
         // Название проекта
         const projectName = document.getElementById('projectName');
@@ -141,9 +161,13 @@ export class ProjectIO {
         const checkboxFields = [
             'fenceEnabled',
             'pathEnabled',
+            'curbVisible',
+            'curbInstallEnabled',
+            'curbGateOpeningEnabled',
             'flowerEnabled',
             'showFurniture',
-            'showVases'
+            'showVases',
+            'includeDuplicatorsInPrice'
         ];
 
         checkboxFields.forEach(id => {
@@ -727,15 +751,15 @@ export class ProjectIO {
 
             nameFontSize:
                 this.state.nameFontSize ??
-                48,
+                24,
 
             datesFontSize:
                 this.state.datesFontSize ??
-                32,
+                24,
 
             epitaphFontSize:
                 this.state.epitaphFontSize ??
-                40,
+                24,
 
             textOffsetX:
                 this.state.textOffsetX ??
@@ -928,7 +952,7 @@ export class ProjectIO {
     // СОХРАНЕНИЕ
     // ============================================================
 
-    saveToFile() {
+    async saveToFile(options = {}) {
 
         try {
 
@@ -1054,6 +1078,7 @@ export class ProjectIO {
                 vases:
                     vasesData,
 
+
                 camera:
                     cameraState,
 
@@ -1176,6 +1201,9 @@ export class ProjectIO {
 
 
             // ----------------------------------------------------
+            // GLB-экспорт получает тот же полный объект проекта, что и JSON-сохранение.
+            if (options.returnData === true) return projectData;
+
             // JSON
             // ----------------------------------------------------
 
@@ -1598,6 +1626,52 @@ export class ProjectIO {
 
     async loadFromFile(file) {
 
+        // Показываем загрузку до начала чтения JSON и держим её,
+        // пока не завершится восстановление сцены.
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'project-loading-overlay';
+        loadingOverlay.setAttribute('role', 'status');
+        loadingOverlay.setAttribute('aria-live', 'polite');
+        loadingOverlay.innerHTML = `
+            <style>
+                #project-loading-overlay {
+                    position: fixed; inset: 0; z-index: 100000;
+                    display: flex; align-items: center; justify-content: center;
+                    background: rgba(10, 10, 10, .72); color: #f5f5f5;
+                    font: 600 16px Arial, sans-serif; text-align: center;
+                    padding: 20px; box-sizing: border-box;
+                }
+                #project-loading-overlay .project-loading-card {
+                    min-width: 220px; max-width: 90vw; padding: 26px 30px;
+                    border: 1px solid rgba(212, 175, 55, .45);
+                    border-radius: 14px; background: #181818;
+                    box-shadow: 0 12px 40px rgba(0,0,0,.4);
+                }
+                #project-loading-overlay .project-loading-spinner {
+                    width: 38px; height: 38px; margin: 0 auto 16px;
+                    border: 4px solid rgba(255,255,255,.2);
+                    border-top-color: #d4af37; border-radius: 50%;
+                    animation: project-loading-spin .8s linear infinite;
+                }
+                #project-loading-overlay .project-loading-hint {
+                    margin-top: 8px; color: #bdbdbd; font-size: 13px;
+                    font-weight: 400;
+                }
+                @keyframes project-loading-spin { to { transform: rotate(360deg); } }
+            </style>
+            <div class="project-loading-card">
+                <div class="project-loading-spinner"></div>
+                <div class="project-loading-message">Читаем файл проекта…</div>
+                <div class="project-loading-hint">Пожалуйста, не закрывайте конструктор</div>
+            </div>`;
+        document.body.appendChild(loadingOverlay);
+
+        const setLoadingMessage = message => {
+            const label = loadingOverlay.querySelector('.project-loading-message');
+            if (label) label.textContent = message;
+        };
+        const hideLoading = () => loadingOverlay.remove();
+
         return new Promise(resolve => {
 
             const reader =
@@ -1780,8 +1854,10 @@ export class ProjectIO {
                                 ) || 0.5,
 
                             pathMaterial:
-                                ui.pathMaterial ||
-                                'tile_gray',
+                                ui.pathMaterial || 'tile_gray',
+                            pathSurfaceType: ui.pathSurfaceType || 'paver',
+                            pathSlabMaterial: ui.pathSlabMaterial || 'tile_gray',
+                            pathPaverMaterial: ui.pathPaverMaterial || ui.pathMaterial || 'tile_gray',
 
                             graveWidth:
                                 parseFloat(
@@ -1823,17 +1899,17 @@ export class ProjectIO {
                             nameFontSize:
                                 parseInt(
                                     ui.nameFontSize
-                                ) || 48,
+                                ) || 24,
 
                             datesFontSize:
                                 parseInt(
                                     ui.datesFontSize
-                                ) || 32,
+                                ) || 24,
 
                             epitaphFontSize:
                                 parseInt(
                                     ui.epitaphFontSize
-                                ) || 40,
+                                ) || 24,
 
                             fenceOffsetX:
                                 parseFloat(
@@ -1911,6 +1987,8 @@ export class ProjectIO {
                         };
                     }
 
+
+                    setLoadingMessage('Восстанавливаем параметры проекта…');
 
                     // ==================================================
                     // 3. ВОССТАНАВЛИВАЕМ ВЕСЬ STATE
@@ -2004,23 +2082,16 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 4. ОБНОВЛЯЕМ UI
+                    // 4. БЛОКИРУЕМ ОБРАБОТЧИКИ И ОБНОВЛЯЕМ UI
                     // ==================================================
-					window._isLoadingProject = true;
+                    window._isLoadingProject = true;
+                    window._disableAutoMonument = true;
+                    window._forceMainUpdate = true;
+
                     this.updateAllUIFromState();
-					if (typeof window.refreshBurialRecordsUI === 'function') {
-						window.refreshBurialRecordsUI();
-					}
-
-                    // ==================================================
-                    // 5. ОТКЛЮЧАЕМ АВТООБНОВЛЕНИЕ
-                    // ==================================================
-
-                    window._disableAutoMonument =
-                        true;
-
-                    window._forceMainUpdate =
-                        true;
+                    if (typeof window.refreshBurialRecordsUI === 'function') {
+                        window.refreshBurialRecordsUI();
+                    }
 
 
                     // ==================================================
@@ -2029,6 +2100,8 @@ export class ProjectIO {
 
                     this.clearDuplicators();
 
+
+                    setLoadingMessage('Строим памятник и загружаем материалы…');
 
                     // ==================================================
                     // 7. ПЕРЕСТРАИВАЕМ ОСНОВНОЙ
@@ -2051,6 +2124,8 @@ export class ProjectIO {
                     }
 
 
+                    setLoadingMessage('Восстанавливаем дополнительные объекты…');
+
                     // ==================================================
                     // 8. ВОССТАНАВЛИВАЕМ ДУБЛЕРОВ
                     // ==================================================
@@ -2064,6 +2139,8 @@ export class ProjectIO {
                         );
                     }
 
+
+                    setLoadingMessage('Завершаем настройку сцены…');
 
                     // ==================================================
                     // 9. ВОССТАНАВЛИВАЕМ КАМЕРУ
@@ -2119,30 +2196,16 @@ export class ProjectIO {
                     // ==================================================
                     // 10. МЕБЕЛЬ / ВАЗЫ
                     //
-                    // Их существующие менеджеры могут восстановить
-                    // отдельно. Здесь сохраняем данные в state,
-                    // чтобы они были доступны проекту.
+                    // Сохраняем данные аксессуаров в state. Их менеджеры
+                    // управляют созданием объектов в обычном конструкторе.
                     // ==================================================
 
-                    if (
-                        Array.isArray(data.furniture)
-                    ) {
-
-                        this.state.savedFurniture =
-                            this.cloneData(
-                                data.furniture
-                            );
+                    if (Array.isArray(data.furniture)) {
+                        this.state.savedFurniture = this.cloneData(data.furniture);
                     }
 
-
-                    if (
-                        Array.isArray(data.vases)
-                    ) {
-
-                        this.state.savedVases =
-                            this.cloneData(
-                                data.vases
-                            );
+                    if (Array.isArray(data.vases)) {
+                        this.state.savedVases = this.cloneData(data.vases);
                     }
 
 
@@ -2205,6 +2268,7 @@ export class ProjectIO {
                     );
 
 
+                    hideLoading();
                     resolve(true);
 
 
@@ -2223,6 +2287,7 @@ export class ProjectIO {
                         false;
 
 
+                    hideLoading();
                     showToast(
                         '❌ Ошибка загрузки: ' +
                         error.message,
@@ -2242,6 +2307,7 @@ export class ProjectIO {
                     error
                 );
 
+                hideLoading();
                 showToast(
                     '❌ Не удалось прочитать файл',
                     'error'
@@ -2810,11 +2876,19 @@ export class ProjectIO {
         }
 
 
-        setSelect(
-            'pathMaterial',
-            state.pathMaterial ||
-            'tile_gray'
-        );
+        setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');
+        setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
+        setSelect('pathSlabFormat', state.pathSlabFormat || 'square300');
+        setSelect('pathMaterial', state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
+        const pathType = document.getElementById('pathSurfaceType')?.value || 'paver';
+        state.pathSurfaceType = pathType;
+        state.pathSlabMaterial = state.pathSlabMaterial || document.getElementById('slabMaterial')?.value || 'tile_gray';
+        state.pathPaverMaterial = state.pathPaverMaterial || document.getElementById('pathMaterial')?.value || 'tile_gray';
+        state.pathMaterial = pathType === 'slab' ? state.pathSlabMaterial : state.pathPaverMaterial;
+        const slabSettings = document.getElementById('pathSlabSettings');
+        const paverSettings = document.getElementById('pathPaverSettings');
+        if (slabSettings) slabSettings.style.display = pathType === 'slab' ? 'block' : 'none';
+        if (paverSettings) paverSettings.style.display = pathType === 'paver' ? 'block' : 'none';
 
 
         setVal(
@@ -2870,6 +2944,23 @@ export class ProjectIO {
                     : 'none';
         }
 
+
+        // --------------------------------------------------------
+        // БОРДЮР ПЛОЩАДКИ
+        // --------------------------------------------------------
+        setVal('curbVisible', state.curbVisible === true);
+        setSelect('curbMaterial', state.curbMaterial || 'granite');
+        setVal('curbInstallEnabled', state.curbInstallEnabled !== false);
+        setVal('curbGateOpeningEnabled', state.curbGateOpeningEnabled === true);
+        ['curbWidth', 'curbHeight'].forEach(id => {
+            const fallback = id === 'curbWidth' ? 0.08 : 0.12;
+            const value = Number(state[id]) || fallback;
+            setVal(id, value);
+            setVal(`${id}Input`, value);
+            setText(`${id}Val`, value.toFixed(2) + ' м');
+        });
+        const siteCurbControls = document.getElementById('siteCurbControls');
+        if (siteCurbControls) siteCurbControls.style.display = state.curbVisible ? 'block' : 'none';
 
         // --------------------------------------------------------
         // ОГРАДКА

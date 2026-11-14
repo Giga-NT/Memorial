@@ -4,444 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Админка — Цены</title>
+    <title>Панель управления — Giga-NT</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background: #f2f3f5;
-            color: #222;
-        }
-
-        .container {
-            width: min(100% - 30px, 900px);
-            margin: 30px auto;
-        }
-
-        /* =========================================
-           HEADER
-        ========================================= */
-
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .admin-name {
-            color: #666;
-            font-size: 14px;
-        }
-
-        /* =========================================
-           LOGIN
-        ========================================= */
-
-        .login-box {
-            max-width: 420px;
-            margin: 100px auto;
-            background: #fff;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
-        }
-
-        .login-box h1 {
-            margin: 0 0 25px;
-            text-align: center;
-            font-size: 25px;
-        }
-
-        .login-box .form-group {
-            margin-bottom: 18px;
-        }
-
-        .login-box label {
-            display: block;
-            margin-bottom: 7px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .login-box input {
-            width: 100%;
-        }
-
-        /* =========================================
-           INPUTS
-        ========================================= */
-
-        input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #d2d5da;
-            border-radius: 7px;
-            background: #fff;
-            font-size: 15px;
-            outline: none;
-        }
-
-        input:focus {
-            border-color: #777;
-        }
-
-        /* =========================================
-           BUTTONS
-        ========================================= */
-
-        button {
-            border: 0;
-            border-radius: 7px;
-            padding: 10px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            background: #222;
-            color: #fff;
-        }
-
-        button:hover {
-            opacity: 0.9;
-        }
-
-        button.secondary {
-            background: #e5e7eb;
-            color: #222;
-        }
-
-        button.danger {
-            background: #b42318;
-        }
-
-        .login-button {
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        /* =========================================
-           MESSAGES
-        ========================================= */
-
-        .message {
-            display: none;
-            padding: 12px 14px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .message.success {
-            display: block;
-            background: #e8f5e9;
-            color: #176b2c;
-        }
-
-        .message.error {
-            display: block;
-            background: #fdecec;
-            color: #a61b1b;
-        }
-
-        /* =========================================
-           MAIN ADMIN
-        ========================================= */
-
-        #admin-panel {
-            display: none;
-        }
-
-        .intro {
-            background: #fff;
-            border-radius: 10px;
-            padding: 16px 18px;
-            margin-bottom: 15px;
-            color: #555;
-            font-size: 14px;
-        }
-
-        /* =========================================
-           PRICE CATEGORIES
-        ========================================= */
-
-        .price-category {
-            background: #fff;
-            border: 1px solid #e0e2e5;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
-
-        .category-header {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-
-            padding: 16px 18px;
-
-            background: #fff;
-            color: #222;
-
-            text-align: left;
-            font-size: 17px;
-            font-weight: 700;
-
-            cursor: pointer;
-        }
-
-        .category-header:hover {
-            background: #f8f9fa;
-            opacity: 1;
-        }
-
-        .category-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .category-arrow {
-            width: 18px;
-            font-size: 13px;
-            color: #777;
-            transition: transform 0.2s ease;
-        }
-
-        .price-category.open .category-arrow {
-            transform: rotate(90deg);
-        }
-
-        .category-count {
-            color: #888;
-            font-size: 12px;
-            font-weight: 400;
-        }
-
-        /* =========================================
-           CATEGORY CONTENT
-        ========================================= */
-
-        .category-content {
-            display: none;
-            border-top: 1px solid #e8e9eb;
-        }
-
-        .price-category.open .category-content {
-            display: block;
-        }
-
-        .price-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 110px 140px;
-            align-items: center;
-            gap: 15px;
-
-            padding: 11px 18px;
-
-            border-bottom: 1px solid #eeeeee;
-        }
-
-        .price-row:last-child {
-            border-bottom: 0;
-        }
-
-        .price-name {
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .price-key {
-            margin-top: 3px;
-            color: #999;
-            font-size: 11px;
-        }
-
-        .price-unit {
-            color: #777;
-            font-size: 13px;
-            text-align: right;
-        }
-
-        .price-input {
-            width: 100%;
-            text-align: right;
-            font-weight: 600;
-        }
-
-        .price-input.warning,
-        .setting-input.warning {
-            border-color: #e67e22;
-            background: #fff8ef;
-        }
-
-        .setting-input {
-            width: 100%;
-            text-align: right;
-            font-weight: 600;
-        }
-
-        .price-warnings {
-            margin: 0 0 16px;
-            padding: 10px 14px;
-
-            color: #8a4b08;
-            background: #fff8ef;
-            border: 1px solid #f0c38a;
-            border-radius: 8px;
-
-            font-size: 13px;
-            line-height: 1.45;
-        }
-
-        .price-warnings:empty {
-            display: none;
-        }
-
-        .setting-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-
-            font-size: 13px;
-            color: #555;
-            cursor: pointer;
-        }
-
-        .setting-toggle input {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .flag-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-
-            padding: 9px 18px;
-            border-bottom: 1px solid #eee;
-
-            font-size: 13px;
-        }
-
-        .flag-row:last-child {
-            border-bottom: 0;
-        }
-
-        .flag-row input {
-            width: 16px;
-            height: 16px;
-        }
-
-        .flag-key {
-            color: #777;
-            font-family: Consolas, monospace;
-            font-size: 12px;
-        }
-
-        .flag-hint {
-            color: #999;
-            font-size: 12px;
-        }
-
-        /* =========================================
-           FOOTER ACTIONS
-        ========================================= */
-
-        .actions {
-            position: sticky;
-            bottom: 15px;
-
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-
-            margin-top: 20px;
-            padding: 12px;
-
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid #ddd;
-            border-radius: 10px;
-
-            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
-        }
-
-        /* =========================================
-           MOBILE
-        ========================================= */
-
-        @media (max-width: 650px) {
-            .container {
-                width: min(100% - 20px, 900px);
-                margin: 15px auto;
-            }
-
-            .header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .header-right {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .price-row {
-                grid-template-columns: 1fr 85px;
-                gap: 10px;
-            }
-
-            .price-unit {
-                display: none;
-            }
-
-            .price-input,
-            .setting-input {
-                grid-column: 2;
-                grid-row: 1;
-            }
-
-            .price-name {
-                grid-column: 1;
-                grid-row: 1;
-                padding-right: 5px;
-            }
-
-            .setting-toggle {
-                grid-column: 2;
-                grid-row: 1;
-                justify-content: flex-end;
-            }
-
-            .actions {
-                flex-direction: column;
-            }
-
-            .actions button {
-                width: 100%;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="admin.css?v=20261111-black-gold-ru">
 </head>
 
 <body>
@@ -496,30 +61,59 @@
 
 <div id="admin-panel">
 
-    <div class="container">
+    <div class="container" id="admin-top">
+
+        <aside class="admin-sidebar" aria-label="Навигация админки">
+            <a class="admin-brand" href="/" aria-label="Giga-NT — на главную">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 44 44">
+                        <path d="M8 36V18.5C8 10.5 14.2 5 22 5s14 5.5 14 13.5V36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                        <path d="M13 36V19c0-5.2 3.7-8.7 9-8.7s9 3.5 9 8.7v17" fill="none" stroke="#c9a66b" stroke-width="1.6"/>
+                        <path d="M5 36h34M17 23h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="22" cy="18" r="2" fill="#c9a66b"/>
+                    </svg>
+                </span>
+                <span class="brand-copy"><strong>GIGA-NT</strong><small>ПАНЕЛЬ УПРАВЛЕНИЯ</small></span>
+            </a>
+            <div class="sidebar-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+            <nav class="sidebar-nav">
+                <a class="sidebar-link active" href="#admin-top"><span class="nav-icon">⌂</span><span>Обзор</span></a>
+                <a class="sidebar-link" href="#material-pricing"><span class="nav-icon">◈</span><span>Клиентский прайс</span></a>
+                <a class="sidebar-link" href="#supplier-pricing"><span class="nav-icon">▧</span><span>Закупочные цены</span></a>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-caption">ЦЕНЫ И УСЛУГИ</div>
+                <a class="sidebar-link" href="#section-steles"><span class="nav-icon">▰</span><span>Стелы и плитка</span></a>
+                <a class="sidebar-link" href="#section-flowerbeds"><span class="nav-icon">✿</span><span>Цветники</span></a>
+                <a class="sidebar-link" href="#section-fences"><span class="nav-icon">⌗</span><span>Оградки</span></a>
+                <a class="sidebar-link" href="#section-furniture"><span class="nav-icon">▤</span><span>Мебель</span></a>
+                <a class="sidebar-link" href="#section-works"><span class="nav-icon">⚒</span><span>Работы</span></a>
+                <a class="sidebar-link" href="#section-delivery"><span class="nav-icon">⇢</span><span>Доставка и установка</span></a>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-caption">СИСТЕМА</div>
+                <a class="sidebar-link" href="#section-flags"><span class="nav-icon">⚙</span><span>Правила расчёта</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="status-dot"></span>
+                <span>Панель администратора</span>
+            </div>
+        </aside>
+
 
         <div class="header">
-
-            <div>
-                <h1>💰 Цены</h1>
+            <div class="page-heading">
+                <div class="eyebrow">GIGA-NT / АДМИНИСТРИРОВАНИЕ</div>
+                <h1>Управление каталогом</h1>
+                <p>Цены, материалы, работы и параметры расчёта в одном месте.</p>
             </div>
-
             <div class="header-right">
-                <span id="admin-name" class="admin-name"></span>
-
-                <button
-                    type="button"
-                    class="secondary"
-                    id="logout-button"
-                >
-                    Выйти
-                </button>
+                <div class="admin-identity"><span class="identity-label">Вы вошли как</span><strong id="admin-name" class="admin-name"></strong></div>
+                <button type="button" class="secondary logout-button" id="logout-button">Выйти <span aria-hidden="true">↗</span></button>
             </div>
-
         </div>
 
 
         <div id="main-message" class="message"></div>
+        <div class="admin-welcome"><span class="welcome-mark">✦</span><div><strong>Рабочая панель</strong><p>Выберите раздел слева или откройте нужную категорию ниже. Изменения вступают в силу после сохранения.</p></div><span class="welcome-tag">ПАНЕЛЬ УПРАВЛЕНИЯ</span></div>
 
 
         <div class="intro">
@@ -534,153 +128,14 @@
              ПАМЯТНИКИ
         ====================================== -->
 
-        <div class="price-category">
-
-            <button
-                type="button"
-                class="category-header"
-                onclick="toggleCategory(this)"
-            >
-                <span class="category-title">
-                    <span class="category-arrow">▶</span>
-                    🪦 Памятники
-                </span>
-
-                <span class="category-count">
-                    7 позиций
-                </span>
-            </button>
-
-            <div class="category-content">
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Гранит
-                        <div class="price-key">granite</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="granite"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Black Galaxy
-                        <div class="price-key">black_galaxy</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="black_galaxy"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Нинимяки
-                        <div class="price-key">ninimyaki</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="ninimyaki"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Мрамор
-                        <div class="price-key">marble</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="marble"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Красный гранит
-                        <div class="price-key">red_granite</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="red_granite"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Бежевый гранит
-                        <div class="price-key">beige_granite</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="beige_granite"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Серый гранит
-                        <div class="price-key">gray_granite</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input
-                        class="price-input"
-                        type="number"
-                        data-key="gray_granite"
-                        min="0"
-                        step="1"
-                    >
-                </div>
-
-            </div>
-        </div>
+        <div class="intro" style="margin:12px 0">Цены изделий и материалов задаются только в каталоге «Клиентский прайс по материалам» ниже. В этом разделе оставлены только работы, монтаж и услуги.</div>
 
 
         <!-- =====================================
              СТЕЛЫ, ТУМБЫ И ПЛИТКА
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-steles">
 
             <button
                 type="button"
@@ -699,71 +154,17 @@
 
             <div class="category-content">
 
-                <div class="price-row">
-                    <div class="price-name">
-                        Стела 7 см, базовая цена (не используется)
-                        <div class="price-key">stele_base_price</div>
-                    </div>
+                
 
-                    <div class="price-unit">₽/шт</div>
+                
 
-                    <input class="price-input" type="number" data-key="stele_base_price" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">
-                        Коэффициент толщины
-                        <div class="price-key">stele_thickness_factor</div>
-                    </div>
+                
 
-                    <div class="price-unit">коэф.</div>
+                
 
-                    <input class="price-input" type="number" data-key="stele_thickness_factor" min="0" step="0.01">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Тумба
-                        <div class="price-key">pedestal_price</div>
-                    </div>
-
-                    <div class="price-unit">₽/шт</div>
-
-                    <input class="price-input" type="number" data-key="pedestal_price" min="0">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Плитка: мрамор
-                        <div class="price-key">tile_marble_per_m2</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input class="price-input" type="number" data-key="tile_marble_per_m2" min="0">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Плитка: габбро
-                        <div class="price-key">tile_gabbro_per_m2</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input class="price-input" type="number" data-key="tile_gabbro_per_m2" min="0">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Плитка: другое
-                        <div class="price-key">tile_other_per_m2</div>
-                    </div>
-
-                    <div class="price-unit">₽/м²</div>
-
-                    <input class="price-input" type="number" data-key="tile_other_per_m2" min="0">
-                </div>
+                
 
                 <div class="price-row">
                     <div class="price-name">
@@ -776,15 +177,47 @@
                     <input class="price-input" type="number" data-key="tile_work_per_m2" min="0">
                 </div>
 
+                
+                
+                
                 <div class="price-row">
-                    <div class="price-name">
-                        Брусчатка: материал + укладка
-                        <div class="price-key">bruschatka_per_m2</div>
-                    </div>
-
+                    <div class="price-name">Работа по укладке тротуарной плитки</div>
+                    <div class="price-key">path_slab_work_per_m2</div>
                     <div class="price-unit">₽/м²</div>
-
-                    <input class="price-input" type="number" data-key="bruschatka_per_m2" min="0">
+                    <input class="price-input" type="number" data-key="path_slab_work_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Работа по укладке брусчатки</div>
+                    <div class="price-key">path_tile_work_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="path_tile_work_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Работа по отсыпке песком / гравием / щебнем</div>
+                    <div class="price-key">site_fill_work_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="site_fill_work_per_m2" min="0" step="1">
+                </div>
+                
+                
+                
+                <div class="price-row">
+                    <div class="price-name">Подготовка и планировка основания</div>
+                    <div class="price-key">site_base_preparation_per_m2</div>
+                    <div class="price-unit">₽/м²</div>
+                    <input class="price-input" type="number" data-key="site_base_preparation_per_m2" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Выемка грунта</div>
+                    <div class="price-key">site_excavation_per_m3</div>
+                    <div class="price-unit">₽/м³</div>
+                    <input class="price-input" type="number" data-key="site_excavation_per_m3" min="0" step="1">
+                </div>
+                <div class="price-row">
+                    <div class="price-name">Уплотнение песка и щебня</div>
+                    <div class="price-key">site_compaction_per_m3</div>
+                    <div class="price-unit">₽/м³</div>
+                    <input class="price-input" type="number" data-key="site_compaction_per_m3" min="0" step="1">
                 </div>
 
                 <div class="price-row">
@@ -799,9 +232,9 @@
                 </div>
 
                 <div class="price-note">
-                    Стела считается по площади (ширина × высота) × цена материала за м² × (толщина / 0.07).
-                    Цены stele_base_price и stele_thickness_factor больше не участвуют в расчёте.
-                    Старые цены основания и дорожки тоже не участвуют.
+                    Для основного памятника укажите одну базовую строку на каждый материал: ширина, высота, толщина и цена за штуку.
+                    Итоговая цена автоматически пересчитывается пропорционально объёму (ширина × высота × толщина).
+                    Например, 1200×600×70 мм за 35 000 ₽; при 1200×600×80 мм получится 40 000 ₽.
                 </div>
 
             </div>
@@ -812,7 +245,7 @@
              ЦВЕТНИКИ
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-flowerbeds">
 
             <button
                 type="button"
@@ -831,59 +264,23 @@
 
             <div class="category-content">
 
-                <div class="price-row">
-                    <div class="price-name">Газон</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="grass" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Гравий</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="gravel" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Мраморная крошка</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="marble_chips" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Красный гравий</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="red_gravel" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Синий гравий</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="blue_gravel" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Чёрный гравий</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="black_gravel" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Песок</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="sand" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Цветы</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="flowers" min="0">
-                </div>
+                
 
-                <div class="price-row">
-                    <div class="price-name">Мох</div>
-                    <div class="price-unit">₽/м²</div>
-                    <input class="price-input" type="number" data-key="moss" min="0">
-                </div>
+                
 
             </div>
         </div>
@@ -893,7 +290,7 @@
              ОГРАДКИ
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-fences">
 
             <button
                 type="button"
@@ -906,7 +303,7 @@
                 </span>
 
                 <span class="category-count">
-                    4 позиции
+                    9 позиций
                 </span>
             </button>
 
@@ -942,8 +339,22 @@
                     <input class="price-input" type="number" data-key="venzel" min="0">
                 </div>
 
+                
+                
+                
+                
+                
+                
+                
+                
+                <div class="price-row">
+                    <div class="price-name">Установка бордюра площадки</div>
+                    <div class="price-unit">₽/п.м. работы</div>
+                    <input class="price-input" type="number" data-key="site_curb_install_per_m" min="0" step="1">
+                </div>
                 <div class="intro" style="padding: 12px 18px 16px;">
-                    Тип оградки влияет только на 3D-модель. Цена считается по fence_per_m и высоте.
+                    Цена оградки рассчитывается по формуле: (периметр участка минус ширина калитки) × цена за погонный метр × (фактическая высота / типовая высота).
+                    Бордюр площадки — отдельная позиция: его материал задаётся в клиентском прайсе, монтаж — по цене выше.
                 </div>
 
             </div>
@@ -954,7 +365,7 @@
              МЕБЕЛЬ
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-furniture">
 
             <button
                 type="button"
@@ -999,7 +410,7 @@
              РАБОТЫ
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-works">
 
             <button
                 type="button"
@@ -1019,29 +430,26 @@
             <div class="category-content">
 
                 <div class="price-row">
-                    <div class="price-name">Работа с стелой</div>
+                    <div class="price-name">Работа со стелой</div>
                     <div class="price-unit">₽/шт.</div>
                     <input class="price-input" type="number" data-key="stele_work" min="0">
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">Гравировка</div>
+                    <div class="price-name">Гравировка изображения</div>
                     <div class="price-unit">₽/шт.</div>
                     <input class="price-input" type="number" data-key="engraving" min="0">
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">
-                        Фотография: старое значение
-                        <div class="price-key">photo</div>
-                    </div>
-                    <div class="price-unit">₽/шт.</div>
-                    <input class="price-input" type="number" data-key="photo" min="0">
+                    <div class="price-name">Нанесение текста</div>
+                    <div class="price-unit">₽/символ</div>
+                    <input class="price-input" type="number" data-key="text_character_price" min="0" step="1">
                 </div>
 
                 <div class="price-row">
                     <div class="price-name">
-                        Фото: типовое 30×15 см
+                        Фотография: типовой размер 30×15 см
                         <div class="price-key">photo_price</div>
                     </div>
                     <div class="price-unit">₽/шт.</div>
@@ -1068,7 +476,7 @@
              ДОСТАВКА / УСТАНОВКА
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-delivery">
 
             <button
                 type="button"
@@ -1081,14 +489,14 @@
                 </span>
 
                 <span class="category-count">
-                    7 позиций
+                    5 параметров
                 </span>
             </button>
 
             <div class="category-content">
 
                 <div class="price-row">
-                    <div class="price-name">Доставка</div>
+                    <div class="price-name">Доставка по городу</div>
                     <div class="price-unit">₽/заказ</div>
                     <input class="price-input" type="number" data-key="delivery" min="0">
                 </div>
@@ -1106,30 +514,15 @@
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">
-                        Установка: цветник + стела + тумба
-                        <div class="price-key">install_full_set</div>
-                    </div>
-                    <div class="price-unit">₽/заказ</div>
-                    <input class="price-input" type="number" data-key="install_full_set" min="0" step="1">
+                    <div class="price-name">Установка стелы и тумбы</div>
+                    <div class="price-unit">₽/комплект</div>
+                    <input class="price-input" type="number" data-key="install_stele_pedestal" min="0" step="1">
                 </div>
 
                 <div class="price-row">
-                    <div class="price-name">
-                        Установка: цветник + основание
-                        <div class="price-key">install_flowerbed_base</div>
-                    </div>
-                    <div class="price-unit">₽/заказ</div>
-                    <input class="price-input" type="number" data-key="install_flowerbed_base" min="0" step="1">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">
-                        Наценка на установку тумб
-                        <div class="price-key">install_pedestal_percent</div>
-                    </div>
-                    <div class="price-unit">%</div>
-                    <input class="price-input" type="number" data-key="install_pedestal_percent" min="0" step="0.1">
+                    <div class="price-name">Установка цветника</div>
+                    <div class="price-unit">₽/пог. м</div>
+                    <input class="price-input" type="number" data-key="install_flowerbed_per_m" min="0" step="1">
                 </div>
 
                 <div class="price-row">
@@ -1144,22 +537,10 @@
                     </label>
                 </div>
 
-                <div class="price-row">
-                    <div class="price-name">
-                        Разбивать установку на две строки
-                        <div class="price-key">install_split</div>
-                    </div>
-                    <div class="price-unit"></div>
-                    <label class="setting-toggle">
-                        <input type="checkbox" class="setting-checkbox" data-setting="install_split">
-                        <span>разбивать</span>
-                    </label>
-                </div>
-
                 <div class="intro" style="padding: 12px 18px 16px;">
-                    При разбивке вторая строка считается как
-                    install_full_set − install_flowerbed_base плюс наценка
-                    на установку тумб. Наценка считается от суммы всех тумб.
+                    Калькулятор считает установку стелы и тумбы отдельно для каждого комплекта.
+                    Установка цветника рассчитывается по суммарному периметру цветников.
+                    Переключатель выше включает или исключает обе услуги из сметы.
                 </div>
 
             </div>
@@ -1170,7 +551,7 @@
              ФЛАГИ НУЛЕВОЙ ЦЕНЫ
         ====================================== -->
 
-        <div class="price-category">
+        <div class="price-category admin-category" id="section-flags">
 
             <button
                 type="button"
@@ -1179,19 +560,20 @@
             >
                 <span class="category-title">
                     <span class="category-arrow">▶</span>
-                    ⚙️ Флаги нулевой цены
+                    ⚙️ Контроль незаданных цен
                 </span>
 
                 <span class="category-count">
-                    zero_means_included
+                    Пояснение нулевых цен
                 </span>
             </button>
 
             <div class="category-content">
 
                 <div class="intro" style="padding: 12px 18px;">
-                    Отметьте ключи, для которых 0 означает «включено в комплект».
-                    Для остальных ключей 0 означает «не задано».
+                    Отметьте позиции, для которых нулевая цена задана намеренно: в смете она останется 0 ₽.
+                    Без отметки ноль считается незаданной ценой и отображается как предупреждение.
+                    Для большинства позиций флажок управляет предупреждением в админке. Для фотографии он также фиксирует нулевую цену и отключает резервное старое значение.
                 </div>
 
                 <div id="zero-flags-list"></div>
@@ -1199,6 +581,52 @@
             </div>
         </div>
 
+
+
+        <section class="price-category admin-category material-category open" id="material-pricing">
+            <button type="button" class="category-header" onclick="toggleCategory(this)">
+                <span class="category-title"><span class="category-arrow">▶</span> 🪨 Клиентский прайс по материалам</span>
+                <span class="category-count">редактируемые цены</span>
+            </button>
+            <div class="category-content" style="padding:16px">
+                <p class="intro">Здесь задаются цены для клиента. Для основной стелы достаточно одной базовой позиции на материал: укажите ширину, высоту, толщину и цену. Стоимость других размеров калькулятор пересчитает по объёму. Дополнительные изделия добавляйте отдельными позициями ниже.</p>
+                <div class="material-price-toolbar" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+                    <label for="material-search" style="display:flex;flex-direction:column;gap:5px;min-width:240px"><strong>Быстрый поиск по прайсу</strong><input id="material-search" type="search" placeholder="Название, размер или цена…" style="padding:10px;border:1px solid #d2d5da;border-radius:7px;font-size:15px"></label>
+                    <label for="material-sort" style="display:flex;flex-direction:column;gap:5px"><strong>Сортировка</strong><select id="material-sort" style="min-width:190px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"><option value="product">По типу изделия</option><option value="size">По размеру</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="material">По материалу</option></select></label>
+                    <label for="product-filter" style="display:flex;flex-direction:column;gap:5px"><strong>Тип изделия</strong><select id="product-filter" style="min-width:180px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"><option value="">Все изделия</option></select></label>
+                    <label for="material-select"><strong>Материал</strong></label>
+                    <select id="material-select" aria-label="Выбрать материал" style="min-width:220px;padding:10px;border:1px solid #d2d5da;border-radius:7px;background:#fff;font-size:15px"></select>
+                    <strong id="material-current-label" style="display:none">Материал</strong>
+                    <button type="button" id="material-add-row">＋ Добавить позицию</button>
+                </div>
+                <div id="material-price-table-wrap" style="overflow-x:auto"></div>
+                <p id="material-price-message" role="status" class="flag-hint"></p>
+                <div class="actions" style="position:static;box-shadow:none;margin-top:12px">
+                    <button type="button" class="secondary" id="material-reload">Обновить таблицу</button>
+                    <button type="button" id="material-save">Сохранить клиентские цены</button>
+                </div>
+            </div>
+        </section>
+
+
+        <section class="price-category admin-category material-category" id="supplier-pricing">
+            <button type="button" class="category-header" onclick="toggleCategory(this)">
+                <span class="category-title"><span class="category-arrow">▶</span> 📦 Закупочные цены материалов</span>
+                <span class="category-count">отдельно от клиентского прайса</span>
+            </button>
+            <div class="category-content" style="padding:16px">
+                <p class="intro">Здесь учитывается себестоимость закупки. Эти значения не участвуют в клиентской смете и не изменяют клиентские цены. Наценка автоматически не применяется. Отсутствующие строки не удаляют другие записи.</p>
+                <div class="material-price-toolbar">
+                    <button type="button" id="supplier-add-row">＋ Добавить закупочную позицию</button>
+                </div>
+                <div id="supplier-price-table-wrap" style="overflow-x:auto"></div>
+                <p id="supplier-price-message" role="status" class="flag-hint"></p>
+                <div class="actions" style="position:static;box-shadow:none;margin-top:12px">
+                    <button type="button" class="secondary" id="supplier-reload">Обновить закупочные цены</button>
+                    <button type="button" id="supplier-save">Сохранить закупочные цены</button>
+                </div>
+            </div>
+        </section>
 
         <!-- =====================================
              ACTIONS
@@ -1244,8 +672,58 @@
         'base_red_granite',
         'base_other',
         'path_work_per_m2',
-        'path_material_per_m2'
+        'path_material_per_m2',
+        'photo',
+        'install',
+        'install_full_set',
+        'install_flowerbed_base',
+        'install_flowerbed_only',
+        'install_pedestal_percent',
+        'decoration_volume',
+        'decoration_engraving',
+        'pipe',
+        'chain',
+        'casting'
     ]);
+
+    const PRICE_LABELS = {
+        pipe: 'Труба',
+        chain: 'Цепь',
+        casting: 'Литые элементы',
+        model_3d: '3D-модель',
+        venzel: 'Вензель',
+        stele_work: 'Работа со стелой',
+        engraving: 'Гравировка',
+        text_character_price: 'Нанесение текста за символ',
+        photo: 'Старая цена фотографии',
+        photo_price: 'Фотография типового размера',
+        vase_base_price: 'Базовая цена вазы',
+        background_price_per_m2: 'Оформление фона стелы за м²',
+        table: 'Стол',
+        bench: 'Скамейка',
+        picnic_set: 'Комплект для пикника',
+        delivery: 'Доставка',
+        install: 'Установка (старый параметр)',
+        fence_per_m: 'Оградка за погонный метр',
+        fence_base_height: 'Базовая высота оградки',
+        path_work_per_m2: 'Работы по дорожке за м²',
+        site_fill_work_per_m2: 'Отсыпка участка за м²',
+        site_base_preparation_per_m2: 'Подготовка основания за м²',
+        site_excavation_per_m3: 'Выемка грунта за м³',
+        site_compaction_per_m3: 'Уплотнение основания за м³',
+        path_tile_work_per_m2: 'Укладка брусчатки за м²',
+        path_slab_work_per_m2: 'Укладка плит за м²',
+        site_curb_install_per_m: 'Монтаж бордюра за погонный метр',
+        install_full_set: 'Устаревшая цена полного монтажа',
+        install_flowerbed_base: 'Устаревшая цена основания цветника',
+        install_flowerbed_only: 'Устаревшая цена отдельного цветника',
+        install_stele_pedestal: 'Установка стелы и тумбы за комплект',
+        install_flowerbed_per_m: 'Установка цветника за погонный метр',
+        install_pedestal_percent: 'Устаревшая наценка на тумбы',
+        tile_work_per_m2: 'Работа с плиткой за м²',
+        decoration_volume: 'Объёмный декор',
+        decoration_engraving: 'Гравировка декора'
+    };
 
 
     // =========================================
@@ -1513,6 +991,9 @@
                 'success'
             );
 
+            await loadMaterialPrices();
+            await loadSupplierPrices();
+
         } catch (error) {
 
             console.error('Ошибка загрузки цен:', error);
@@ -1627,8 +1108,8 @@
             checkbox.addEventListener('change', updatePriceWarnings);
 
             const name = document.createElement('span');
-            name.className = 'flag-key';
-            name.textContent = key;
+            name.className = 'flag-label';
+            name.textContent = PRICE_LABELS[key] || 'Дополнительная позиция';
 
             const hint = document.createElement('span');
             hint.className = 'flag-hint';
@@ -1672,11 +1153,36 @@
         });
 
         if (priceWarnings) {
-            priceWarnings.textContent =
-                missing > 0
-                    ? `Не задано позиций: ${missing}. Для них расчёт не подставляет цены из кода — проверьте прайс и флаги.`
-                    : '';
+            if (missing > 0) {
+                const positionWord = missing === 1 ? 'позиции' : 'позиций';
+                priceWarnings.innerHTML = `
+                    <div class="price-warning-content" role="alert">
+                        <span class="price-warning-icon" aria-hidden="true">!</span>
+                        <div class="price-warning-copy">
+                            <strong>Не все цены настроены</strong>
+                            <p>Для ${missing} ${positionWord} не указана цена. Они не будут учтены в расчёте.</p>
+                            <span>Проверьте цены и правила расчёта для этих позиций.</span>
+                        </div>
+                        <button type="button" class="price-warning-action">
+                            Посмотреть позиции <span aria-hidden="true">→</span>
+                        </button>
+                    </div>`;
+            } else {
+                priceWarnings.innerHTML = '';
+            }
         }
+    }
+
+    if (priceWarnings) {
+        priceWarnings.addEventListener('click', event => {
+            if (!event.target.closest('.price-warning-action')) return;
+            const firstMissing = document.querySelector('.price-input.warning');
+            if (!firstMissing) return;
+            const category = firstMissing.closest('.price-category');
+            if (category) category.classList.add('open');
+            firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.setTimeout(() => firstMissing.focus({ preventScroll: true }), 350);
+        });
     }
 
 
@@ -1854,6 +1360,204 @@
     });
 
 
+
+    // =========================================
+    // РОМБАК: отдельный закрытый прайс поставщика
+    // =========================================
+    let rombakItems = [];
+    // =========================================
+    // КЛИЕНТСКИЙ ПРАЙС ПО МАТЕРИАЛАМ
+    // =========================================
+    const MATERIALS = [
+        ['granite','Габбро-Диабаз'],['black_galaxy','Black Galaxy'],['ninimyaki','Нинимяки'],
+        ['marble','Мрамор'],['red_granite','Красный гранит'],['beige_granite','Бежевый гранит'],
+        ['gray_granite','Серый гранит'],['gabbro','Габбро'],['other','Другой материал'],
+        ['tile_gray','Серая плитка'],['tile_black','Чёрная плитка'],['tile_beige','Бежевая плитка'],
+        ['tile_dark','Тёмная плитка'],['tile_light','Светлая плитка'],['tile_red','Красная плитка'],['tile_marble','Мраморная плитка'],
+        ['concrete','Бетон'],['brick','Кирпич'],['sand','Песок'],['gravel','Щебень / гравий'],
+        ['geotextile','Геотекстиль'],['grass','Газон'],['marble_chips','Мраморная крошка'],
+        ['flowers','Цветы'],['red_gravel','Красный гравий'],['blue_gravel','Синий гравий'],
+        ['black_gravel','Чёрная галька'],['moss','Мох']
+    ];
+    const PRODUCTS = [
+        ['stele','Стела'],['pedestal','Тумба'],['flowerbed','Цветник'],
+        ['grave_slab','Надгробная плита'],['tile','Плитка'],['curb','Бордюр'],['other','Другое изделие']
+    ];
+    let materialRows = [];
+    let activeMaterial = MATERIALS[0][0];
+    const materialSelect = document.getElementById('material-select');
+    const materialWrap = document.getElementById('material-price-table-wrap');
+    const materialMessage = document.getElementById('material-price-message');
+    const escText = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    async function loadMaterialPrices() {
+        const response = await fetch('/api/admin/material-prices',{credentials:'include',cache:'no-store'});
+        const result = await response.json();
+        if(!response.ok || !result.success) throw new Error(result.message || 'Не удалось загрузить таблицу');
+        materialRows = Array.isArray(result.rows) ? result.rows : [];
+        renderMaterialPriceEditor();
+        materialMessage.textContent = 'Строк в прайсе: '+materialRows.length;
+    }
+    function renderMaterialPriceEditor() {
+        materialSelect.innerHTML = MATERIALS.map(([key,label]) =>
+            '<option value="'+key+'">'+label+'</option>'
+        ).join('');
+        materialSelect.value = activeMaterial;
+        document.getElementById('material-current-label').textContent = MATERIALS.find(x=>x[0]===activeMaterial)?.[1] || activeMaterial;
+        // Старые записи могли хранить толщину стелы в поле finish (например, "70").
+        materialRows.forEach(row=>{
+            if(row.material===activeMaterial && row.product==='stele' && !(Number(row.thickness_mm)>0)){
+                const legacy=String(row.finish??'').trim().match(/^(\d+(?:[.,]\d+)?)$/);
+                if(legacy){
+                    row.thickness_mm=Number(legacy[1].replace(',','.'));
+                    row.finish='';
+                }
+            }
+        });
+        const searchText = (document.getElementById('material-search')?.value || '').trim().toLocaleLowerCase('ru');
+        const productFilter = document.getElementById('product-filter')?.value || '';
+        const rows = materialRows.map((r,i)=>({...r,_index:i})).filter(r=>{
+            if(!searchText && r.material!==activeMaterial) return false;
+            if(productFilter && r.product!==productFilter) return false;
+            if(!searchText) return true;
+            const materialLabel = MATERIALS.find(x=>x[0]===r.material)?.[1] || r.material;
+            const productLabel = PRODUCTS.find(x=>x[0]===r.product)?.[1] || r.product;
+            const haystack = [materialLabel,productLabel,r.width_mm,r.height_mm,r.depth_mm,r.thickness_mm,r.finish,r.price].join(' ').toLocaleLowerCase('ru');
+            return haystack.includes(searchText);
+        });
+        const sortMode = document.getElementById('material-sort')?.value || 'product';
+        const productOrder = PRODUCTS.map(x=>x[0]);
+        rows.sort((a,b)=>{
+            if(sortMode==='price-asc') return Number(a.price||0)-Number(b.price||0);
+            if(sortMode==='price-desc') return Number(b.price||0)-Number(a.price||0);
+            if(sortMode==='size') return (Number(a.width_mm)||0)-(Number(b.width_mm)||0) || (Number(a.height_mm)||0)-(Number(b.height_mm)||0) || (Number(a.depth_mm)||0)-(Number(b.depth_mm)||0);
+            if(sortMode==='material') return String(a.material).localeCompare(String(b.material),'ru');
+            return productOrder.indexOf(a.product)-productOrder.indexOf(b.product) || (Number(a.width_mm)||0)-(Number(b.width_mm)||0);
+        });
+        const productOptions = PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
+        const productFilterSelect = document.getElementById('product-filter');
+        if(productFilterSelect && !productFilterSelect.dataset.ready){
+            productFilterSelect.innerHTML = '<option value="">Все изделия</option>'+PRODUCTS.map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join('');
+            productFilterSelect.dataset.ready='1';
+        }
+        materialWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм (кроме стелы)</th><th>Толщина, мм</th><th>Обработка / исполнение</th><th>Цена для клиента, ₽</th><th></th></tr></thead><tbody>'+
+            rows.map(r=>'<tr data-index="'+r._index+'"><td><select data-field="product">'+productOptions+'</select></td>'+
+            ['width_mm','height_mm','depth_mm','thickness_mm'].map(k=>'<td'+(r.product==='stele'&&k==='depth_mm'?' style="display:none"':'')+'><input type="number" min="0" step="1" data-field="'+k+'" value="'+(k==='depth_mm'&&r.product==='stele'?0:Number(r[k]||0))+'"></td>').join('')+
+            '<td><input type="text" maxlength="100" data-field="finish" value="'+escText(r.finish||'')+'" placeholder="Например, полировка 5 сторон"></td>'+
+            '<td><input type="number" min="0" step="1" data-field="price" value="'+Number(r.price||0)+'"></td>'+
+            '<td><button type="button" class="delete-row" data-delete="'+r._index+'">Удалить</button></td></tr>').join('')+
+            '</tbody></table>';
+        rows.forEach(r=>{const select=materialWrap.querySelector('tr[data-index="'+r._index+'"] select');if(select)select.value=r.product;});
+        materialWrap.querySelectorAll('tr[data-index] select[data-field="product"]').forEach(select=>{
+            select.addEventListener('change',()=>{
+                const row=materialRows[Number(select.closest('tr').dataset.index)];
+                if(!row)return;
+                row.product=select.value;
+                if(row.product==='stele')row.depth_mm=0;
+                renderMaterialPriceEditor();
+            });
+        });
+    }
+    materialSelect.addEventListener('change',()=>{
+        activeMaterial=materialSelect.value;
+        renderMaterialPriceEditor();
+    });
+    document.getElementById('material-search').addEventListener('input',renderMaterialPriceEditor);
+    document.getElementById('product-filter').addEventListener('change',renderMaterialPriceEditor);
+    document.getElementById('material-sort').addEventListener('change',renderMaterialPriceEditor);
+    document.getElementById('material-add-row').addEventListener('click',()=>{
+        materialRows.push({material:activeMaterial,product:'stele',width_mm:0,height_mm:0,depth_mm:0,thickness_mm:0,finish:'',price:0});
+        renderMaterialPriceEditor();
+        materialWrap.querySelector('tbody tr:last-child input')?.focus();
+    });
+    materialWrap.addEventListener('input',event=>{
+        const tr=event.target.closest('tr[data-index]');if(!tr)return;
+        const row=materialRows[Number(tr.dataset.index)];if(!row)return;
+        const field=event.target.dataset.field;if(!field)return;
+        row[field]=field==='finish'?event.target.value:Number(event.target.value);
+    });
+    materialWrap.addEventListener('change',event=>{
+        const tr=event.target.closest('tr[data-index]');if(!tr)return;
+        const row=materialRows[Number(tr.dataset.index)];if(!row)return;
+        if(event.target.dataset.field)row[event.target.dataset.field]=event.target.value;
+    });
+    materialWrap.addEventListener('click',event=>{
+        const button=event.target.closest('[data-delete]');if(!button)return;
+        materialRows.splice(Number(button.dataset.delete),1);renderMaterialPriceEditor();
+    });
+    document.getElementById('material-reload').addEventListener('click',async()=>{
+        try{await loadMaterialPrices();}catch(error){materialMessage.textContent=error.message;}
+    });
+    document.getElementById('material-save').addEventListener('click',async()=>{
+        const button=document.getElementById('material-save');button.disabled=true;
+        try{
+            const response=await fetch('/api/admin/material-prices',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:materialRows})});
+            const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||'Не удалось сохранить');
+            materialRows=result.rows||materialRows;renderMaterialPriceEditor();materialMessage.textContent='Сохранено строк: '+result.saved;
+        }catch(error){materialMessage.textContent=error.message;}
+        finally{button.disabled=false;}
+    });
+
+    // =========================================
+    // ОТДЕЛЬНЫЙ ЗАКУПОЧНЫЙ КАТАЛОГ
+    // =========================================
+    let supplierRows = [];
+    const supplierWrap = document.getElementById('supplier-price-table-wrap');
+    const supplierMessage = document.getElementById('supplier-price-message');
+    const supplierSelectOptions = (items, selected) => items.map(([key,label]) =>
+        '<option value="'+key+'"'+(key===selected?' selected':'')+'>'+label+'</option>'
+    ).join('');
+
+    async function loadSupplierPrices() {
+        const response = await fetch('/api/admin/supplier-material-prices', { credentials:'include', cache:'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Не удалось загрузить закупочные цены');
+        supplierRows = Array.isArray(result.rows) ? result.rows : [];
+        renderSupplierPriceEditor();
+        supplierMessage.textContent = 'Закупочных позиций: '+supplierRows.length;
+    }
+
+    function renderSupplierPriceEditor() {
+        supplierWrap.innerHTML = '<table class="material-price-table"><thead><tr><th>Поставщик</th><th>Материал</th><th>Изделие</th><th>Ширина, мм</th><th>Высота, мм</th><th>Глубина, мм</th><th>Толщина, мм</th><th>Исполнение</th><th>Закупочная цена, ₽</th></tr></thead><tbody>'+
+            supplierRows.map((row,index)=>'<tr data-supplier-index="'+index+'">'+
+            '<td><input type="text" maxlength="160" data-supplier-field="supplier" value="'+escText(row.supplier||'')+'" placeholder="Поставщик"></td>'+
+            '<td><select data-supplier-field="material">'+supplierSelectOptions(MATERIALS,row.material)+'</select></td>'+
+            '<td><select data-supplier-field="product">'+supplierSelectOptions(PRODUCTS,row.product)+'</select></td>'+
+            ['width_mm','height_mm','depth_mm','thickness_mm'].map(key=>'<td><input type="number" min="0" step="1" data-supplier-field="'+key+'" value="'+Number(row[key]||0)+'"></td>').join('')+
+            '<td><input type="text" maxlength="100" data-supplier-field="finish" value="'+escText(row.finish||'')+'"></td>'+
+            '<td><input type="number" min="0" step="0.01" data-supplier-field="purchase_price" value="'+Number(row.purchase_price||0)+'"></td>'+
+            '</tr>').join('')+'</tbody></table>';
+    }
+
+    document.getElementById('supplier-add-row').addEventListener('click',()=>{
+        supplierRows.push({supplier:'',material:activeMaterial,product:'stele',width_mm:0,height_mm:0,depth_mm:0,thickness_mm:0,finish:'',purchase_price:0});
+        renderSupplierPriceEditor();
+        supplierWrap.querySelector('tbody tr:last-child input')?.focus();
+    });
+    supplierWrap.addEventListener('input',event=>{
+        const tr=event.target.closest('tr[data-supplier-index]'); if(!tr)return;
+        const row=supplierRows[Number(tr.dataset.supplierIndex)]; if(!row)return;
+        const field=event.target.dataset.supplierField; if(!field)return;
+        row[field]=['supplier','finish'].includes(field)?event.target.value:Number(event.target.value);
+    });
+    supplierWrap.addEventListener('change',event=>{
+        const tr=event.target.closest('tr[data-supplier-index]'); if(!tr)return;
+        const row=supplierRows[Number(tr.dataset.supplierIndex)]; if(!row)return;
+        const field=event.target.dataset.supplierField; if(field)row[field]=event.target.value;
+    });
+    document.getElementById('supplier-reload').addEventListener('click',async()=>{
+        try{await loadSupplierPrices();}catch(error){supplierMessage.textContent=error.message;}
+    });
+    document.getElementById('supplier-save').addEventListener('click',async()=>{
+        const button=document.getElementById('supplier-save'); button.disabled=true;
+        try{
+            const response=await fetch('/api/admin/supplier-material-prices',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:supplierRows})});
+            const result=await response.json(); if(!response.ok||!result.success)throw new Error(result.message||'Не удалось сохранить закупочные цены');
+            supplierRows=result.rows||supplierRows; renderSupplierPriceEditor();
+            supplierMessage.textContent='Сохранено закупочных позиций: '+result.saved+'. Клиентский прайс не изменён.';
+        }catch(error){supplierMessage.textContent=error.message;}
+        finally{button.disabled=false;}
+    });
+
     // =========================================
     // СТАРТ
     // =========================================
@@ -1873,10 +1577,22 @@
         }
     });
 
+
+    // Навигация по разделам админки: раскрываем нужную категорию и отмечаем пункт меню.
+    document.querySelectorAll('.sidebar-link[href^="#"]').forEach(link => {
+        link.addEventListener('click', event => {
+            const target = document.querySelector(link.getAttribute('href'));
+            if (!target) return;
+            event.preventDefault();
+            if (target.classList.contains('price-category')) target.classList.add('open');
+            document.querySelectorAll('.sidebar-link').forEach(item => item.classList.toggle('active', item === link));
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
     checkSession();
 
 </script>
 
 </body>
-</html>
 </html>

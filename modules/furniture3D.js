@@ -8,6 +8,8 @@ export class Furniture3DManager {
         this.camera = camera;
         this.renderer = renderer;
         this.monumentGroup = monumentGroup;
+        this.originalMonumentGroup = monumentGroup;
+        this.activeModelRoot = null;
         this.controls = controls;
         this.furnitureGroup = new THREE.Group();
         this.scene.add(this.furnitureGroup);
@@ -73,6 +75,65 @@ export class Furniture3DManager {
         
         this.loadTextures();
         this.bindEvents();
+    }
+
+    setParent(parent = null, monumentGroup = null) {
+        if (parent && parent === this.activeModelRoot) return;
+        if (parent) {
+            if (!this.originalContext) {
+                this.originalContext = {
+                    group: this.furnitureGroup,
+                    furniture: this.furniture,
+                    selectedId: this.selectedId
+                };
+            }
+            const nextGroup = new THREE.Group();
+            nextGroup.name = 'importedGlbFurniture';
+            parent.add(nextGroup);
+            this.furnitureGroup = nextGroup;
+            this.furniture = [];
+            this.selectedId = null;
+            this.dragging = null;
+            this.activeModelRoot = parent;
+            this.monumentGroup = monumentGroup || parent;
+            return;
+        }
+        if (this.originalContext) {
+            this.furnitureGroup.parent?.remove(this.furnitureGroup);
+            this.furnitureGroup = this.originalContext.group;
+            this.furniture = this.originalContext.furniture;
+            this.selectedId = this.originalContext.selectedId;
+            this.originalContext = null;
+        }
+        this.activeModelRoot = null;
+        this.monumentGroup = this.originalMonumentGroup;
+    }
+
+    getDefaultPlacement() {
+        if (this.activeModelRoot) {
+            this.activeModelRoot.updateMatrixWorld(true);
+            const bounds = new THREE.Box3().setFromObject(this.activeModelRoot);
+            const inverse = new THREE.Matrix4().copy(this.furnitureGroup.parent.matrixWorld).invert();
+            const points = [
+                new THREE.Vector3(bounds.max.x, bounds.min.y, bounds.min.z),
+                new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.max.z),
+                new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.min.z),
+                new THREE.Vector3(bounds.min.x, bounds.max.y, bounds.max.z)
+            ].map(point => point.applyMatrix4(inverse));
+            const minX = Math.min(...points.map(point => point.x));
+            const maxX = Math.max(...points.map(point => point.x));
+            const minZ = Math.min(...points.map(point => point.z));
+            const maxZ = Math.max(...points.map(point => point.z));
+            const marginX = Math.min(0.25, Math.max(0.05, (maxX - minX) * 0.2));
+            const marginZ = Math.min(0.25, Math.max(0.05, (maxZ - minZ) * 0.2));
+            return {
+                x: minX + marginX + Math.random() * Math.max(0, maxX - minX - 2 * marginX),
+                z: minZ + marginZ + Math.random() * Math.max(0, maxZ - minZ - 2 * marginZ)
+            };
+        }
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 1.5 + Math.random();
+        return { x: Math.cos(angle) * distance, z: Math.sin(angle) * distance };
     }
 
     // ============================================================
@@ -1016,7 +1077,8 @@ export class Furniture3DManager {
                 this.isDragging = true;
                 this._wasDragging = true;
                 if (this.controls) this.controls.enabled = false;
-                const intersectPoint = intersects[0].point;
+                const intersectPoint = intersects[0].point.clone();
+                if (this.furnitureGroup.parent) this.furnitureGroup.parent.worldToLocal(intersectPoint);
                 this.dragOffset.copy(intersectPoint).sub(this.dragging.position);
                 this.dragOffset.y = 0;
                 this.dragStartPos.copy(this.dragging.position);
@@ -1034,8 +1096,10 @@ export class Furniture3DManager {
         const ray = this.raycaster.ray;
         const intersectPoint = ray.intersectPlane(plane, intersection);
         if (intersectPoint) {
-            let newX = intersectPoint.x - this.dragOffset.x;
-            let newZ = intersectPoint.z - this.dragOffset.z;
+            const localPoint = intersectPoint.clone();
+            if (this.furnitureGroup.parent) this.furnitureGroup.parent.worldToLocal(localPoint);
+            let newX = localPoint.x - this.dragOffset.x;
+            let newZ = localPoint.z - this.dragOffset.z;
             if (this.snapToGrid) {
                 newX = Math.round(newX / this.gridSize) * this.gridSize;
                 newZ = Math.round(newZ / this.gridSize) * this.gridSize;
@@ -1059,8 +1123,10 @@ export class Furniture3DManager {
         const ray = this.raycaster.ray;
         const intersectPoint = ray.intersectPlane(plane, intersection);
         if (intersectPoint) {
-            const dx = intersectPoint.x - this.dragging.position.x;
-            const dz = intersectPoint.z - this.dragging.position.z;
+            const localPoint = intersectPoint.clone();
+            if (this.furnitureGroup.parent) this.furnitureGroup.parent.worldToLocal(localPoint);
+            const dx = localPoint.x - this.dragging.position.x;
+            const dz = localPoint.z - this.dragging.position.z;
             const angle = Math.atan2(dx, dz);
             const snapAngle = Math.round(angle / (Math.PI / 12)) * (Math.PI / 12);
             this.dragging.rotation.y = snapAngle;

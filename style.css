@@ -363,7 +363,8 @@ body {
 }
 
 .accordion-section.active .section-content {
-    max-height: 2000px;
+    /* Long settings sections must not be clipped before the menu's own scrollbar reaches the end. */
+    max-height: 100000px;
     padding: 12px 15px 20px;
 }
 
@@ -2412,4 +2413,653 @@ body.dragging-photo {
     line-height: 1.45;
     color: #555;
     overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   GIGA-NT — CUSTOMER WORKSPACE / PREMIUM VISUAL LAYER
+   ============================================================ */
+:root {
+    --gnt-ink: #17232b;
+    --gnt-panel: #202d35;
+    --gnt-gold: #c9a66b;
+    --gnt-gold-soft: rgba(201,166,107,.16);
+}
+.brand-lockup {
+    display:flex; align-items:center; gap:9px; margin:0 auto 0 8px;
+    min-height:44px; padding:4px 13px 4px 7px; border-radius:13px;
+    color:#f7f4ee; background:rgba(20,29,35,.88);
+    border:1px solid rgba(201,166,107,.28); backdrop-filter:blur(14px);
+    box-shadow:0 8px 28px rgba(0,0,0,.18); pointer-events:auto;
+}
+.brand-mark { width:34px; height:34px; display:grid; place-items:center; color:#f5f0e7; }
+.brand-mark svg { width:100%; height:100%; }
+.brand-copy { display:flex; flex-direction:column; gap:2px; line-height:1; }
+.brand-copy strong { font-size:15px; letter-spacing:2.1px; font-weight:800; }
+.brand-copy small { font-size:7px; letter-spacing:1.05px; color:#c9a66b; font-weight:700; }
+.accordion-menu {
+    background:rgba(24,35,43,.98);
+    border-right:1px solid rgba(201,166,107,.2);
+    box-shadow:12px 0 42px rgba(9,16,20,.28);
+}
+.menu-scroll { padding:12px 0 24px; }
+.menu-scroll > .hint-text:first-child {
+    margin:8px 12px 14px !important; padding:15px !important;
+    background:linear-gradient(135deg,rgba(201,166,107,.16),rgba(255,255,255,.035)) !important;
+    border:1px solid rgba(201,166,107,.25); color:#e9e6df !important;
+}
+.menu-scroll > .hint-text:first-child strong { color:#e2c48e; font-size:14px; }
+.section-header {
+    padding:15px 17px; background:rgba(255,255,255,.025);
+    border-left:3px solid transparent; font-size:13px; letter-spacing:.1px;
+}
+.section-header:hover { background:rgba(255,255,255,.07); }
+.accordion-section.active .section-header {
+    color:#f1d6a4; background:rgba(201,166,107,.10); border-left-color:var(--gnt-gold);
+}
+.section-content { color:#e8edf0; }
+.subsection { padding:12px; margin:0 0 12px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.07); }
+.subsection-title { color:#e4c58f; font-weight:700; letter-spacing:.2px; }
+select, input[type="text"], input[type="number"], input[type="tel"], input[type="email"], textarea {
+    background:#142129; border-color:rgba(255,255,255,.13); color:#f4f5f6;
+}
+select:focus, input:focus, textarea:focus { border-color:var(--gnt-gold); }
+.checkbox-group { background:rgba(201,166,107,.08); border-color:rgba(201,166,107,.18); }
+.checkbox-group input[type="checkbox"]:checked { background:var(--gnt-gold); border-color:var(--gnt-gold); }
+.menu-scroll::-webkit-scrollbar-thumb { background:var(--gnt-gold); }
+.live-price-panel {
+    position:fixed; z-index:900; right:20px; bottom:22px; width:min(310px,calc(100vw - 32px));
+    padding:18px 19px 15px; border-radius:18px; color:#f7f5ef;
+    background:linear-gradient(145deg,rgba(25,37,45,.97),rgba(14,24,31,.97));
+    border:1px solid rgba(201,166,107,.38); box-shadow:0 18px 55px rgba(0,0,0,.30);
+    backdrop-filter:blur(18px); transition:opacity .2s,transform .2s;
+}
+.live-price-panel.is-hidden { opacity:0; transform:translateY(12px); pointer-events:none; }
+.live-price-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.live-price-head > div { display:flex; flex-direction:column; gap:5px; }
+.live-price-kicker { color:var(--gnt-gold); font-size:9px; letter-spacing:1.7px; font-weight:800; }
+.live-price-head strong { font-size:12px; font-weight:600; color:#e9e8e3; }
+.live-price-value { margin:13px 0 3px; font-size:30px; font-weight:800; letter-spacing:-.8px; color:#fff; }
+.live-price-note { color:#aeb8bd; font-size:10px; line-height:1.45; }
+.live-price-details { display:flex; justify-content:space-between; width:100%; margin:14px 0 0; padding:10px 0 0; border:0; border-top:1px solid rgba(255,255,255,.12); border-radius:0; background:transparent; color:#e4c58f; font-size:11px; text-align:left; }
+.live-price-details span { font-size:16px; }
+#priceWarnings { margin-top:9px; padding:9px; border-radius:8px; background:rgba(255,190,70,.12); color:#f2d49c; font-size:10px; line-height:1.4; }
+.price-visibility-toggle { width:38px; height:22px; position:relative; flex-shrink:0; cursor:pointer; }
+.price-visibility-toggle input { position:absolute; opacity:0; width:1px; height:1px; }
+.toggle-track { position:absolute; inset:0; border-radius:99px; background:#52616a; transition:.2s; }
+.toggle-track:after { content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; border-radius:50%; background:white; transition:.2s; }
+.price-visibility-toggle input:checked + .toggle-track { background:#b18b50; }
+.price-visibility-toggle input:checked + .toggle-track:after { transform:translateX(16px); }
+#canvas-container { background:#dce1e2; }
+@media (max-width:768px) {
+    .brand-lockup { min-height:40px; padding:3px 9px 3px 5px; gap:6px; }
+    .brand-mark { width:29px; height:29px; }
+    .brand-copy strong { font-size:12px; }
+    .brand-copy small { font-size:6px; }
+    .live-price-panel { right:12px; bottom:12px; width:calc(100vw - 24px); padding:13px 15px 11px; border-radius:15px; }
+    .live-price-value { font-size:25px; margin:8px 0 2px; }
+    .live-price-details { margin-top:9px; padding-top:8px; }
+}
+
+.top-price-toggle { margin-left:2px; align-self:center; display:flex; align-items:center; gap:7px; width:auto; min-width:52px; height:38px; padding:0 9px; border-radius:12px; background:rgba(20,29,35,.88); border:1px solid rgba(201,166,107,.35); }
+.top-price-toggle .toggle-caption { color:#e5c68e; font-size:12px; font-weight:800; }
+.live-price-status { color:#c9a66b; font-size:9px; font-weight:800; letter-spacing:1px; white-space:nowrap; }
+@media(max-width:768px) {
+    .top-price-toggle { height:34px; min-width:45px; padding:0 7px; }
+    .live-price-panel.is-hidden { display:none; }
+}
+
+.brand-lockup { margin:0 0 0 8px; }
+.quick-actions { margin-left:auto; }
+.top-price-toggle { margin-left:0; }
+.rotate-toggle { left:20px; right:auto; bottom:24px; }
+@media(max-width:768px) {
+    .brand-lockup { margin-left:4px; }
+    .quick-actions { margin-left:auto; }
+    .rotate-toggle { left:auto; right:12px; bottom:172px; }
+}
+
+/* Customer configuration dialog */
+.top-bar { align-items:center; }
+.brand-lockup {
+    position:absolute; left:50%; top:0; transform:translateX(-50%);
+    margin:0; z-index:2; white-space:nowrap;
+}
+.quick-actions { margin-left:auto; margin-right:0; }
+.quick-actions .top-price-toggle { margin:0 2px 0 4px; }
+.quick-actions .top-price-toggle .toggle-caption { font-size:12px; }
+.configuration-open-btn {
+    color:#f0d7aa; background:rgba(201,166,107,.14);
+    border:1px solid rgba(201,166,107,.35); font-weight:700;
+}
+.configuration-open-btn:hover { background:rgba(201,166,107,.25); }
+.configuration-backdrop {
+    position:fixed; inset:0; z-index:3000; display:grid; place-items:center;
+    padding:20px; background:rgba(8,14,18,.72); backdrop-filter:blur(8px);
+}
+.configuration-backdrop[hidden] { display:none !important; }
+.configuration-dialog {
+    width:min(760px,100%); max-height:min(88vh,850px); overflow:auto;
+    padding:26px; border-radius:22px; color:#f5f3ee;
+    background:linear-gradient(150deg,#24333c,#17232b);
+    border:1px solid rgba(201,166,107,.34); box-shadow:0 28px 90px rgba(0,0,0,.48);
+}
+.configuration-heading { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-bottom:22px; }
+.configuration-eyebrow { color:#c9a66b; font-size:10px; font-weight:800; letter-spacing:1.8px; }
+.configuration-heading h2 { margin:8px 0 7px; font-size:25px; color:#fff; }
+.configuration-heading p { max-width:520px; margin:0; color:#b9c3c8; font-size:13px; line-height:1.55; }
+.configuration-close { width:36px; height:36px; border:1px solid rgba(255,255,255,.14); border-radius:10px; background:rgba(255,255,255,.06); color:#fff; font-size:25px; cursor:pointer; }
+.configuration-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.configuration-card {
+    min-height:80px; display:flex; align-items:center; gap:12px; padding:14px;
+    border-radius:13px; background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.10); cursor:pointer; transition:.18s;
+}
+.configuration-card:hover { border-color:rgba(201,166,107,.55); background:rgba(201,166,107,.08); }
+.configuration-card:has(input:checked) { border-color:rgba(201,166,107,.72); background:rgba(201,166,107,.13); }
+.configuration-card input { width:18px; height:18px; accent-color:#c9a66b; flex-shrink:0; }
+.configuration-card > span:last-child { display:flex; flex-direction:column; gap:5px; }
+.configuration-card strong { font-size:13px; color:#f4f1e9; }
+.configuration-card small { font-size:11px; color:#aebbc1; line-height:1.35; }
+.configuration-icon { width:35px; height:35px; flex-shrink:0; display:grid; place-items:center; border-radius:10px; background:rgba(201,166,107,.14); color:#e1c18b; font-size:19px; font-weight:700; }
+.configuration-footer { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-top:22px; padding-top:17px; border-top:1px solid rgba(255,255,255,.12); }
+.configuration-footer > span { color:#aebbc1; font-size:12px; }
+.configuration-apply { padding:12px 20px; border:0; border-radius:10px; color:#1d292f; background:linear-gradient(135deg,#dfc18e,#b58a4e); font-weight:800; cursor:pointer; }
+.customer-module-section[hidden] { display:none !important; }
+@media(max-width:768px) {
+    .brand-lockup { left:50%; top:2px; transform:translateX(-50%) scale(.88); transform-origin:top center; }
+    .top-bar { gap:5px; }
+    .quick-actions { gap:3px; padding:3px; }
+    .quick-actions .quick-btn { padding:0 7px; }
+    .configuration-open-btn { font-size:10px; }
+    .configuration-dialog { padding:18px; border-radius:17px; }
+    .configuration-heading h2 { font-size:20px; }
+    .configuration-grid { grid-template-columns:1fr; gap:8px; }
+    .configuration-card { min-height:68px; }
+    .configuration-footer { align-items:stretch; flex-direction:column; }
+    .configuration-apply { width:100%; }
+}
+@media(max-width:420px) {
+    .brand-lockup { transform:translateX(-50%) scale(.72); }
+    .quick-actions .quick-label { display:none; }
+    .quick-actions .quick-btn { width:34px; justify-content:center; padding:0; }
+    .top-price-toggle { min-width:38px; padding:0 5px; }
+}
+
+
+/* ============================================================
+   GIGA-NT SIGNATURE THEME — BLACK + BRIGHT GOLD
+   ============================================================ */
+:root {
+    --gnt-black: #08090a;
+    --gnt-panel: #111315;
+    --gnt-panel-raised: #191c1f;
+    --gnt-panel-soft: #202428;
+    --gnt-gold: #ffc928;
+    --gnt-gold-bright: #ffda45;
+    --gnt-gold-deep: #d99d00;
+    --gnt-gold-glow: rgba(255, 201, 40, .24);
+    --gnt-text: #f7f5ef;
+    --gnt-muted: #a8a8a3;
+    --gnt-line: rgba(255, 201, 40, .24);
+}
+
+/* Base canvas and surfaces */
+html, body {
+    background: var(--gnt-black) !important;
+    color: var(--gnt-text);
+}
+body { color-scheme: dark; }
+#canvas-container { background: #090a0b; }
+
+/* Top navigation */
+.top-bar { align-items: center; }
+.burger-btn {
+    background: rgba(8,9,10,.96);
+    border: 1px solid var(--gnt-line);
+    box-shadow: 0 5px 24px rgba(0,0,0,.55), 0 0 16px rgba(255,201,40,.07);
+}
+.burger-btn span { background: var(--gnt-gold); }
+.quick-actions {
+    background: rgba(8,9,10,.94);
+    border: 1px solid var(--gnt-line);
+    box-shadow: 0 5px 24px rgba(0,0,0,.55);
+}
+.quick-btn {
+    color: var(--gnt-text);
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(255,255,255,.075);
+}
+.quick-btn:hover {
+    color: var(--gnt-gold-bright);
+    background: rgba(255,201,40,.11);
+    border-color: rgba(255,201,40,.45);
+}
+.quick-btn .badge { background: var(--gnt-gold); color: #111; }
+.apply-main-btn, .apply-duplicator-btn {
+    background: rgba(255,201,40,.12);
+    border-color: rgba(255,201,40,.38);
+}
+.apply-main-btn:hover, .apply-duplicator-btn:hover {
+    background: rgba(255,201,40,.23);
+}
+.apply-main-btn .quick-label, .apply-duplicator-btn .quick-label {
+    color: var(--gnt-gold);
+}
+.configuration-open-btn {
+    color: #111 !important;
+    background: linear-gradient(135deg,var(--gnt-gold-bright),var(--gnt-gold-deep)) !important;
+    border: 1px solid var(--gnt-gold-bright) !important;
+    box-shadow: 0 3px 14px rgba(255,201,40,.2);
+}
+.configuration-open-btn:hover {
+    color: #000 !important;
+    filter: brightness(1.08);
+}
+
+/* Brand mark */
+.brand-lockup { filter: drop-shadow(0 2px 12px rgba(255,201,40,.15)); }
+.brand-lockup, .brand-lockup * { text-shadow: 0 1px 12px rgba(255,201,40,.13); }
+
+/* Side menu and accordion */
+.accordion-menu {
+    background: rgba(9,10,11,.985);
+    color: var(--gnt-text);
+    border-right: 1px solid var(--gnt-line);
+    box-shadow: 12px 0 38px rgba(0,0,0,.48);
+}
+.accordion-section {
+    background: var(--gnt-panel);
+    border: 1px solid rgba(255,255,255,.075);
+    border-radius: 11px;
+    margin: 7px 10px;
+    overflow: hidden;
+}
+.section-header {
+    color: #f3f0e8;
+    background: linear-gradient(110deg,#17191b,#101214);
+    border-bottom: 1px solid rgba(255,255,255,.055);
+}
+.section-header:hover {
+    color: var(--gnt-gold-bright);
+    background: #202020;
+}
+.accordion-section.active {
+    border-color: rgba(255,201,40,.48);
+    box-shadow: inset 3px 0 0 var(--gnt-gold), 0 0 18px rgba(255,201,40,.055);
+}
+.accordion-section.active > .section-header {
+    color: var(--gnt-gold-bright);
+    background: linear-gradient(100deg,rgba(255,201,40,.14),rgba(255,201,40,.025));
+}
+.section-content { background: #111315; color: var(--gnt-text); }
+.subsection {
+    background: #171a1c;
+    border: 1px solid rgba(255,255,255,.075);
+    border-radius: 10px;
+}
+.subsection-title { color: var(--gnt-gold-bright); }
+
+/* Form controls */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select, textarea {
+    color: var(--gnt-text);
+    background: #090b0c;
+    border: 1px solid rgba(255,255,255,.17);
+    border-radius: 8px;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--gnt-gold);
+    box-shadow: 0 0 0 3px rgba(255,201,40,.12);
+}
+input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--gnt-gold);
+}
+input[type="range"] { accent-color: var(--gnt-gold); }
+label { color: #e7e4dc; }
+button, .btn {
+    transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--gnt-gold);
+    outline-offset: 2px;
+}
+
+/* Primary actions and price */
+button.primary, .primary-btn, .configuration-apply,
+#sendOrderBtn, #refreshPriceBtn {
+    color: #111 !important;
+    background: linear-gradient(135deg,var(--gnt-gold-bright),var(--gnt-gold-deep)) !important;
+    border: 1px solid var(--gnt-gold-bright) !important;
+    font-weight: 800;
+    box-shadow: 0 4px 16px rgba(255,201,40,.14);
+}
+button.primary:hover, .primary-btn:hover, .configuration-apply:hover,
+#sendOrderBtn:hover, #refreshPriceBtn:hover {
+    filter: brightness(1.09);
+    box-shadow: 0 5px 22px rgba(255,201,40,.24);
+}
+.live-price-panel {
+    color: var(--gnt-text);
+    background: rgba(9,10,11,.97);
+    border: 1px solid rgba(255,201,40,.42);
+    box-shadow: 0 12px 42px rgba(0,0,0,.58), 0 0 24px rgba(255,201,40,.07);
+}
+.live-price-panel .price-value,
+#totalPriceDisplay { color: var(--gnt-gold-bright); }
+.price-visibility-toggle {
+    border-color: rgba(255,201,40,.4);
+}
+.price-visibility-toggle .toggle-track {
+    background: #333;
+}
+.price-visibility-toggle input:checked + .toggle-track {
+    background: var(--gnt-gold-deep);
+}
+.price-visibility-toggle input:checked + .toggle-track:before {
+    background: #fff4cf;
+}
+.top-price-toggle {
+    background: rgba(8,9,10,.96);
+    border-color: rgba(255,201,40,.48);
+}
+.top-price-toggle .toggle-caption { color: var(--gnt-gold-bright); }
+
+/* Configuration modal */
+.configuration-backdrop { background: rgba(0,0,0,.82); }
+.configuration-dialog {
+    color: var(--gnt-text);
+    background: linear-gradient(145deg,#17191b,#090a0b);
+    border: 1px solid rgba(255,201,40,.5);
+    box-shadow: 0 28px 90px rgba(0,0,0,.72), 0 0 35px rgba(255,201,40,.08);
+}
+.configuration-eyebrow { color: var(--gnt-gold-bright); }
+.configuration-card {
+    background: #171a1c;
+    border-color: rgba(255,255,255,.11);
+}
+.configuration-card:hover {
+    border-color: rgba(255,201,40,.72);
+    background: rgba(255,201,40,.075);
+}
+.configuration-card:has(input:checked) {
+    border-color: var(--gnt-gold);
+    background: rgba(255,201,40,.13);
+    box-shadow: inset 3px 0 0 var(--gnt-gold);
+}
+.configuration-card input { accent-color: var(--gnt-gold); }
+.configuration-icon {
+    color: var(--gnt-gold-bright);
+    background: rgba(255,201,40,.12);
+}
+.configuration-apply {
+    color: #111 !important;
+    background: linear-gradient(135deg,#ffdc4e,#e3a900) !important;
+}
+
+/* Utility panels, tooltips and floating controls */
+.price-block, .modal-content, .floating-panel, .control-panel {
+    color: var(--gnt-text);
+}
+hr, .divider { border-color: rgba(255,201,40,.18); }
+a { color: var(--gnt-gold-bright); }
+a:hover { color: #fff0b0; }
+::selection { color: #111; background: var(--gnt-gold); }
+
+
+/* Hide any configurable accordion module, not only the two split-out sections */
+.accordion-section[data-module][hidden] { display: none !important; }
+
+
+/* ============================================================
+   GIGA-NT MENU FINISH — remove legacy teal / red / blue accents
+   Keep the 3D scene and its natural material colors untouched.
+   ============================================================ */
+.accordion-menu {
+    background: rgba(8,9,10,.99) !important;
+    color: #f7f5ef !important;
+}
+.accordion-menu .menu-scroll { background: transparent !important; }
+.accordion-menu .hint-text {
+    background: #17191b !important;
+    color: #d8d5cc !important;
+    border: 1px solid rgba(255,201,40,.22);
+}
+.accordion-menu .accordion-section,
+.accordion-menu .section-content,
+.accordion-menu .subsection {
+    background-color: #111315 !important;
+    color: #f2f0e9 !important;
+}
+.accordion-menu .section-header {
+    background: linear-gradient(100deg,#191b1d,#101112) !important;
+    color: #eeeae0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+}
+.accordion-menu .section-header:hover,
+.accordion-menu .accordion-section.active > .section-header {
+    background: linear-gradient(100deg,rgba(255,201,40,.17),rgba(255,201,40,.035)) !important;
+    color: #ffda45 !important;
+}
+.accordion-menu .subsection {
+    border: 1px solid rgba(255,201,40,.16) !important;
+    box-shadow: none !important;
+}
+.accordion-menu .subsection-title,
+.accordion-menu .stele-preview-title,
+.accordion-menu .grave-area-info span,
+.accordion-menu .value-display,
+.accordion-menu .price-note strong {
+    color: #ffda45 !important;
+}
+.accordion-menu .grave-area-info,
+.accordion-menu .selected-monument-info,
+.accordion-menu .stele-preview-panel,
+.accordion-menu .stele-preview-frame,
+.accordion-menu .price-note,
+.accordion-menu .hint-text,
+.accordion-menu .info-box,
+.accordion-menu .preview-info,
+.accordion-menu .status-box {
+    background: #171a1c !important;
+    border-color: rgba(255,201,40,.2) !important;
+    color: #c9c7bf !important;
+}
+.accordion-menu .checkbox-group {
+    background: rgba(255,201,40,.055) !important;
+    border: 1px solid rgba(255,201,40,.2) !important;
+    color: #f2f0e9 !important;
+}
+.accordion-menu .checkbox-group:hover,
+.accordion-menu .checkbox-group:focus-within {
+    background: rgba(255,201,40,.12) !important;
+    border-color: rgba(255,201,40,.52) !important;
+}
+.accordion-menu .checkbox-group input[type="checkbox"] {
+    accent-color: #ffc928 !important;
+    background: #090a0b !important;
+    border-color: rgba(255,201,40,.55) !important;
+}
+.accordion-menu .checkbox-group input[type="checkbox"]:checked {
+    background: #ffc928 !important;
+    border-color: #ffc928 !important;
+}
+.accordion-menu input[type="checkbox"],
+.accordion-menu input[type="radio"],
+.accordion-menu input[type="range"] {
+    accent-color: #ffc928 !important;
+}
+.accordion-menu input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.accordion-menu select,
+.accordion-menu textarea {
+    background-color: #090b0c !important;
+    color: #f7f5ef !important;
+    border-color: rgba(255,201,40,.22) !important;
+}
+.accordion-menu select option {
+    background: #111315;
+    color: #f7f5ef;
+}
+.accordion-menu input:focus,
+.accordion-menu select:focus,
+.accordion-menu textarea:focus {
+    border-color: #ffc928 !important;
+    box-shadow: 0 0 0 2px rgba(255,201,40,.13) !important;
+}
+.accordion-menu .btn,
+.accordion-menu button {
+    color: #f5f1e6;
+    background: #1a1c1e;
+    border: 1px solid rgba(255,201,40,.32);
+}
+.accordion-menu .btn:hover,
+.accordion-menu button:hover {
+    color: #ffda45;
+    background: #252321;
+    border-color: rgba(255,201,40,.72);
+}
+.accordion-menu .btn-add-monument,
+.accordion-menu .btn-duplicate-monument,
+.accordion-menu .btn-export-glb,
+.accordion-menu .btn-force-font,
+.accordion-menu .btn-secondary {
+    color: #111 !important;
+    background: linear-gradient(135deg,#ffda45,#d99d00) !important;
+    border-color: #ffda45 !important;
+}
+.accordion-menu .btn-danger {
+    color: #ffda45 !important;
+    background: #211b0c !important;
+    border-color: rgba(255,201,40,.48) !important;
+}
+.accordion-menu .btn-danger:hover {
+    background: #30250b !important;
+}
+.accordion-menu .order-status,
+.accordion-menu .success,
+.accordion-menu .text-success {
+    color: #ffda45 !important;
+}
+.accordion-menu .error,
+.accordion-menu .text-danger,
+.accordion-menu .warning {
+    color: #f0c45a !important;
+}
+.accordion-menu a {
+    color: #ffda45 !important;
+}
+.accordion-menu [style*="background:#f5f7fa"],
+.accordion-menu [style*="background: #f5f7fa"],
+.accordion-menu [style*="background:#fff"],
+.accordion-menu [style*="background: #fff"] {
+    background: #171a1c !important;
+}
+.accordion-menu [style*="border:1px solid #d7dce2"],
+.accordion-menu [style*="border: 1px solid #d7dce2"],
+.accordion-menu [style*="border:1px solid #cbd5e1"],
+.accordion-menu [style*="border: 1px solid #cbd5e1"] {
+    border-color: rgba(255,201,40,.25) !important;
+}
+.accordion-menu .stele-preview-caption,
+.accordion-menu .hint-text small,
+.accordion-menu small {
+    color: #aaa79e !important;
+}
+
+
+/* ============================================================
+   FINAL GOLD ACCENTS: BURIAL RECORDS + STELE MODEL PICKER
+   These components set some colors inline from JavaScript,
+   so use scoped !important overrides for their interactive states.
+   ============================================================ */
+
+/* People on stele */
+.accordion-menu .burial-panel {
+    background: #111315 !important;
+    border: 1px solid rgba(255,201,40,.28) !important;
+}
+.accordion-menu .burial-panel__title {
+    color: #ffda45 !important;
+}
+.accordion-menu .burial-panel__count {
+    background: rgba(255,201,40,.15) !important;
+    color: #ffda45 !important;
+    border: 1px solid rgba(255,201,40,.3);
+}
+.accordion-menu .burial-list::-webkit-scrollbar-thumb {
+    background: #ffc928 !important;
+}
+.accordion-menu .burial-card {
+    background: #191c1f !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
+}
+.accordion-menu .burial-card:hover {
+    background: #222426 !important;
+    border-color: rgba(255,201,40,.35) !important;
+}
+.accordion-menu .burial-card.is-active {
+    background: rgba(255,201,40,.12) !important;
+    border: 1px solid #ffc928 !important;
+    box-shadow: 0 0 0 2px rgba(255,201,40,.12) !important;
+}
+.accordion-menu .burial-card__btn {
+    color: #f5f1e6 !important;
+    background: #252729 !important;
+    border: 1px solid rgba(255,201,40,.2) !important;
+}
+.accordion-menu .burial-card__btn:hover:not(:disabled),
+.accordion-menu .burial-card__btn--del:hover:not(:disabled) {
+    color: #111 !important;
+    background: #ffda45 !important;
+}
+.accordion-menu .burial-panel__add-btn {
+    color: #111 !important;
+    background: linear-gradient(135deg,#ffda45,#d99d00) !important;
+    border: 1px solid #ffda45 !important;
+    box-shadow: 0 3px 12px rgba(255,201,40,.14);
+}
+.accordion-menu .burial-panel__add-btn:hover {
+    box-shadow: 0 4px 16px rgba(255,201,40,.25) !important;
+}
+.accordion-menu .extra-epitaph-row.is-selected textarea {
+    border-color: #ffc928 !important;
+    box-shadow: 0 0 0 2px rgba(255,201,40,.16) !important;
+}
+.accordion-menu .burial-panel__hint {
+    color: #aaa79e !important;
+    background: #171a1c !important;
+    border: 1px solid rgba(255,201,40,.12);
+}
+
+/* Stele model tiles */
+.accordion-menu .stele-grid-item {
+    background: #171a1c !important;
+    border: 2px solid rgba(255,255,255,.1) !important;
+    color: #f4f1e9 !important;
+    box-shadow: none !important;
+}
+.accordion-menu .stele-grid-item:hover {
+    border-color: rgba(255,201,40,.65) !important;
+    background: #222426 !important;
+}
+.accordion-menu .stele-grid-item.selected,
+.accordion-menu .stele-grid-item.active {
+    border: 2px solid #ffc928 !important;
+    background: rgba(255,201,40,.12) !important;
+    box-shadow: 0 0 18px rgba(255,201,40,.18) !important;
+}
+.accordion-menu .stele-grid-name {
+    color: #f2f0e9 !important;
+}
+.accordion-menu .stele-placeholder {
+    color: #ffda45 !important;
+    background: #101214 !important;
+}
+.accordion-menu .stele-preview-panel {
+    border-color: rgba(255,201,40,.24) !important;
+    background: rgba(255,201,40,.045) !important;
+}
+.accordion-menu .stele-preview-title {
+    color: #ffda45 !important;
 }
