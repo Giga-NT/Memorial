@@ -1561,6 +1561,9 @@ export async function createPathBetweenGraveAndFence(
     // each post half-width and 10 mm leaves a small visible paving margin.
     const edgeAllowance = 0.05;
 
+    // Keep the original allowance for the lower construction layers.
+    const extra = 0.01;
+
     const outerHalfW =
         totalWidth / 2 +
         edgeAllowance;
