@@ -291,6 +291,66 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     gp2.position.y = state.fenceHeight / 2;
     gp2.castShadow = true;
     fenceGroup.add(gp2);
+
+    // Закрытая створка калитки из того же материала, что и ограждение.
+    // Ширина створки оставляет небольшой технологический зазор между стойками.
+    const gateMaterial =
+        fenceMaterials[state.fenceMaterial] || fenceMaterials.steel;
+    const leafWidth = Math.max(0.1, gateWidth - 0.10);
+    const leafHeight = Math.max(0.2, state.fenceHeight - 0.12);
+    const leafStart = gateStartPoint.clone().add(
+        direction.clone().multiplyScalar(0.05)
+    );
+    const leafEnd = leafStart.clone().add(
+        direction.clone().multiplyScalar(leafWidth)
+    );
+    const leafBottom = 0.06;
+    const leafTop = leafBottom + leafHeight;
+    const railRadius = 0.014;
+    const picketRadius = 0.009;
+
+    // Верхняя и нижняя перекладины створки.
+    createBar(
+        new THREE.Vector3(leafStart.x, leafBottom, leafStart.z),
+        new THREE.Vector3(leafEnd.x, leafBottom, leafEnd.z),
+        railRadius,
+        gateMaterial,
+        fenceGroup
+    );
+    createBar(
+        new THREE.Vector3(leafStart.x, leafTop, leafStart.z),
+        new THREE.Vector3(leafEnd.x, leafTop, leafEnd.z),
+        railRadius,
+        gateMaterial,
+        fenceGroup
+    );
+
+    // Средняя перекладина и вертикальное заполнение.
+    const middleY = leafBottom + leafHeight * 0.5;
+    createBar(
+        new THREE.Vector3(leafStart.x, middleY, leafStart.z),
+        new THREE.Vector3(leafEnd.x, middleY, leafEnd.z),
+        railRadius * 0.85,
+        gateMaterial,
+        fenceGroup
+    );
+
+    const picketCount = Math.max(3, Math.floor(leafWidth / 0.12));
+    for (let index = 0; index <= picketCount; index++) {
+        const t = index / picketCount;
+        const x = leafStart.x + (leafEnd.x - leafStart.x) * t;
+        const z = leafStart.z + (leafEnd.z - leafStart.z) * t;
+        createBar(
+            new THREE.Vector3(x, leafBottom, z),
+            new THREE.Vector3(x, leafTop, z),
+            picketRadius,
+            gateMaterial,
+            fenceGroup
+        );
+    }
+
+    fenceGroup.userData.hasGateLeaf = true;
+    fenceGroup.userData.gateMaterial = state.fenceMaterial || 'steel';
 }
 
 // ============================================================
