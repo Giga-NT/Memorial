@@ -1556,16 +1556,21 @@ export async function createPathBetweenGraveAndFence(
     const totalLength =
         fenceLength || 2.5;
 
-    const extra =
-        0.01;
+    // Fence posts are 80 mm wide and sit centered on the fence corners.
+    // Extend the paving 50 mm beyond the fence dimensions: 40 mm covers
+    // each post half-width and 10 mm leaves a small visible paving margin.
+    const edgeAllowance = 0.05;
 
     const outerHalfW =
         totalWidth / 2 +
-        extra;
+        edgeAllowance;
 
     const outerHalfL =
         totalLength / 2 +
-        extra;
+        edgeAllowance;
+
+    const pavedWidth = outerHalfW * 2;
+    const pavedLength = outerHalfL * 2;
 
     const shape =
         new THREE.Shape();
@@ -1630,8 +1635,9 @@ export async function createPathBetweenGraveAndFence(
             ? pavingTexture.userData.spanY
             : tileStep;
 
-    const repeatX = totalWidth / (pathSurfaceType === 'slab' ? slabModule : pavingSpanX);
-    const repeatY = totalLength / (pathSurfaceType === 'slab' ? slabModule : pavingSpanY);
+    // Keep the paving module at its real-world size after enlarging the surface.
+    const repeatX = pavedWidth / (pathSurfaceType === 'slab' ? slabModule : pavingSpanX);
+    const repeatY = pavedLength / (pathSurfaceType === 'slab' ? slabModule : pavingSpanY);
 
     // Extruded surface gives paving/gravel a real, measurable thickness.
     const geometry = new THREE.ExtrudeGeometry(shape, {
