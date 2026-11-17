@@ -251,6 +251,52 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
     }
 }
 
+function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
+    if (!sourceModel) return;
+
+    const clone = sourceModel.clone(true);
+    const bounds = new THREE.Box3().setFromObject(clone);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+
+    if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
+        console.warn('⚠️ У модели калитки некорректные размеры');
+        return;
+    }
+
+    // GLB ориентирован локально: X — ширина, Y — высота, Z — толщина.
+    const targetWidth = Math.max(0.1, pStart.distanceTo(pEnd));
+    const targetHeight = Math.max(0.1, Number(state.fenceHeight) || 0.6);
+    const scaleX = targetWidth / size.x;
+    const scaleY = targetHeight / size.y;
+
+    const gateGroup = new THREE.Group();
+    clone.scale.set(scaleX, scaleY, scaleX);
+    clone.position.set(
+        -center.x * scaleX,
+        -bounds.min.y * scaleY,
+        -center.z * scaleX
+    );
+
+    clone.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    const midpoint = pStart.clone().add(pEnd).multiplyScalar(0.5);
+    gateGroup.position.set(midpoint.x, 0, midpoint.z);
+    const direction = pEnd.clone().sub(pStart).normalize();
+    gateGroup.quaternion.setFromUnitVectors(
+        new THREE.Vector3(1, 0, 0),
+        direction
+    );
+    gateGroup.add(clone);
+    gateGroup.userData.isGateLeaf = true;
+    fenceGroup.add(gateGroup);
+}
+
 function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const totalLength = pStart.distanceTo(pEnd);
     const gateWidth = parseFloat(state.gateWidth) || 0.8;
@@ -291,6 +337,21 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     gp2.position.y = state.fenceHeight / 2;
     gp2.castShadow = true;
     fenceGroup.add(gp2);
+
+    // Подбираем готовую створку под выбранный тип ограды.
+    // Вензель и литьё используют fence_gate.glb, 3D — litle.glb.
+    let gateModel = null;
+    if (state.fenceType === 'venzel' || state.fenceType === 'casting') {
+        gateModel = window.fenceGateModel;
+    } else if (state.fenceType === 'model_3d') {
+        gateModel = window.litleGateModel;
+    }
+
+    if (gateModel) {
+        placeGateModel(gateModel, gateStartPoint, gateEndPoint, state, fenceGroup);
+    } else if (state.fenceType === 'venzel' || state.fenceType === 'casting' || state.fenceType === 'model_3d') {
+        console.warn('⚠️ Модель калитки ещё не загружена:', state.fenceType);
+    }
 }
 
 // ============================================================
