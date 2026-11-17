@@ -903,6 +903,7 @@ export class ProjectIO {
             'fenceLength',
             'fenceHeight',
             'gateWidth',
+            'fenceGateOffset',
 
             'fenceOffsetX',
             'fenceOffsetZ',
