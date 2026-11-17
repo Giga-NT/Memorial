@@ -71,42 +71,16 @@ export async function createFlowerbedBorder(params = {}) {
     group.userData.isFlowerbedBorder =
         true;
 
-    const outerWidth =
-        flowerWidth +
-        borderWidth * 2;
+    const outerWidth = flowerWidth + borderWidth * 2;
+    const y = baseHeight + borderHeight / 2;
 
-    const y =
-        baseHeight +
-        borderHeight / 2;
-
-    const outerLength = flowerLength + borderWidth * 2;
-
-    // Четыре балки: две поперечные и две продольные.
+    // Торцевые балки проходят на всю наружную ширину.
+    // Боковые занимают внутреннюю длину между торцами: углы сходятся встык.
     const pieces = [
-        {
-            width: outerWidth,
-            length: borderWidth,
-            x: 0,
-            z: -(flowerLength / 2 + borderWidth / 2 - overlap)
-        },
-        {
-            width: outerWidth,
-            length: borderWidth,
-            x: 0,
-            z: flowerLength / 2 + borderWidth / 2 - overlap
-        },
-        {
-            width: borderWidth,
-            length: outerLength - overlap * 2,
-            x: -(flowerWidth / 2 + borderWidth / 2 - overlap),
-            z: 0
-        },
-        {
-            width: borderWidth,
-            length: outerLength - overlap * 2,
-            x: flowerWidth / 2 + borderWidth / 2 - overlap,
-            z: 0
-        }
+        { width: outerWidth, length: borderWidth, x: 0, z: -(flowerLength / 2 + borderWidth / 2) },
+        { width: outerWidth, length: borderWidth, x: 0, z: flowerLength / 2 + borderWidth / 2 },
+        { width: borderWidth, length: flowerLength, x: -(flowerWidth / 2 + borderWidth / 2), z: 0 },
+        { width: borderWidth, length: flowerLength, x: flowerWidth / 2 + borderWidth / 2, z: 0 }
     ];
 
     pieces.forEach(
