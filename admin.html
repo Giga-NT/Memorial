@@ -303,19 +303,45 @@
                 </span>
 
                 <span class="category-count">
-                    9 позиций
+                    7 позиций
                 </span>
             </button>
 
             <div class="category-content">
 
                 <div class="price-row">
-                    <div class="price-name">
-                        Оградка за погонный метр (с монтажом)
-                        <div class="price-key">fence_per_m</div>
-                    </div>
+                    <div class="price-name">Труба</div>
+                    <div class="price-key">fence_pipe_per_m</div>
                     <div class="price-unit">₽/п.м.</div>
-                    <input class="price-input" type="number" data-key="fence_per_m" min="0" step="1">
+                    <input class="price-input" type="number" data-key="fence_pipe_per_m" min="0" step="1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">Цепь</div>
+                    <div class="price-key">fence_chain_per_m</div>
+                    <div class="price-unit">₽/п.м.</div>
+                    <input class="price-input" type="number" data-key="fence_chain_per_m" min="0" step="1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">3D-модель</div>
+                    <div class="price-key">fence_model_3d_per_m</div>
+                    <div class="price-unit">₽/п.м.</div>
+                    <input class="price-input" type="number" data-key="fence_model_3d_per_m" min="0" step="1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">Литьё</div>
+                    <div class="price-key">fence_casting_per_m</div>
+                    <div class="price-unit">₽/п.м.</div>
+                    <input class="price-input" type="number" data-key="fence_casting_per_m" min="0" step="1">
+                </div>
+
+                <div class="price-row">
+                    <div class="price-name">Вензель</div>
+                    <div class="price-key">fence_venzel_per_m</div>
+                    <div class="price-unit">₽/п.м.</div>
+                    <input class="price-input" type="number" data-key="fence_venzel_per_m" min="0" step="1">
                 </div>
 
                 <div class="price-row">
@@ -334,18 +360,6 @@
                     </div>
                     <div class="price-unit">м</div>
                     <input class="price-input" type="number" data-key="fence_base_height" min="0" step="0.01">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">3D-модель</div>
-                    <div class="price-unit">₽/шт.</div>
-                    <input class="price-input" type="number" data-key="model_3d" min="0">
-                </div>
-
-                <div class="price-row">
-                    <div class="price-name">Вензель</div>
-                    <div class="price-unit">₽/шт.</div>
-                    <input class="price-input" type="number" data-key="venzel" min="0">
                 </div>
 
                 
@@ -713,7 +727,12 @@
         picnic_set: 'Комплект для пикника',
         delivery: 'Доставка',
         install: 'Установка (старый параметр)',
-        fence_per_m: 'Оградка за погонный метр',
+        fence_per_m: 'Старая общая цена оградки (совместимость)',
+        fence_pipe_per_m: 'Оградка «Труба» за погонный метр',
+        fence_chain_per_m: 'Оградка «Цепь» за погонный метр',
+        fence_model_3d_per_m: 'Оградка «3D» за погонный метр',
+        fence_casting_per_m: 'Оградка «Литьё» за погонный метр',
+        fence_venzel_per_m: 'Оградка «Вензель» за погонный метр',
         fence_base_height: 'Базовая высота оградки',
         path_work_per_m2: 'Работы по дорожке за м²',
         site_fill_work_per_m2: 'Отсыпка участка за м²',
