@@ -265,26 +265,12 @@ export async function createCustomSteleMesh(
         const rotation = parseSteleRotation(customModels[modelId]?.rotation);
         const radians = Math.PI / 180;
 
-        // Поворачиваем модель во внешней группе: так габариты считаются
-        // уже после поворота, а масштабирование не сбрасывает ориентацию GLB.
-        const orientedModel = new THREE.Group();
-        orientedModel.name = `catalog-model-${modelId}`;
-        orientedModel.add(model);
-        orientedModel.rotation.set(
-            rotation.x * radians,
-            rotation.y * radians,
-            rotation.z * radians
-        );
-        orientedModel.updateMatrixWorld(true);
-
-        if (rotation.x || rotation.y || rotation.z) {
-            console.log('🔄 Поворот модели из каталога применён:', modelId, rotation);
-        }
-
-        // Сначала определяем габариты уже ориентированной модели.
-        // Масштабируем отдельной внешней группой: её оси совпадают
-        // с осями сцены, поэтому поворот GLB не меняет местами W/H/D.
-        const box = new THREE.Box3().setFromObject(orientedModel);
+        // В исходных GLB размеры заданы по локальным осям:
+        // X — ширина, Y — толщина, Z — высота.
+        // Сначала приводим именно эти оси к нужным размерам,
+        // и только затем применяем уже настроенный в каталоге поворот.
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const minDimension = 1e-6;
 
@@ -305,13 +291,13 @@ export async function createCustomSteleMesh(
         }
 
         const scaleX = width / size.x;
-        const scaleY = height / size.y;
-        const scaleZ = depth / size.z;
+        const scaleY = depth / size.y;
+        const scaleZ = height / size.z;
         const center = box.getCenter(new THREE.Vector3());
 
         const sizedModel = new THREE.Group();
         sizedModel.name = `sized-model-${modelId}`;
-        sizedModel.add(orientedModel);
+        sizedModel.add(model);
         sizedModel.scale.set(scaleX, scaleY, scaleZ);
         sizedModel.position.set(
             -center.x * scaleX,
@@ -319,17 +305,32 @@ export async function createCustomSteleMesh(
             -center.z * scaleZ
         );
 
-        group.userData.modelRef = sizedModel;
+        // Сохраняем заданную в каталоге ориентацию без изменений.
+        const orientedModel = new THREE.Group();
+        orientedModel.name = `catalog-model-${modelId}`;
+        orientedModel.add(sizedModel);
+        orientedModel.rotation.set(
+            rotation.x * radians,
+            rotation.y * radians,
+            rotation.z * radians
+        );
+        orientedModel.updateMatrixWorld(true);
+
+        if (rotation.x || rotation.y || rotation.z) {
+            console.log('🔄 Поворот модели из каталога применён:', modelId, rotation);
+        }
+
+        group.userData.modelRef = orientedModel;
         group.userData.isLoaded = true;
 
         await applyMaterialToCustomModel(
-            orientedModel,
+            model,
             materialType,
             modelId,
             modelType
         );
 
-        group.add(sizedModel);
+        group.add(orientedModel);
 
         // Декали
         if (
