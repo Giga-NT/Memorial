@@ -1651,7 +1651,7 @@
             if(file){
                 if(!/\.glb$/i.test(file.name)||file.size>50*1024*1024)throw new Error('Выбери GLB до 50 МБ');
                 const upload=await fetch('/api/admin/steles/upload',{method:'POST',credentials:'include',
-                    headers:{'Content-Type':'application/octet-stream','X-File-Name':file.name},body:file});
+                    headers:{'Content-Type':'application/octet-stream','X-File-Name':encodeURIComponent(file.name)},body:file});
                 const ud=await upload.json();if(!upload.ok||!ud.success)throw new Error(ud.message||'Ошибка загрузки GLB');modelFile=ud.filename;
             }
             const payload={model_file:modelFile,active:document.getElementById('stele-active').checked};

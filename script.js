@@ -5410,6 +5410,10 @@ function buildPriceBreakdown() {
                     polishMode==='fixed'?(Number(config.polish_cost)||0):0
             };
             monument.steleWorkSnapshot=snap;
+            if (index > 0) {
+                const duplicate = window.multiMonumentManager?.monuments?.[index - 1];
+                if (duplicate?.data) duplicate.data.steleWorkSnapshot = snap;
+            }
         }
         const label=`Стела №${index+1} «${snap.modelName}»`;
         if(snap.machineCost>0){workTotals.machine+=snap.machineCost;workDetails.machine.push(`${label}: ${snap.machineHours} ч × ${snap.machineRate} ₽ = ${snap.machineCost.toFixed(0)} ₽`);}
