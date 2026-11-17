@@ -172,9 +172,10 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPos
             return;
         }
         
-        const modelBaseWidth = 0.25; // Примерная ширина одной секции 11.glb
-        let numSections = Math.floor(totalLength / modelBaseWidth);
-        if (numSections < 1) numSections = 1;
+        const sourceBounds = new THREE.Box3().setFromObject(window.fence3DModel);
+        const sourceSize = sourceBounds.getSize(new THREE.Vector3());
+        const modelBaseWidth = sourceSize.x > 0 ? sourceSize.x : 0.25;
+        let numSections = Math.max(1, Math.round(totalLength / modelBaseWidth));
         const actualStep = totalLength / numSections;
         const heightScale = state.fenceHeight / 0.6; // Масштабируем по высоте
         
@@ -192,7 +193,7 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPos
                 }
             });
             
-            clone.scale.set(1.0, heightScale, 1.0);
+            clone.scale.set(actualStep / modelBaseWidth, heightScale, 1.0);
             clone.position.copy(centerPos);
             clone.position.y = (state.fenceHeight / 2);
             
@@ -255,7 +256,7 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPos
     }
 }
 
-function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
+function placeGateModel(sourceModel, pStart, pEnd, sideName, state, fenceGroup) {
     if (!sourceModel) return;
 
     const clone = sourceModel.clone(true);
@@ -305,6 +306,13 @@ function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
     });
 
     const midpoint = pStart.clone().add(pEnd).multiplyScalar(0.5);
+    const outwardNormals = {
+        front: new THREE.Vector3(0, 0, -1),
+        back: new THREE.Vector3(0, 0, 1),
+        left: new THREE.Vector3(-1, 0, 0),
+        right: new THREE.Vector3(1, 0, 0)
+    };
+    midpoint.add((outwardNormals[sideName] || new THREE.Vector3()).multiplyScalar(0.10));
     gateGroup.position.set(midpoint.x, 0, midpoint.z);
     const direction = pEnd.clone().sub(pStart).normalize();
     gateGroup.quaternion.setFromUnitVectors(
@@ -377,7 +385,7 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     }
 
     if (gateModel) {
-        placeGateModel(gateModel, gateStartPoint, gateEndPoint, state, fenceGroup);
+        placeGateModel(gateModel, gateStartPoint, gateEndPoint, sideName, state, fenceGroup);
     } else if (state.fenceType === 'venzel' || state.fenceType === 'casting' || state.fenceType === 'model_3d') {
         console.warn('⚠️ Модель калитки ещё не загружена:', state.fenceType);
     }
@@ -392,7 +400,7 @@ window.createFenceGroup = createFenceGroup;
 
 export function createFenceGroup(state) {
     if (!state.fenceEnabled) return null;
-    if (state.fenceType === 'none' && state.fenceGateSide === 'none') return null;
+    if (state.fenceType === 'none') return null;
     
     const fenceGroup = new THREE.Group();
     fenceGroup.userData.isFence = true;
@@ -418,12 +426,13 @@ export function createFenceGroup(state) {
     
     sides.forEach(side => {
         let isGate = false;
-        if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
-        if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
-        if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;
-        if (state.fenceGateSide === 'left' && side.name === 'left') isGate = true;
-        
-        if (isGate && state.fenceGateSide !== 'none') {
+        if (state.fenceGateEnabled !== false) {
+            if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
+            if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
+            if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;
+            if (state.fenceGateSide === 'left' && side.name === 'left') isGate = true;
+        }
+        if (isGate) {
             createSideWithGate(side.start, side.end, side.name, state, fenceGroup);
         } else {
             createSolidSide(side.start, side.end, side.name, state, fenceGroup);
