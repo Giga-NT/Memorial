@@ -356,21 +356,13 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const gateStartPoint = pStart.clone().add(direction.clone().multiplyScalar(gateStartDistance));
     const gateEndPoint = gateStartPoint.clone().add(direction.clone().multiplyScalar(gateWidth));
 
-    if (leftSideLength > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup, false, hasBuiltInGatePosts);
-    else if (leftSideLength > 0.05 && !hasBuiltInGatePosts) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
-        post.position.copy(gateStartPoint);
-        post.position.y = state.fenceHeight / 2;
-        post.castShadow = true;
-        fenceGroup.add(post);
+    // На концах секций возле проёма не ставим дополнительные стойки:
+    // там будут встроенные столбы модели либо две отдельные стойки проёма.
+    if (leftSideLength > 0.2) {
+        createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup, false, true);
     }
-    if (rightSideLength > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup, hasBuiltInGatePosts, false);
-    else if (rightSideLength > 0.05 && !hasBuiltInGatePosts) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
-        post.position.copy(gateEndPoint);
-        post.position.y = state.fenceHeight / 2;
-        post.castShadow = true;
-        fenceGroup.add(post);
+    if (rightSideLength > 0.2) {
+        createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup, true, false);
     }
     // Для моделей с собственными столбами не добавляем дублирующие опоры.
     if (!hasBuiltInGatePosts) {
