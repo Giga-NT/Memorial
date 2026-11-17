@@ -5,7 +5,7 @@ const TILE_MATERIALS = ['tile_black','tile_gray','tile_beige','tile_dark','tile_
 
 const PROFILES = {
     slab: {
-        top: { key: 'surface', label: 'Тротуарная плитка', thickness: 0.04, kind: 'surface' },
+        top: { key: 'surface', label: 'Тротуарная плитка', thickness: 0.05, kind: 'surface' },
         layers: [
             { key: 'bedding_sand', label: 'Песчаная постель', thickness: 0.03, kind: 'sand', color: 0xd8c18b },
             { key: 'screenings', label: 'Выравнивающий отсев', thickness: 0.01, kind: 'screenings', color: 0x99958b },
@@ -65,25 +65,50 @@ const PROFILES = {
     }
 };
 
-export function getSiteSurfaceProfile(material = 'tile_gray', surfaceType = 'paver') {
+const SLAB_FORMAT_THICKNESS = {
+    square300: 0.05,
+    square500: 0.05,
+    rectangle: 0.06,
+    old_city: 0.06,
+    stone: 0.05
+};
+
+export function getSiteSurfaceProfile(material = 'tile_gray', surfaceType = 'paver', slabFormat = 'square300') {
     const key = TILE_MATERIALS.includes(material) ? (surfaceType === 'slab' ? 'slab' : 'tile') : (PROFILES[material] ? material : (surfaceType === 'slab' ? 'slab' : 'tile'));
     const profile = PROFILES[key];
+    const top = { ...profile.top };
+    if (surfaceType === 'slab' && key === 'slab') {
+        top.thickness = SLAB_FORMAT_THICKNESS[slabFormat] || SLAB_FORMAT_THICKNESS.square300;
+    }
     return {
         type: key,
-        top: { ...profile.top },
+        top,
         layers: profile.layers.map(layer => ({ ...layer }))
     };
 }
 
-export function getSiteSurfaceLayerTotals(material, area, surfaceType = 'paver') {
-    const profile = getSiteSurfaceProfile(material, surfaceType);
+export function getSiteSurfaceLayerTotals(material, area, surfaceType = 'paver', slabFormat = 'square300', dimensions = {}) {
+    const profile = getSiteSurfaceProfile(material, surfaceType, slabFormat);
+    const baseArea = Math.max(0, Number(area) || 0);
+    const width = Math.max(0, Number(dimensions.width) || 0);
+    const length = Math.max(0, Number(dimensions.length) || 0);
+    const excludedArea = Math.max(0, Number(dimensions.excludedArea) || 0);
+    const margins = [0.02, 0.05, 0.08];
+
     return {
         profile,
-        topArea: Math.max(0, Number(area) || 0),
-        layers: profile.layers.map(layer => ({
-            ...layer,
-            area: Math.max(0, Number(area) || 0),
-            volume: Math.max(0, Number(area) || 0) * layer.thickness
-        }))
+        topArea: baseArea,
+        layers: profile.layers.map((layer, index) => {
+            const margin = margins[Math.min(index, margins.length - 1)];
+            const layerArea = width > 0 && length > 0
+                ? Math.max(0, (width + margin * 2) * (length + margin * 2) - excludedArea)
+                : baseArea;
+            return {
+                ...layer,
+                margin,
+                area: layerArea,
+                volume: layerArea * layer.thickness
+            };
+        })
     };
 }

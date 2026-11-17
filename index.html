@@ -535,16 +535,6 @@
                             <input type="checkbox" id="pathEnabled" checked>
                             <label for="pathEnabled">Показывать покрытие и слои основания</label>
                         </div>
-                        <div class="control-group-with-input">
-                            <label for="pathWidth">Ширина площадки</label>
-                            <div class="input-with-range">
-                                <input type="range" id="pathWidth" min="0.2" max="10.0" step="0.05" value="1.5">
-                                <input type="number" id="pathWidthInput" class="number-input" value="1.5" min="0.2" max="10.0" step="0.05">
-                                <span class="unit">м</span>
-                            </div>
-                            <span class="value-display" id="pathWidthVal">1.50 м</span>
-                        </div>
-
                         <div id="pathSlabSettings" style="display:none; border:1px solid #d7dce2; border-radius:8px; padding:10px; margin:10px 0;">
                             <div class="subsection-title">🧱 Тротуарная плитка</div>
                             <div class="control-group">
@@ -1545,7 +1535,6 @@ document.addEventListener('contextmenu', event => event.preventDefault());
         ['fenceLength', 'fenceLengthInput', 'fenceLengthVal'],
         ['fenceHeight', 'fenceHeightInput', 'fenceHeightVal'],
         ['gateWidth', 'gateWidthInput', 'gateWidthVal'],
-        ['pathWidth', 'pathWidthInput', 'pathWidthVal'],
         ['photoScale', 'photoScaleInput', 'photoScaleVal'],
         ['nameFontSize', 'nameFontSizeInput', 'nameFontSizeVal'],
         ['datesFontSize', 'datesFontSizeInput', 'datesFontSizeVal'],

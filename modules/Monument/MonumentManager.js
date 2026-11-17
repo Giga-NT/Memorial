@@ -473,7 +473,6 @@ class MultiMonumentManager {
             'fenceOffsetX': 'fenceOffsetX',
             'fenceOffsetZ': 'fenceOffsetZ',
             'pathEnabled': 'pathEnabled',
-            'pathWidth': 'pathWidth',
             'pathMaterial': 'pathMaterial',
 
             'curbVisible': 'curbVisible',

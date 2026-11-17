@@ -1859,11 +1859,6 @@ export async function updateMainMonument(
                 ? state.pathEnabled
                 : true,
 
-        pathWidth:
-            state.pathWidth !== undefined
-                ? Number(state.pathWidth)
-                : 0.5,
-
         pathMaterial:
             (state.pathSurfaceType === 'slab'
                 ? (state.pathSlabMaterial || state.pathMaterial)
@@ -2481,9 +2476,6 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
 
         pathEnabled:
             data.pathEnabled ?? false,
-
-        pathWidth:
-            data.pathWidth || 0.5,
 
         pathMaterial:
             data.pathMaterial || 'concrete',

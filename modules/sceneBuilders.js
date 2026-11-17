@@ -1537,7 +1537,6 @@ export async function createPathBetweenGraveAndFence(
 ) {
     const {
         pathEnabled,
-        pathWidth,
         pathMaterial,
         pathSurfaceType = 'paver',
         pathSlabFormat = 'square300',
@@ -1562,9 +1561,6 @@ export async function createPathBetweenGraveAndFence(
     // Extend the paving 50 mm beyond the fence dimensions: 40 mm covers
     // each post half-width and 10 mm leaves a small visible paving margin.
     const edgeAllowance = 0.05;
-
-    // Keep the original allowance for the lower construction layers.
-    const extra = 0.01;
 
     const outerHalfW =
         totalWidth / 2 +
@@ -1602,7 +1598,7 @@ export async function createPathBetweenGraveAndFence(
 
     shape.closePath();
 
-    const profile = getSiteSurfaceProfile(pathMaterial, pathSurfaceType);
+    const profile = getSiteSurfaceProfile(pathMaterial, pathSurfaceType, pathSlabFormat);
     const topThickness = profile.top.thickness;
 
     const isTile =
@@ -1917,8 +1913,8 @@ export async function createPathBetweenGraveAndFence(
         const layer = profile.layers[index];
         const thickness = Math.max(0.001, Number(layer.thickness) || 0.001);
         const margin = index === 0 ? 0.02 : index === 1 ? 0.05 : 0.08;
-        const layerWidth = totalWidth + extra * 2 + margin * 2;
-        const layerLength = totalLength + extra * 2 + margin * 2;
+        const layerWidth = pavedWidth + margin * 2;
+        const layerLength = pavedLength + margin * 2;
         const layerGeometry = new THREE.BoxGeometry(layerWidth, thickness, layerLength);
 
         let layerTexture = null;

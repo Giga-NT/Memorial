@@ -2761,7 +2761,6 @@ app.post('/api/order', async (req, res) => {
     
     // --- ДОРОЖКА ---
     const pathEnabled = data.pathEnabled || false;
-    const pathWidth = data.pathWidth || 0.5;
     const pathMaterial = data.pathMaterial || 'tile_gray';
     const pathColor = data.pathColor || '#888888';
     const pathTileSize = data.pathTileSize || 0.3;
@@ -2919,7 +2918,6 @@ app.post('/api/order', async (req, res) => {
         flowerPosX: flowerPosX,
         flowerPosZ: flowerPosZ,
         pathEnabled: pathEnabled,
-        pathWidth: pathWidth,
         pathMaterial: pathMaterial,
         pathColor: pathColor,
         pathTileSize: pathTileSize,
@@ -3055,7 +3053,7 @@ app.post('/api/order', async (req, res) => {
             <tr><th>Тип стелы</th><td>${steleName}</td><th>Основание</th><td>${graveW}×${graveL} м</td></tr>
             <tr><th>Высота основания</th><td>${baseH} м</td><th>Цветник</th><td>${flowerEnabled ? '<span class="badge badge-on">Включён</span>' : '<span class="badge badge-off">Отключён</span>'}</td></tr>
             <tr><th>Размер цветника</th><td>${flowerEnabled ? flowerW+'×'+flowerL+' м' : '—'}</td><th>Покрытие</th><td>${flowerEnabled ? flowerType : '—'}</td></tr>
-            <tr><th>Дорожка</th><td>${pathEnabled ? '<span class="badge badge-on">Включена</span>' : '<span class="badge badge-off">Отключена</span>'}</td><th>Ширина дорожки</th><td>${pathEnabled ? pathWidth+' м' : '—'}</td></tr>
+            <tr><th>Дорожка</th><td colspan="3">${pathEnabled ? '<span class="badge badge-on">Включена</span>' : '<span class="badge badge-off">Отключена</span>'}</td></tr>
         </table>
 
         <h2>🖼️ ОФОРМЛЕНИЕ</h2>

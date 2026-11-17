@@ -80,7 +80,7 @@ export class ProjectIO {
             'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth', 'fenceGateOffset',
             'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
-            'pathWidth', 'pathTileSize',
+'pathTileSize',
             'photoScale', 'furnitureScale', 'vaseScale',
             'nameFontSize', 'datesFontSize', 'epitaphFontSize',
             'photoOffsetX', 'photoOffsetY',
@@ -910,7 +910,6 @@ export class ProjectIO {
             'fenceOffsetX',
             'fenceOffsetZ',
 
-            'pathWidth',
             'pathTileSize',
 
             'photoScale',
@@ -1866,11 +1865,6 @@ export class ProjectIO {
                             pathEnabled:
                                 ui.pathEnabled ??
                                 true,
-
-                            pathWidth:
-                                parseFloat(
-                                    ui.pathWidth
-                                ) || 0.5,
 
                             pathMaterial:
                                 ui.pathMaterial || 'tile_gray',
@@ -2873,25 +2867,6 @@ export class ProjectIO {
                 ? state.pathEnabled
                 : true
         );
-
-
-        if (
-            state.pathWidth !== undefined
-        ) {
-
-            setVal(
-                'pathWidth',
-                state.pathWidth
-            );
-
-            setText(
-                'pathWidthVal',
-                Number(
-                    state.pathWidth
-                ).toFixed(2) +
-                ' м'
-            );
-        }
 
 
         setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');

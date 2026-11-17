@@ -907,7 +907,6 @@ const state = {
     flowerPosX: 0,
     flowerPosZ: 0,
     pathEnabled: true,
-    pathWidth: 0.5,
     pathMaterial: 'tile_gray',
     pathSurfaceType: 'paver',
     pathSlabMaterial: 'tile_gray',
@@ -5147,6 +5146,16 @@ function isPriceSettingEnabled(key) {
     return value === true || value === 1 || value === '1' || value === 'true';
 }
 
+function isPriceIntentionallyZero(key) {
+    return priceFlags?.[key]?.zero_means_included === true;
+}
+
+function addMissingWorkRate(target, key, label, unit) {
+    if (getPriceValue(key) <= 0 && !isPriceIntentionallyZero(key)) {
+        target.push(`${label}: не задана цена работы (${unit})`);
+    }
+}
+
 function getPriceSettingNumber(key) {
     const value = Number(priceSettings?.[key]);
     return Number.isFinite(value) && value >= 0 ? value : 0;
@@ -5657,7 +5666,12 @@ function buildPriceBreakdown() {
     }
 
     if (state.pathEnabled) {
-        const siteArea = (Number(state.fenceWidth) || 0) * (Number(state.fenceLength) || 0);
+        const fenceWidth = Math.max(0, Number(state.fenceWidth) || 0);
+        const fenceLength = Math.max(0, Number(state.fenceLength) || 0);
+        // Match the 3D top surface: 50 mm of paving beyond every fence edge.
+        const pavedWidth = fenceWidth + 0.10;
+        const pavedLength = fenceLength + 0.10;
+        const siteArea = pavedWidth * pavedLength;
         const monumentsArea = getSceneMonuments().reduce((sum, monument) => {
             if (monument.baseEnabled === false) return sum;
             const baseWidth = Number(monument.graveWidth) || 0.9;
@@ -5695,23 +5709,32 @@ function buildPriceBreakdown() {
             const tileDimensions = surfaceType === 'slab'
                 ? (slabSpecs[slabFormat] || slabSpecs.square300)
                 : { width_mm: 200, height_mm: 200, depth_mm: 60, thickness_mm: 60 };
-            // Цена плитки и брусчатки хранится за м²; формат/толщина выбирают строку прайса.
+            // Keep the installed area for labor, but buy 5% extra for cuts and breakage.
+            const tileMaterialArea = coverageArea * 1.05;
             addCatalogComponent(
-                `🛤️ Покрытие площадки — ${surfaceLabel}`,
+                `🛤️ Покрытие площадки — ${surfaceLabel} (запас 5% на подрезку)`,
                 'tile',
                 catalogMaterial,
                 tileDimensions,
                 surfaceType,
-                coverageArea
+                tileMaterialArea
             );
-            const tileWorkPrice = surfaceType === 'slab'
-                ? getPriceValueOrDefault('path_slab_work_per_m2', getPriceValue('path_tile_work_per_m2'))
-                : getPriceValue('path_tile_work_per_m2');
+            const tileWorkPriceKey = surfaceType === 'slab' && Object.prototype.hasOwnProperty.call(prices || {}, 'path_slab_work_per_m2')
+                ? 'path_slab_work_per_m2'
+                : 'path_tile_work_per_m2';
+            const tileWorkPrice = getPriceValue(tileWorkPriceKey);
             addRow(
                 `🔧 Укладка ${surfaceLabel}`,
                 `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
                 coverageArea * tileWorkPrice
             );
+            if (coverageArea > 0) {
+                addMissingWorkRate(missingCatalogPrices,
+                    tileWorkPriceKey,
+                    `Укладка ${surfaceLabel}`,
+                    '₽/м²'
+                );
+            }
         } else {
             addCatalogComponent(
                 `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
@@ -5727,24 +5750,39 @@ function buildPriceBreakdown() {
                 `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
                 coverageArea * workPrice
             );
+            if (coverageArea > 0) {
+                addMissingWorkRate(missingCatalogPrices,'site_fill_work_per_m2', 'Устройство отсыпки / покрытия', '₽/м²');
+            }
         }
 
         // Add the underlying construction layers by actual thickness and volume.
-        const layerTotals = getSiteSurfaceLayerTotals(material, coverageArea, state.pathSurfaceType || 'paver');
+        const layerTotals = getSiteSurfaceLayerTotals(
+            material,
+            coverageArea,
+            surfaceType,
+            state.pathSlabFormat || 'square300',
+            { width: pavedWidth, length: pavedLength, excludedArea: monumentsArea }
+        );
         const profile = layerTotals.profile;
         const excavationDepth = profile.top.thickness + profile.layers.reduce((sum, layer) => sum + layer.thickness, 0);
-        const excavationVolume = coverageArea * excavationDepth;
+        const excavationVolume = coverageArea * profile.top.thickness +
+            layerTotals.layers.reduce((sum, layer) => sum + layer.volume, 0);
         const excavationRate = getPriceValue('site_excavation_per_m3');
         const prepRate = getPriceValue('site_base_preparation_per_m2');
-        if (prepRate > 0) {
+        const preparationArea = layerTotals.layers[0]?.area || coverageArea;
+        if (prepRate > 0 && preparationArea > 0) {
             addRow('🔧 Подготовка и планировка основания',
-                `${coverageArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
-                coverageArea * prepRate);
+                `${preparationArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
+                preparationArea * prepRate);
+        } else if (preparationArea > 0) {
+            addMissingWorkRate(missingCatalogPrices,'site_base_preparation_per_m2', 'Подготовка и планировка основания', '₽/м²');
         }
-        if (excavationRate > 0) {
+        if (excavationRate > 0 && excavationVolume > 0) {
             addRow('🚜 Выемка грунта под конструкцию',
-                `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (общая глубина ${(excavationDepth * 100).toFixed(1)} см)`,
+                `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (объём учитывает расширение нижних слоёв; максимальная глубина ${(excavationDepth * 100).toFixed(1)} см)`,
                 excavationVolume * excavationRate);
+        } else if (excavationVolume > 0) {
+            addMissingWorkRate(missingCatalogPrices,'site_excavation_per_m3', 'Выемка грунта под конструкцию', '₽/м³');
         }
 
         for (const layer of layerTotals.layers) {
@@ -5752,10 +5790,10 @@ function buildPriceBreakdown() {
             if (layer.kind === 'sand' || layer.kind === 'gravel' || layer.kind === 'screenings' || layer.kind === 'geotextile') {
                 const isGeotextile = layer.kind === 'geotextile';
                 const materialKey = isGeotextile ? 'geotextile' : (layer.kind === 'sand' ? 'sand' : 'gravel');
-                const quantity = isGeotextile ? layer.area : layer.volume;
+                const quantity = isGeotextile ? layer.area * 1.10 : layer.volume;
                 const unit = isGeotextile ? 'м²' : 'м³';
                 addCatalogComponent(
-                    `📦 ${layer.label} — материал`,
+                    `📦 ${layer.label} — материал${isGeotextile ? ' (запас 10% на нахлёсты)' : ''}`,
                     'other',
                     materialKey,
                     { width_mm: 0, height_mm: 0, depth_mm: 0, thickness_mm: 0 },
@@ -5774,6 +5812,8 @@ function buildPriceBreakdown() {
             addRow('🔧 Уплотнение песка и щебня',
                 `${compactableVolume.toFixed(3)} м³ × ${compactionRate} ₽/м³`,
                 compactableVolume * compactionRate);
+        } else if (compactableVolume > 0) {
+            addMissingWorkRate(missingCatalogPrices,'site_compaction_per_m3', 'Уплотнение песка и щебня', '₽/м³');
         }
     }
 
@@ -5808,6 +5848,9 @@ function buildPriceBreakdown() {
             addRow('🔧 Установка бордюра площадки',
                 `${curbLength.toFixed(2)} п.м. × ${installPrice} ₽/п.м.`,
                 curbLength * installPrice);
+            if (curbLength > 0) {
+                addMissingWorkRate(missingCatalogPrices, 'site_curb_install_per_m', 'Установка бордюра площадки', '₽/п.м.');
+            }
         }
     }
 
@@ -5927,7 +5970,7 @@ function buildPriceBreakdown() {
 
     if (missingCatalogPrices.length) {
         rows.push({
-            name: '⚠️ Не найдена цена в прайсе',
+            name: '⚠️ Требуется настройка прайса',
             desc: [...new Set(missingCatalogPrices)].join('; '),
             price: 0,
             missing: true
@@ -7342,7 +7385,6 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
         
         // --- 5. ДОРОЖКА ---
         const pathEnabled = document.getElementById('pathEnabled')?.checked ?? state.pathEnabled ?? true;
-        const pathWidth = parseFloat(document.getElementById('pathWidth')?.value) || 0.5;
         const pathSurfaceType = document.getElementById('pathSurfaceType')?.value || state.pathSurfaceType || 'paver';
         const pathMaterial = pathSurfaceType === 'slab'
             ? (document.getElementById('slabMaterial')?.value || state.pathSlabMaterial || 'tile_gray')
@@ -7580,7 +7622,6 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             
             // Дорожка
             pathEnabled,
-            pathWidth,
             pathMaterial,
             pathSurfaceType,
             pathEnabled,
