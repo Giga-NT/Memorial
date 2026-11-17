@@ -77,7 +77,7 @@ export class ProjectIO {
             'width', 'height', 'depth',
             'graveWidth', 'graveLength', 'baseHeight',
             'flowerWidth', 'flowerLength',
-            'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
+            'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth', 'fenceGateOffset',
             'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
             'pathWidth', 'pathTileSize',
@@ -1820,6 +1820,11 @@ export class ProjectIO {
                                 parseFloat(
                                     ui.gateWidth
                                 ) || 0.8,
+
+                            fenceGateOffset:
+                                parseFloat(
+                                    ui.fenceGateOffset
+                                ) || 0,
 
 							flowerEnabled:
 								ui.flowerEnabled ??
