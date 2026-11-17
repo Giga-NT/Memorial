@@ -74,7 +74,20 @@ export async function createSiteCurb(params = {}) {
     const curbHeight = Math.max(0.03, Number(params.curbHeight) || 0.12);
     const gateSide = params.curbGateOpeningEnabled ? (params.fenceGateSide || 'none') : 'none';
     const gateSpan = gateSide === 'left' || gateSide === 'right' ? length : width;
-    const gateWidth = Math.min(Math.max(0, gateSpan - curbWidth * 2), Math.max(0, Number(params.gateWidth) || 0));
+    const requestedGateWidth = Math.max(0, Number(params.gateWidth) || 0);
+    const gateWidth = Math.min(Math.max(0, gateSpan - curbWidth * 2), requestedGateWidth);
+
+    // Совмещаем разрыв бордюра с проёмом калитки.
+    // fenceGateOffset задаётся вдоль направления выбранной стороны ограды.
+    const maxGateOffset = Math.max(0, (gateSpan - requestedGateWidth) / 2);
+    const gateOffset = Math.max(-maxGateOffset, Math.min(maxGateOffset, Number(params.fenceGateOffset) || 0));
+    const sideOffsetSign = {
+        front: 1,
+        right: 1,
+        back: -1,
+        left: -1
+    }[gateSide] || 0;
+    const curbGateCenterOffset = gateOffset * sideOffsetSign;
     const materialKey = params.curbMaterial || 'granite';
     const spec = CURB_MATERIALS[materialKey] || CURB_MATERIALS.granite;
 
@@ -122,12 +135,14 @@ export async function createSiteCurb(params = {}) {
     const sideLength = Math.max(0, length - curbWidth * 2);
     if (gateSide === 'left' || gateSide === 'right') {
         const opening = Math.min(gateWidth, sideLength);
-        const segment = Math.max(0, (sideLength - opening) / 2);
+        const maxOpeningOffset = Math.max(0, (sideLength - opening) / 2);
+        const openingOffset = Math.max(-maxOpeningOffset, Math.min(maxOpeningOffset, curbGateCenterOffset));
+        const beforeOpening = Math.max(0, sideLength / 2 + openingOffset - opening / 2);
+        const afterOpening = Math.max(0, sideLength / 2 - openingOffset - opening / 2);
         const sign = gateSide === 'left' ? -1 : 1;
         const x = sign * (width / 2 - curbWidth / 2);
-        const zOffset = (opening + segment) / 2;
-        addPiece(curbWidth, segment, x, -zOffset);
-        addPiece(curbWidth, segment, x, zOffset);
+        addPiece(curbWidth, beforeOpening, x, -sideLength / 2 + beforeOpening / 2);
+        addPiece(curbWidth, afterOpening, x, sideLength / 2 - afterOpening / 2);
     } else {
         addPiece(curbWidth, sideLength, -(width / 2 - curbWidth / 2), 0);
         addPiece(curbWidth, sideLength, width / 2 - curbWidth / 2, 0);
@@ -143,10 +158,12 @@ export async function createSiteCurb(params = {}) {
             return;
         }
         const opening = Math.min(gateWidth, frontBackWidth);
-        const segment = Math.max(0, (frontBackWidth - opening) / 2);
-        const xOffset = (opening + segment) / 2;
-        addPiece(segment, curbWidth, -xOffset, z);
-        addPiece(segment, curbWidth, xOffset, z);
+        const maxOpeningOffset = Math.max(0, (frontBackWidth - opening) / 2);
+        const openingOffset = Math.max(-maxOpeningOffset, Math.min(maxOpeningOffset, curbGateCenterOffset));
+        const beforeOpening = Math.max(0, frontBackWidth / 2 + openingOffset - opening / 2);
+        const afterOpening = Math.max(0, frontBackWidth / 2 - openingOffset - opening / 2);
+        addPiece(beforeOpening, curbWidth, -frontBackWidth / 2 + beforeOpening / 2, z);
+        addPiece(afterOpening, curbWidth, frontBackWidth / 2 - afterOpening / 2, z);
     };
 
     endSide(-1, gateSide === 'front');
