@@ -21,8 +21,8 @@ export async function loadModelList() {
             for (const item of (Array.isArray(data.models) ? data.models : [])) {
                 const model = {
                     id:item.id, file:item.file, name:item.name || String(item.file||'').replace(/\.glb$/i,''),
-                    defaultWidth:Number(item.defaultWidth)||0.6, defaultHeight:Number(item.defaultHeight)||1.3,
-                    defaultDepth:Number(item.defaultDepth)||0.08, modelType:item.modelType||'vertical',
+                    defaultWidth:Number(item.defaultWidth)||0.6, defaultHeight:Number(item.defaultHeight)||1.2,
+                    defaultDepth:Number(item.defaultDepth)||0.07, modelType:item.modelType||'vertical',
                     rotation:item.rotation||'', category:item.category||'uncategorized'
                 };
                 customModels[model.id] = {...model,path:`./models/${model.file}`};
@@ -38,8 +38,8 @@ export async function loadModelList() {
             for(const item of (Array.isArray(data.steles)?data.steles:[])){
                 const model={
                     id:item.model_id,file:item.model_file,name:item.name,
-                    defaultWidth:Number(item.width)||0.6,defaultHeight:Number(item.height)||1.3,
-                    defaultDepth:Number(item.depth)||0.08,modelType:item.model_type||'vertical',
+                    defaultWidth:Number(item.width)||0.6,defaultHeight:Number(item.height)||1.2,
+                    defaultDepth:Number(item.depth)||0.07,modelType:item.model_type||'vertical',
                     rotation:item.rotation||'',category:item.category||'uncategorized',previewUrl:item.preview_file?'/models/previews/'+item.preview_file:null,
                     machine_hours:Number(item.machine_hours)||0,machine_rate:item.machine_rate==null?null:Number(item.machine_rate),
                     master_hours:Number(item.master_hours)||0,master_rate:item.master_rate==null?null:Number(item.master_rate),
@@ -416,8 +416,8 @@ export function getModelList() {
             category: model.category || 'uncategorized',
             previewUrl: model.previewUrl || null,
             defaultWidth: Number(model.defaultWidth) || 0.6,
-            defaultHeight: Number(model.defaultHeight) || 1.3,
-            defaultDepth: Number(model.defaultDepth) || 0.08,
+            defaultHeight: Number(model.defaultHeight) || 1.2,
+            defaultDepth: Number(model.defaultDepth) || 0.07,
             rotation: model.rotation || '',
             machine_hours: Number(model.machine_hours) || 0,
             machine_rate: model.machine_rate,

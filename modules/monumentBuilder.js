@@ -1171,11 +1171,13 @@ export async function createStele(params, decalsGroup) {
         
     } else if (steleType && (steleType.startsWith('custom_stl') || customModels[steleType])) {
         const customConfig = customModels[steleType];
-        // Для каталожной модели размеры из админки — целевые габариты
-        // готовой стелы. Для старых custom STL сохраняем размеры проекта.
-        const customWidth = Number(customConfig?.defaultWidth) || width;
-        const customHeight = Number(customConfig?.defaultHeight) || height;
-        const customDepth = Number(customConfig?.defaultDepth) || depth;
+
+        // Размеры берём из текущего состояния конструктора (ползунки).
+        // Значения каталога используются только как начальные значения модели,
+        // но не должны блокировать дальнейшее изменение габаритов пользователем.
+        const customWidth = Number(width) > 0 ? Number(width) : 0.6;
+        const customHeight = Number(height) > 0 ? Number(height) : 1.2;
+        const customDepth = Number(depth) > 0 ? Number(depth) : 0.07;
 
         steleObj = await createCustomSteleMesh(
             steleType,
@@ -1193,8 +1195,8 @@ export async function createStele(params, decalsGroup) {
             (customHeight / 2);
         steleObj.position.z = -(graveLength / 2 - customDepth / 2 - 0.05);
         group.add(steleObj);
-        console.log(`✅ Кастомная стела ${steleType} создана`);
-        
+        console.log(`✅ Кастомная стела ${steleType} создана с текущими размерами: ${customWidth}x${customHeight}x${customDepth}`);
+
         // Фото погребённых создаёт positionDecalsOnCustomStele.
         // createPhotoDirect нужен только для старых проектов без burials,
         // иначе при каждой пересборке добавляется лишнее "основное" фото.
