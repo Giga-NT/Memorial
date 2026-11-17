@@ -106,6 +106,8 @@ window._forceMainUpdate = false;       // ⭐ ПРИНУДИТЕЛЬНОЕ ОБ�
 window.castingModel = null;
 window.venzelModel = null;
 window.fence3DModel = null;
+window.fenceGateModel = null;
+window.litleGateModel = null;
 
 // ============================================================
 // ⭐ 3. ЗАГЛУШКИ ДЛЯ ФУНКЦИЙ (ЧТОБЫ НЕ БЫЛО UNDEFINED)
@@ -2105,6 +2107,36 @@ function createBackTexture() {
 const gltfLoader = new GLTFLoader();
 document.getElementById('loading-msg').style.display = 'block';
 
+function loadGateModels() {
+    gltfLoader.load('./models/gates/fence_gate.glb', (gltf) => {
+        window.fenceGateModel = gltf.scene;
+        window.fenceGateModel.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = !isMobile;
+                child.receiveShadow = !isMobile;
+            }
+        });
+        console.log('✅ Калитка для Вензеля и Литья загружена');
+        throttledUpdate();
+    }, undefined, (error) => {
+        console.error('Ошибка загрузки models/gates/fence_gate.glb:', error);
+    });
+
+    gltfLoader.load('./models/gates/litle.glb', (gltf) => {
+        window.litleGateModel = gltf.scene;
+        window.litleGateModel.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = !isMobile;
+                child.receiveShadow = !isMobile;
+            }
+        });
+        console.log('✅ Калитка для 3D-ограды загружена');
+        throttledUpdate();
+    }, undefined, (error) => {
+        console.error('Ошибка загрузки models/gates/litle.glb:', error);
+    });
+}
+
 function loadFence3DModel() {
     // ⭐ УДАЛЕНА СТРОКА С ПРОВЕРКОЙ
     // if (window.multiMonumentManager) { return; }
@@ -4005,11 +4037,13 @@ console.log('✅ updateScene и throttledUpdate переопределены');
 // ============================================================
 if (isMobile) {
     setTimeout(() => {
+        loadGateModels();  // Готовые створки для калиток
         loadCastingModel(); // ⭐ Сначала грузим литьё (оно не перезаписывает fence3DModel)
         loadVenzelModel();  // Вензель
         loadFence3DModel(); // ⭐ 3D модель грузим ПОСЛЕДНЕЙ! Она останется в window.fence3DModel.
     }, 3000);
 } else {
+    loadGateModels();  // Готовые створки для калиток
     loadCastingModel(); // ⭐ Сначала литьё
     loadVenzelModel();  // Вензель
     loadFence3DModel(); // ⭐ 3D модель ПОСЛЕДНЕЙ!
