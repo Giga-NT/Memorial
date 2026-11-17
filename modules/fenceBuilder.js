@@ -278,8 +278,13 @@ function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
         -center.z * scaleX
     );
 
+    const gateMaterial = (fenceMaterials[state.fenceMaterial] || fenceMaterials.steel).clone();
     clone.traverse((child) => {
         if (child.isMesh) {
+            // Калитка должна использовать тот же материал, что и остальные секции ограды.
+            child.material = Array.isArray(child.material)
+                ? child.material.map(() => gateMaterial.clone())
+                : gateMaterial.clone();
             child.castShadow = true;
             child.receiveShadow = true;
         }
@@ -292,6 +297,8 @@ function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
         new THREE.Vector3(1, 0, 0),
         direction
     );
+    // Разворачиваем створку лицевой стороной наружу: ручки не должны смотреть внутрь ограды.
+    gateGroup.rotateY(Math.PI);
     gateGroup.add(clone);
     gateGroup.userData.isGateLeaf = true;
     fenceGroup.add(gateGroup);
