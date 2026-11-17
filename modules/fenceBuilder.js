@@ -192,8 +192,9 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPos
                 }
             });
             
-            // Подгоняем ширину секции под фактический шаг раскладки.
-            clone.scale.set(actualStep / modelBaseWidth, heightScale, 1.0);
+            // Продольная ось модели после rotateY(PI/2) — локальная Z.
+            // Небольшой нахлёст 1 см убирает просветы между соседними секциями.
+            clone.scale.set(1.0, heightScale, (actualStep + 0.01) / modelBaseWidth);
             clone.position.copy(centerPos);
             clone.position.y = (state.fenceHeight / 2);
             
