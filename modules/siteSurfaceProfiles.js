@@ -5,7 +5,7 @@ const TILE_MATERIALS = ['tile_black','tile_gray','tile_beige','tile_dark','tile_
 
 const PROFILES = {
     slab: {
-        top: { key: 'surface', label: 'Тротуарная плитка', thickness: 0.04, kind: 'surface' },
+        top: { key: 'surface', label: 'Тротуарная плитка', thickness: 0.05, kind: 'surface' },
         layers: [
             { key: 'bedding_sand', label: 'Песчаная постель', thickness: 0.03, kind: 'sand', color: 0xd8c18b },
             { key: 'screenings', label: 'Выравнивающий отсев', thickness: 0.01, kind: 'screenings', color: 0x99958b },
