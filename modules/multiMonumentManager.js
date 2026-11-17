@@ -1759,9 +1759,6 @@ const fenceOffXEl =
 		const pathEnabledEl = document.getElementById('pathEnabled');
 		if (pathEnabledEl) window.state.pathEnabled = pathEnabledEl.checked;
 		
-		const pathWEl = document.getElementById('pathWidth');
-		if (pathWEl) window.state.pathWidth = parseFloat(pathWEl.value);
-		
 		const pathMatEl = document.getElementById('pathMaterial');
 		if (pathMatEl) window.state.pathMaterial = pathMatEl.value;
 		
@@ -1983,9 +1980,6 @@ const fenceOffXEl =
         const pathEnabledEl = document.getElementById('pathEnabled');
         if (pathEnabledEl) data.pathEnabled = pathEnabledEl.checked;
         
-        const pathWEl = document.getElementById('pathWidth');
-        if (pathWEl) data.pathWidth = parseFloat(pathWEl.value);
-        
         const pathMatEl = document.getElementById('pathMaterial');
         if (pathMatEl) data.pathMaterial = pathMatEl.value;
         
@@ -2091,7 +2085,6 @@ const fenceOffXEl =
 		
 		// ⭐ ДОРОЖКА
 		data.pathEnabled = document.getElementById('pathEnabled')?.checked || false;
-		data.pathWidth = parseFloat(document.getElementById('pathWidth')?.value) || 0.5;
 		data.pathMaterial = document.getElementById('pathMaterial')?.value || 'tile_gray';
 		data.pathTileSize = parseFloat(document.getElementById('pathTileSize')?.value) || 0.3;
 		data.pathJointColor = document.getElementById('pathJointColor')?.value || '#666666';
@@ -2555,7 +2548,6 @@ const fenceOffXEl =
 			'fenceOffsetX': 'fenceOffsetX',
 			'fenceOffsetZ': 'fenceOffsetZ',
 			'pathEnabled': 'pathEnabled',
-			'pathWidth': 'pathWidth',
 			'pathMaterial': 'pathMaterial',
 
 			'curbVisible': 'curbVisible',
