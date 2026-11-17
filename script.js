@@ -5634,7 +5634,16 @@ function buildPriceBreakdown() {
         const fenceHeight = Number(state.fenceHeight) || 0;
         const fenceBaseHeight = getPriceValue('fence_base_height');
         const fenceHeightFactor = fenceBaseHeight > 0 ? fenceHeight / fenceBaseHeight : 0;
-        const fencePrice = getPriceValue('fence_per_m');
+        const fencePriceKey = {
+            pipe: 'fence_pipe_per_m',
+            chain: 'fence_chain_per_m',
+            model_3d: 'fence_model_3d_per_m',
+            casting: 'fence_casting_per_m',
+            venzel: 'fence_venzel_per_m'
+        }[state.fenceType];
+        const fencePrice = fencePriceKey && Object.prototype.hasOwnProperty.call(prices || {}, fencePriceKey)
+            ? getPriceValue(fencePriceKey)
+            : getPriceValue('fence_per_m');
         addRow(
             '🚧 Оградка',
             `${fencePriceLabels[state.fenceType] || state.fenceType}, ${fencePerimeter.toFixed(2)} м × ${fencePrice} ₽/м × ${fenceHeightFactor.toFixed(2)} (высота ${fenceHeight.toFixed(2)} м)`,

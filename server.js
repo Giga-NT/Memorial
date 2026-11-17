@@ -417,7 +417,9 @@ const ALLOWED_PRICE_KEYS = new Set([
     'pipe', 'chain', 'casting', 'model_3d', 'venzel',
     'stele_work', 'engraving', 'text_character_price', 'photo', 'photo_price', 'vase_base_price',
     'background_price_per_m2', 'table', 'bench', 'picnic_set',
-    'delivery', 'install', 'fence_per_m', 'fence_base_height', 'gate_price',
+    'delivery', 'install', 'fence_per_m', 'fence_pipe_per_m', 'fence_chain_per_m',
+    'fence_casting_per_m', 'fence_model_3d_per_m', 'fence_venzel_per_m',
+    'fence_base_height', 'gate_price',
     'path_work_per_m2', 'site_fill_work_per_m2',
     'site_base_preparation_per_m2', 'site_excavation_per_m3',
     'site_compaction_per_m3', 'path_tile_work_per_m2',
@@ -463,6 +465,13 @@ const DEFAULT_PRICES = {
     delivery: 3000,
     install: 5000,
 
+    // Отдельные стартовые цены за погонный метр для каждого типа ограды.
+    fence_pipe_per_m: 3500,
+    fence_chain_per_m: 3500,
+    fence_model_3d_per_m: 4500,
+    fence_casting_per_m: 5000,
+    fence_venzel_per_m: 5500,
+    // Старый общий ключ оставлен для совместимости.
     fence_per_m: 1500,
     fence_base_height: 0.6,
     gate_price: 13500,
