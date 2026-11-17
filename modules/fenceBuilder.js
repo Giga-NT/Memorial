@@ -278,13 +278,23 @@ function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
         -center.z * scaleX
     );
 
-    const gateMaterial = (fenceMaterials[state.fenceMaterial] || fenceMaterials.steel).clone();
+    const selectedFenceMaterial = fenceMaterials[state.fenceMaterial] || fenceMaterials.steel;
     clone.traverse((child) => {
         if (child.isMesh) {
-            // Калитка должна использовать тот же материал, что и остальные секции ограды.
+            // Сохраняем исходные карты и настройки прозрачности GLB,
+            // меняя только цвет и металлические свойства под выбранную ограду.
+            const applyFenceFinish = (sourceMaterial) => {
+                if (!sourceMaterial) return sourceMaterial;
+                const material = sourceMaterial.clone();
+                if (material.color) material.color.copy(selectedFenceMaterial.color);
+                if ('metalness' in material) material.metalness = selectedFenceMaterial.metalness;
+                if ('roughness' in material) material.roughness = selectedFenceMaterial.roughness;
+                material.needsUpdate = true;
+                return material;
+            };
             child.material = Array.isArray(child.material)
-                ? child.material.map(() => gateMaterial.clone())
-                : gateMaterial.clone();
+                ? child.material.map(applyFenceFinish)
+                : applyFenceFinish(child.material);
             child.castShadow = true;
             child.receiveShadow = true;
         }
