@@ -2208,18 +2208,75 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 10. МЕБЕЛЬ / ВАЗЫ
-                    //
-                    // Сохраняем данные аксессуаров в state. Их менеджеры
-                    // управляют созданием объектов в обычном конструкторе.
+                    // 10. ВОССТАНАВЛИВАЕМ МЕБЕЛЬ И ВАЗЫ ИЗ JSON
                     // ==================================================
 
-                    if (Array.isArray(data.furniture)) {
-                        this.state.savedFurniture = this.cloneData(data.furniture);
+                    const furnitureItems = Array.isArray(data.furniture) ? data.furniture : [];
+                    const vaseItems = Array.isArray(data.vases) ? data.vases : [];
+                    this.state.savedFurniture = this.cloneData(furnitureItems);
+                    this.state.savedVases = this.cloneData(vaseItems);
+
+                    const furnitureManager = window.furniture3DManager;
+                    if (furnitureManager) {
+                        try {
+                            furnitureManager.clearAll();
+                            for (const item of furnitureItems) {
+                                const x = Number(item.x) || 0;
+                                const z = Number(item.z) || 0;
+                                const rotation = Number(item.rotation) || 0;
+                                const scale = Number(item.scale) > 0 ? Number(item.scale) : 1;
+                                switch (item.type) {
+                                    case 'table':
+                                        await furnitureManager.placeTable(x, z, rotation, scale);
+                                        break;
+                                    case 'bench':
+                                        await furnitureManager.placeBench(x, z, rotation, scale);
+                                        break;
+                                    case 'table_garden':
+                                    case 'tableGarden':
+                                        await furnitureManager.placeTableGarden(x, z, rotation, scale);
+                                        break;
+                                    case 'garden_bench':
+                                    case 'bench_garden':
+                                    case 'gardenBench':
+                                        await furnitureManager.placeGardenBench(x, z, rotation, scale);
+                                        break;
+                                    default:
+                                        console.warn('Неизвестный тип мебели в JSON:', item.type);
+                                }
+                            }
+                            console.log(`✅ Восстановлено предметов мебели: ${furnitureManager.furniture.length}`);
+                        } catch (furnitureError) {
+                            console.error('❌ Ошибка восстановления мебели:', furnitureError);
+                        }
+                    } else if (furnitureItems.length) {
+                        console.warn('Менеджер мебели не найден — мебель из JSON не восстановлена');
                     }
 
-                    if (Array.isArray(data.vases)) {
-                        this.state.savedVases = this.cloneData(data.vases);
+                    const vasesManager = window.vasesManager;
+                    if (vasesManager) {
+                        try {
+                            vasesManager.clearAll();
+                            await vasesManager.loadVasesConfig();
+                            for (const item of vaseItems) {
+                                const vase = await vasesManager.addVase(
+                                    item.type || 'vase1',
+                                    Number(item.x) || 0,
+                                    Number(item.z) || 0,
+                                    Number(item.scale) > 0 ? Number(item.scale) : 1,
+                                    item.material || 'marble'
+                                );
+                                if (vase && vase.group) {
+                                    vase.group.rotation.y = Number(item.rotation) || 0;
+                                    vase.rotation = vase.group.rotation.y;
+                                }
+                            }
+                            console.log(`✅ Восстановлено ваз: ${vasesManager.vases.length}`);
+                        } catch (vasesError) {
+                            console.error('❌ Ошибка восстановления ваз:', vasesError);
+                        }
+                    } else if (vaseItems.length) {
+                        console.warn('Менеджер ваз не найден — вазы из JSON не восстановлены');
                     }
 
 
