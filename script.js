@@ -857,7 +857,7 @@ const state = {
     fontFamily: "Arial, sans-serif", nameFontSize: 24, datesFontSize: 24, epitaphFontSize: 24,
     photoShape: 'oval', photoWidthMm: 100, photoHeightMm: 140,
     fenceHeight: 0.6, fenceType: 'pipe',
-    fenceMaterial: 'steel', fenceOffset: 0.50, fenceGateSide: 'back', gateWidth: 0.8, fenceGateOffset: 0,
+    fenceMaterial: 'steel', fenceOffset: 0.50, fenceGateEnabled: true, fenceGateSide: 'back', gateWidth: 0.8, fenceGateOffset: 0,
     modelScale: 1.0, modelPosY: 0.31, modelMaterial: 'original', modelFontFamily: "Arial, sans-serif",
     modelFrontText: "Светлая память!\nПока получается неплохо", modelFrontFontSize: 36, frontDecalSize: 0.85,
     modelBackName: "Иванов И.И.", modelBackDates: "1950 - 2026", modelBackFontSize: 48, backDecalSize: 0.65,
@@ -4477,6 +4477,19 @@ document.addEventListener('steleModelSelected', (e) => {
 // ============================================================
 // ⭐ ОГРАДКА
 // ============================================================
+const fenceGateEnabledCheckbox = document.getElementById('fenceGateEnabled');
+if (fenceGateEnabledCheckbox) {
+    fenceGateEnabledCheckbox.addEventListener('change', (e) => {
+        state.fenceGateEnabled = e.target.checked;
+        const gateControls = ['fenceGateSide', 'gateWidth', 'gateWidthInput', 'fenceGateOffset'];
+        gateControls.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = !e.target.checked;
+        });
+        throttledUpdate();
+    });
+}
+
 const fenceGateSideSelect = document.getElementById('fenceGateSide');
 if (fenceGateSideSelect) fenceGateSideSelect.addEventListener('change', (e) => { 
     state.fenceGateSide = e.target.value;
