@@ -3927,65 +3927,91 @@ function createBackTextureWithOffset() {
 // ============================================================
 // ⭐ UPDATE SCENE — ОСНОВНОЙ ПАМЯТНИК
 // ============================================================
-async function updateSceneReal() {
+// Не допускаем параллельных пересборок: создание GLB асинхронное,
+// поэтому старый запуск мог завершиться позже нового и добавить
+// уже неактуальную модель поверх выбранной.
+let mainSceneUpdateVersion = 0;
+let mainSceneUpdateQueue = Promise.resolve();
 
+async function updateSceneReal() {
     // ============================================================
     // 🔒 ДУБЛЕР
-    //
-    // Если сейчас редактируется дублер —
-    // MAIN вообще не пересобираем.
     // ============================================================
     if (
         window.multiMonumentManager &&
         window.multiMonumentManager.currentMode === 'duplicator'
     ) {
-
         console.log(
             '⏭️ updateSceneReal пропущен: сейчас редактируется дублер'
         );
-
         return;
     }
 
-    // ============================================================
-    // 🔒 ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА
-    // ============================================================
     if (
         window._isDuplicatorMode ||
         window._disableAutoMonument
     ) {
-
         console.log(
             '⏭️ updateSceneReal пропущен: установлен флаг дублера'
         );
-
         return;
     }
 
-    // ============================================================
-    // 🔄 ОБЫЧНОЕ ОБНОВЛЕНИЕ MAIN
-    // ============================================================
-    console.log(
-        '🔄 ВЫЗОВ updateSceneReal для основного памятника'
-    );
+    const requestVersion = ++mainSceneUpdateVersion;
 
-    await updateMainMonument(
-        state,
-        monumentGroup,
-        decalsGroup
-    );
+    const runUpdate = async () => {
+        // Пока запрос ждал очередь, пользователь мог выбрать другую модель.
+        if (requestVersion !== mainSceneUpdateVersion) {
+            console.log('⏭️ Устаревшее обновление сцены пропущено');
+            return;
+        }
 
-    if (typeof updateStelePreview === 'function') {
-        updateStelePreview();
-    }
+        if (
+            (window.multiMonumentManager &&
+                window.multiMonumentManager.currentMode === 'duplicator') ||
+            window._isDuplicatorMode ||
+            window._disableAutoMonument
+        ) {
+            console.log('⏭️ Обновление сцены отменено: активен режим дублера');
+            return;
+        }
 
-    if (typeof updateGraveSlabPreview === 'function') {
-        updateGraveSlabPreview();
-    }
+        console.log(
+            '🔄 ВЫЗОВ updateSceneReal для основного памятника',
+            requestVersion
+        );
 
-    if (typeof window.calculatePrice === 'function') {
-        window.calculatePrice();
-    }
+        await updateMainMonument(
+            state,
+            monumentGroup,
+            decalsGroup
+        );
+
+        // Не обновляем превью/цену по устаревшему завершившемуся запросу.
+        if (requestVersion !== mainSceneUpdateVersion) {
+            console.log('⏭️ Результат пересборки устарел; ожидается актуальное обновление');
+            return;
+        }
+
+        if (typeof updateStelePreview === 'function') {
+            updateStelePreview();
+        }
+
+        if (typeof updateGraveSlabPreview === 'function') {
+            updateGraveSlabPreview();
+        }
+
+        if (typeof window.calculatePrice === 'function') {
+            window.calculatePrice();
+        }
+    };
+
+    const queuedUpdate = mainSceneUpdateQueue.then(runUpdate, runUpdate);
+    mainSceneUpdateQueue = queuedUpdate.catch(error => {
+        console.error('❌ Ошибка обновления основной сцены:', error);
+    });
+
+    return queuedUpdate;
 }
 // ============================================================
 // ⭐ ПЕРЕОПРЕДЕЛЯЕМ ЗАГЛУШКИ
