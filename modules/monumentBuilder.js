@@ -1171,11 +1171,12 @@ export async function createStele(params, decalsGroup) {
         
     } else if (steleType && (steleType.startsWith('custom_stl') || customModels[steleType])) {
         const customConfig = customModels[steleType];
-        // Для каталожной модели размеры из админки — целевые габариты
-        // готовой стелы. Для старых custom STL сохраняем размеры проекта.
-        const customWidth = Number(customConfig?.defaultWidth) || width;
-        const customHeight = Number(customConfig?.defaultHeight) || height;
-        const customDepth = Number(customConfig?.defaultDepth) || depth;
+        // Текущие размеры проекта — источник истины: это позволяет
+        // ползункам менять W/H/D и для моделей из каталога.
+        // Стартовые значения задаются состоянием конструктора (600×1200×70 мм).
+        const customWidth = Number(width) > 0 ? Number(width) : 0.6;
+        const customHeight = Number(height) > 0 ? Number(height) : 1.2;
+        const customDepth = Number(depth) > 0 ? Number(depth) : 0.07;
 
         steleObj = await createCustomSteleMesh(
             steleType,
