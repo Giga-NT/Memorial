@@ -635,9 +635,11 @@ export function initPathHandlers() {
         window.state.pathMaterial = selectedMaterial;
 
         if (layerLegend) {
+            const slabFormat = document.getElementById('pathSlabFormat')?.value || window.state.pathSlabFormat || 'square300';
+            const slabThickness = ({ square300: '5 см', square500: '5 см', rectangle: '6 см', old_city: '6 см', stone: '5 см' })[slabFormat] || '5 см';
             const rows = type === 'slab'
                 ? [
-                    ['Тротуарная плитка', '4 см'],
+                    ['Тротуарная плитка', slabThickness],
                     ['Песчаная постель', '3 см'],
                     ['Выравнивающий отсев', '1 см'],
                     ['Щебёночное основание', '12 см'],
@@ -676,25 +678,6 @@ export function initPathHandlers() {
         window.calculatePrice?.();
     });
 
-    document.getElementById('pathWidth')?.addEventListener('input', e => {
-        window.state.pathWidth = parseFloat(e.target.value);
-        const display = document.getElementById('pathWidthVal');
-        if (display) display.textContent = window.state.pathWidth.toFixed(2) + ' м';
-        const paired = document.getElementById('pathWidthInput');
-        if (paired && paired !== e.target) paired.value = e.target.value;
-        window.throttledUpdate();
-        window.calculatePrice?.();
-    });
-    document.getElementById('pathWidthInput')?.addEventListener('change', e => {
-        window.state.pathWidth = parseFloat(e.target.value);
-        const range = document.getElementById('pathWidth');
-        if (range) range.value = e.target.value;
-        const display = document.getElementById('pathWidthVal');
-        if (display) display.textContent = window.state.pathWidth.toFixed(2) + ' м';
-        window.throttledUpdate();
-        window.calculatePrice?.();
-    });
-
     document.getElementById('slabMaterial')?.addEventListener('change', e => {
         window.state.pathSlabMaterial = e.target.value;
         if ((typeSelect?.value || 'paver') === 'slab') window.state.pathMaterial = e.target.value;
@@ -709,6 +692,7 @@ export function initPathHandlers() {
     });
     document.getElementById('pathSlabFormat')?.addEventListener('change', e => {
         window.state.pathSlabFormat = e.target.value;
+        renderSurfaceType();
         window.throttledUpdate();
         window.calculatePrice?.();
     });
