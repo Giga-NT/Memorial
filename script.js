@@ -5389,6 +5389,40 @@ function buildPriceBreakdown() {
         steleParts.join('; '),
         steleTotal
     );
+    const workTotals={machine:0,master:0,other:0,polish:0};
+    const workDetails={machine:[],master:[],other:[],polish:[]};
+    const defaultRates=window.steleWorkSettings||{machine_rate:1300,master_rate:1300};
+    monuments.forEach((monument,index)=>{
+        const modelId=monument.steleModel||monument.steleType;
+        const config=modelId?customModels[modelId]:null;
+        if(!config)return;
+        let snap=monument.steleWorkSnapshot;
+        if(!snap||snap.modelId!==modelId){
+            const machineHours=Number(config.machine_hours)||0,masterHours=Number(config.master_hours)||0;
+            const machineRate=config.machine_rate==null?(Number(defaultRates.machine_rate)||1300):Number(config.machine_rate);
+            const masterRate=config.master_rate==null?(Number(defaultRates.master_rate)||1300):Number(config.master_rate);
+            const polishMode=['hours','fixed'].includes(config.polish_mode)?config.polish_mode:'none';
+            snap={
+                modelId,modelName:config.name||modelId,machineHours,machineRate,machineCost:machineHours*machineRate,
+                masterHours,masterRate,masterCost:masterHours*masterRate,otherCost:Number(config.other_cost)||0,
+                polishMode,polishHours:polishMode==='hours'?(Number(config.polish_hours)||0):0,
+                polishCost:polishMode==='hours'?(Number(config.polish_hours)||0)*masterRate:
+                    polishMode==='fixed'?(Number(config.polish_cost)||0):0
+            };
+            monument.steleWorkSnapshot=snap;
+        }
+        const label=`Стела №${index+1} «${snap.modelName}»`;
+        if(snap.machineCost>0){workTotals.machine+=snap.machineCost;workDetails.machine.push(`${label}: ${snap.machineHours} ч × ${snap.machineRate} ₽ = ${snap.machineCost.toFixed(0)} ₽`);}
+        if(snap.masterCost>0){workTotals.master+=snap.masterCost;workDetails.master.push(`${label}: ${snap.masterHours} ч × ${snap.masterRate} ₽ = ${snap.masterCost.toFixed(0)} ₽`);}
+        if(snap.otherCost>0){workTotals.other+=snap.otherCost;workDetails.other.push(`${label}: фиксированно ${snap.otherCost.toFixed(0)} ₽`);}
+        if(snap.polishCost>0){workTotals.polish+=snap.polishCost;workDetails.polish.push(snap.polishMode==='hours'
+            ? `${label}: полировка ${snap.polishHours} ч × ${snap.masterRate} ₽ = ${snap.polishCost.toFixed(0)} ₽`
+            : `${label}: полировка фиксированно ${snap.polishCost.toFixed(0)} ₽`);}
+    });
+    addRow('⚙️ Работа станка',workDetails.machine.join('; '),workTotals.machine);
+    addRow('🧑‍🔧 Работа мастера',workDetails.master.join('; '),workTotals.master);
+    addRow('Прочие расходы по стелам',workDetails.other.join('; '),workTotals.other);
+    addRow('✨ Полировка резьбы',workDetails.polish.join('; '),workTotals.polish);
     addRow(
         pedestalCount === 1 ? '🧱 Тумба' : `🧱 Тумбы (${pedestalCount} шт)`,
         pedestalParts.join('; '),
