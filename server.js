@@ -204,11 +204,11 @@ async function downloadThreeJS() {
     }
     
     const files = [
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', name: 'three.module.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js', name: 'OrbitControls.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js', name: 'GLTFLoader.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js', name: 'DRACOLoader.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/geometries/DecalGeometry.js', name: 'DecalGeometry.js' }
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js', name: 'three.module.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/controls/OrbitControls.js', name: 'OrbitControls.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/loaders/GLTFLoader.js', name: 'GLTFLoader.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/loaders/DRACOLoader.js', name: 'DRACOLoader.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/geometries/DecalGeometry.js', name: 'DecalGeometry.js' }
     ];
     
     for (const file of files) {
@@ -216,9 +216,13 @@ async function downloadThreeJS() {
         if (!fs.existsSync(filePath)) {
             try {
                 console.log(`📥 Скачивание ${file.name}...`);
-                const response = await fetch(file.url);
+                const response = await fetch(file.url, { signal: AbortSignal.timeout(15000) });
+                if (!response.ok) throw new Error(`HTTP ${response.status} при загрузке ${file.name}`);
                 const content = await response.text();
-                fs.writeFileSync(filePath, content);
+                if (!content || content.length < 1000) throw new Error(`Получен пустой или неполный файл ${file.name}`);
+                const temporaryPath = `${filePath}.tmp`;
+                fs.writeFileSync(temporaryPath, content);
+                fs.renameSync(temporaryPath, filePath);
                 console.log(`✅ ${file.name} сохранен локально`);
             } catch (e) {
                 console.log(`⚠️ Не удалось скачать ${file.name}, будет использоваться CDN`);
@@ -230,7 +234,7 @@ async function downloadThreeJS() {
 }
 
 // Запускаем скачивание
-downloadThreeJS().catch(console.error);
+const threeJsDownloadPromise = downloadThreeJS();
 
 // Не публикуем внутренние каталоги и файлы через корневую раздачу статики.
 app.use((req, res, next) => {
@@ -254,7 +258,8 @@ app.use((req, res, next) => {
     const fileName = segments[segments.length - 1] || '';
     const hasBlockedDirectory = segments.some(segment => blockedDirectories.has(segment));
     const hasBlockedFile = blockedFiles.has(fileName) ||
-        /\.(?:db|sqlite|sqlite3|log|backup|bak)$/i.test(fileName) ||
+        /\.(?:db|sqlite|sqlite3|log|backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp)$/i.test(fileName) ||
+        /(?:^|[._-])(?:backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp)(?:$|[._-])/i.test(fileName) ||
         /^package(?:-lock)?\.json$/i.test(fileName);
 
     if (hasBlockedDirectory || hasBlockedFile) {
@@ -266,30 +271,27 @@ app.use((req, res, next) => {
 
 // Статика с кэшированием
 app.use(express.static(__dirname, {
-    maxAge: '365d',
-    immutable: true,
+    maxAge: '1h',
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
+        const extension = path.extname(filePath).toLowerCase();
+        if (extension === '.html') {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        }
-        if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        }
-        if (filePath.endsWith('.webp') || filePath.endsWith('.png') || filePath.endsWith('.jpg')) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        }
-        if (filePath.endsWith('.glb')) {
+        } else if (extension === '.js' || extension === '.css' || extension === '.json') {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        } else if (extension === '.glb') {
             res.setHeader('Content-Type', 'model/gltf-binary');
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        } else if (['.webp', '.png', '.jpg', '.jpeg'].includes(extension)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
         }
     }
 }));
 
 app.use('/models', express.static(path.join(__dirname, 'storage', 'models'), {
-    maxAge: '365d',
-    immutable: true,
+    maxAge: '1h',
     setHeaders: (res) => {
         res.setHeader('Content-Type', 'model/gltf-binary');
+        res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
     }
 }));
 
@@ -309,18 +311,16 @@ if (!fs.existsSync(CATALOG_PREVIEWS_DIR)) {
 }
 
 app.use('/textures', express.static(path.join(__dirname, 'storage', 'textures'), {
-    maxAge: '365d',
-    immutable: true,
+    maxAge: '1d',
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.webp')) {
-            res.setHeader('Content-Type', 'image/webp');
-        }
+        if (filePath.endsWith('.webp')) res.setHeader('Content-Type', 'image/webp');
+        res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
     }
 }));
 
 app.use('/modules', express.static(path.join(__dirname, 'storage', 'modules'), {
-    maxAge: '365d',
-    immutable: true
+    maxAge: 0,
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, must-revalidate')
 }));
 
 app.use('/fonts', express.static(path.join(__dirname, 'storage', 'fonts')));
@@ -344,17 +344,19 @@ app.get('/admin.html', (req, res) => {
 });
 
 app.get('/downloads/admin_panel', (req, res) => {
-    const ip = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    const ip = req.ip || req.socket?.remoteAddress || 'Не определен';
+    const userAgent = req.headers['user-agent'] || 'Не определен';
     const time = new Date().toISOString();
 
-    const logEntry = `[${time}] IP: ${ip} | User-Agent: ${userAgent}\n`;
-    fs.appendFileSync('hackers.log', logEntry);
-    console.log(`🚨 ХАКЕР ПОПАЛСЯ! IP: ${ip}`);
+    const logIp = String(ip).replace(/[\r\n]+/g, ' ').slice(0, 100);
+    const logUserAgent = String(userAgent).replace(/[\r\n]+/g, ' ').slice(0, 500);
+    fs.appendFileSync(path.join(__dirname, 'hackers.log'), `[${time}] IP: ${logIp} | User-Agent: ${logUserAgent}\n`);
+    console.log(`🚨 Запрос к закрытому маршруту. IP: ${logIp}`);
 
-    const forwarded = req.headers['x-forwarded-for'] || 'Не определен';
-    const language = req.headers['accept-language'] || 'Не определен';
-    const referer = req.headers['referer'] || 'Прямой переход';
+    const safeIp = sanitizeForServer(ip);
+    const safeUserAgent = sanitizeForServer(userAgent);
+    const language = sanitizeForServer(req.headers['accept-language'] || 'Не определен');
+    const referer = sanitizeForServer(req.headers['referer'] || 'Прямой переход');
 
     res.send(`
         <!DOCTYPE html>
@@ -376,7 +378,7 @@ app.get('/downloads/admin_panel', (req, res) => {
                 <div class="grid">
                     <div class="card">
                         <div class="card-label">IP-адрес</div>
-                        <div class="card-value danger">${ip}</div>
+                        <div class="card-value danger">${safeIp}</div>
                     </div>
                     <div class="card">
                         <div class="card-label">Время атаки</div>
@@ -384,7 +386,7 @@ app.get('/downloads/admin_panel', (req, res) => {
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
                         <div class="card-label">Операционная система / Браузер</div>
-                        <div class="card-value" style="font-size: 13px;">${userAgent}</div>
+                        <div class="card-value" style="font-size: 13px;">${safeUserAgent}</div>
                     </div>
                     <div class="card">
                         <div class="card-label">Язык системы</div>
@@ -2679,21 +2681,6 @@ app.get(
 
 
 // ============================================
-// СТАРТ БД
-// ============================================
-
-initDB().catch(error => {
-
-    console.error(
-        '❌ Критическая ошибка инициализации БД:',
-        error
-    );
-
-
-    process.exit(1);
-});
-
-// ============================================
 // API: ЗАКАЗЫ (ПОЛНЫЙ ПАКЕТ: PDF + JSON)
 // ============================================
 
@@ -3382,10 +3369,18 @@ app.use('/engravings', express.static(path.join(__dirname, 'storage', 'engraving
 // ============================================================
 
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`📍 Главная: http://localhost:${PORT}/`);
-    console.log(`🔐 Админка: http://localhost:${PORT}/admin`);
-    console.log(`📡 API: http://localhost:${PORT}/api/prices`);
-    console.log(`📦 Кэш памяти: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}MB`);
-});
+Promise.all([initDB(), threeJsDownloadPromise])
+    .then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Сервер запущен на порту ${PORT}`);
+            console.log(`📍 Главная: http://localhost:${PORT}/`);
+            console.log(`🔐 Админка: http://localhost:${PORT}/admin`);
+            console.log(`📡 API: http://localhost:${PORT}/api/prices`);
+            console.log(`📦 Кэш памяти: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}MB`);
+        });
+    })
+    .catch(error => {
+        console.error('❌ Критическая ошибка запуска сервера:', error);
+        if (db) db.close();
+        process.exit(1);
+    });
