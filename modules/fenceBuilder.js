@@ -141,22 +141,26 @@ function placeSectionModel(pStart, pEnd, heightScale, is3DModel, state, fenceGro
 // ОСНОВНЫЕ ФУНКЦИИ ПОСТРОЕНИЯ
 // ============================================================
 
-function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
+function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPost = false, skipEndPost = false) {
     const totalLength = pStart.distanceTo(pEnd);
     if (totalLength < 0.3) return;
     const direction = pEnd.clone().sub(pStart).normalize();
     
-    const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
-    leftPost.position.copy(pStart);
-    leftPost.position.y = state.fenceHeight / 2;
-    leftPost.castShadow = true;
-    fenceGroup.add(leftPost);
-    
-    const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
-    rightPost.position.copy(pEnd);
-    rightPost.position.y = state.fenceHeight / 2;
-    rightPost.castShadow = true;
-    fenceGroup.add(rightPost);
+    if (!skipStartPost) {
+        const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
+        leftPost.position.copy(pStart);
+        leftPost.position.y = state.fenceHeight / 2;
+        leftPost.castShadow = true;
+        fenceGroup.add(leftPost);
+    }
+
+    if (!skipEndPost) {
+        const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
+        rightPost.position.copy(pEnd);
+        rightPost.position.y = state.fenceHeight / 2;
+        rightPost.castShadow = true;
+        fenceGroup.add(rightPost);
+    }
     
     // ============================================================
     // ⭐ 1. ЕСЛИ ВЫБРАНА 3D МОДЕЛЬ (11.glb)
@@ -317,6 +321,15 @@ function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
 function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const totalLength = pStart.distanceTo(pEnd);
     const gateWidth = parseFloat(state.gateWidth) || 0.8;
+
+    // Готовые модели калиток уже содержат собственные опорные столбы.
+    let gateModel = null;
+    if (state.fenceType === 'venzel' || state.fenceType === 'casting') {
+        gateModel = window.fenceGateModel;
+    } else if (state.fenceType === 'model_3d') {
+        gateModel = window.litleGateModel;
+    }
+    const hasBuiltInGatePosts = !!gateModel;
     if (gateWidth >= totalLength) {
         createSolidSide(pStart, pEnd, sideName, state, fenceGroup);
         return;
@@ -332,41 +345,35 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const gateStartPoint = pStart.clone().add(direction.clone().multiplyScalar(gateStartDistance));
     const gateEndPoint = gateStartPoint.clone().add(direction.clone().multiplyScalar(gateWidth));
 
-    if (leftSideLength > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup);
-    else if (leftSideLength > 0.05) {
+    if (leftSideLength > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup, false, hasBuiltInGatePosts);
+    else if (leftSideLength > 0.05 && !hasBuiltInGatePosts) {
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
         post.position.copy(gateStartPoint);
         post.position.y = state.fenceHeight / 2;
         post.castShadow = true;
         fenceGroup.add(post);
     }
-    if (rightSideLength > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup);
-    else if (rightSideLength > 0.05) {
+    if (rightSideLength > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup, hasBuiltInGatePosts, false);
+    else if (rightSideLength > 0.05 && !hasBuiltInGatePosts) {
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
         post.position.copy(gateEndPoint);
         post.position.y = state.fenceHeight / 2;
         post.castShadow = true;
         fenceGroup.add(post);
     }
-    const gatePostGeo = new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08);
-    const gp1 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
-    gp1.position.copy(gateStartPoint);
-    gp1.position.y = state.fenceHeight / 2;
-    gp1.castShadow = true;
-    fenceGroup.add(gp1);
-    const gp2 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
-    gp2.position.copy(gateEndPoint);
-    gp2.position.y = state.fenceHeight / 2;
-    gp2.castShadow = true;
-    fenceGroup.add(gp2);
-
-    // Подбираем готовую створку под выбранный тип ограды.
-    // Вензель и литьё используют fence_gate.glb, 3D — litle.glb.
-    let gateModel = null;
-    if (state.fenceType === 'venzel' || state.fenceType === 'casting') {
-        gateModel = window.fenceGateModel;
-    } else if (state.fenceType === 'model_3d') {
-        gateModel = window.litleGateModel;
+    // Для моделей с собственными столбами не добавляем дублирующие опоры.
+    if (!hasBuiltInGatePosts) {
+        const gatePostGeo = new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08);
+        const gp1 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
+        gp1.position.copy(gateStartPoint);
+        gp1.position.y = state.fenceHeight / 2;
+        gp1.castShadow = true;
+        fenceGroup.add(gp1);
+        const gp2 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
+        gp2.position.copy(gateEndPoint);
+        gp2.position.y = state.fenceHeight / 2;
+        gp2.castShadow = true;
+        fenceGroup.add(gp2);
     }
 
     if (gateModel) {
