@@ -5848,6 +5848,9 @@ function buildPriceBreakdown() {
             addRow('🔧 Установка бордюра площадки',
                 `${curbLength.toFixed(2)} п.м. × ${installPrice} ₽/п.м.`,
                 curbLength * installPrice);
+            if (curbLength > 0) {
+                addMissingWorkRate(missingCatalogPrices, 'site_curb_install_per_m', 'Установка бордюра площадки', '₽/п.м.');
+            }
         }
     }
 
