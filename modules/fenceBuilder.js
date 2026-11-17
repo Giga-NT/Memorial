@@ -192,7 +192,9 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPos
                 }
             });
             
-            clone.scale.set(1.0, heightScale, 1.0);
+            // Продольная ось модели после rotateY(PI/2) — локальная Z.
+            // Небольшой нахлёст 1 см убирает просветы между соседними секциями.
+            clone.scale.set(1.0, heightScale, (actualStep + 0.01) / modelBaseWidth);
             clone.position.copy(centerPos);
             clone.position.y = (state.fenceHeight / 2);
             
@@ -305,7 +307,14 @@ function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
     });
 
     const midpoint = pStart.clone().add(pEnd).multiplyScalar(0.5);
-    gateGroup.position.set(midpoint.x, 0, midpoint.z);
+    // Калитка слегка выдвинута наружу относительно плоскости секций.
+    const outward = new THREE.Vector3(midpoint.x, 0, midpoint.z).normalize();
+    const gateFrontOffset = Number(state.gateFrontOffset) || 0.04;
+    gateGroup.position.set(
+        midpoint.x + outward.x * gateFrontOffset,
+        0,
+        midpoint.z + outward.z * gateFrontOffset
+    );
     const direction = pEnd.clone().sub(pStart).normalize();
     gateGroup.quaternion.setFromUnitVectors(
         new THREE.Vector3(1, 0, 0),
@@ -418,10 +427,12 @@ export function createFenceGroup(state) {
     
     sides.forEach(side => {
         let isGate = false;
-        if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
-        if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
-        if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;
-        if (state.fenceGateSide === 'left' && side.name === 'left') isGate = true;
+        if (state.fenceGateEnabled !== false) {
+            if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
+            if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
+            if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;
+            if (state.fenceGateSide === 'left' && side.name === 'left') isGate = true;
+        }
         
         if (isGate && state.fenceGateSide !== 'none') {
             createSideWithGate(side.start, side.end, side.name, state, fenceGroup);
