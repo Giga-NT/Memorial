@@ -258,7 +258,8 @@ app.use((req, res, next) => {
     const fileName = segments[segments.length - 1] || '';
     const hasBlockedDirectory = segments.some(segment => blockedDirectories.has(segment));
     const hasBlockedFile = blockedFiles.has(fileName) ||
-        /\.(?:db|sqlite|sqlite3|log|backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp)$/i.test(fileName) ||
+        fileName.startsWith('.') ||
+        /\.(?:db|sqlite|sqlite3|log|backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp|py|sql|md|lock|ya?ml|sh|bat|ps1|map)$/i.test(fileName) ||
         /(?:^|[._-])(?:backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp)(?:$|[._-])/i.test(fileName) ||
         /^package(?:-lock)?\.json$/i.test(fileName);
 
