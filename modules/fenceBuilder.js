@@ -333,10 +333,12 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
 
     // Готовые модели калиток уже содержат собственные опорные столбы.
     let gateModel = null;
-    if (state.fenceType === 'venzel' || state.fenceType === 'casting') {
-        gateModel = window.fenceGateModel;
-    } else if (state.fenceType === 'model_3d') {
-        gateModel = window.litleGateModel;
+    if (state.fenceGateEnabled !== false) {
+        if (state.fenceType === 'venzel' || state.fenceType === 'casting') {
+            gateModel = window.fenceGateModel;
+        } else if (state.fenceType === 'model_3d') {
+            gateModel = window.litleGateModel;
+        }
     }
     const hasBuiltInGatePosts = !!gateModel;
     if (gateWidth >= totalLength) {
@@ -387,7 +389,7 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
 
     if (gateModel) {
         placeGateModel(gateModel, gateStartPoint, gateEndPoint, state, fenceGroup);
-    } else if (state.fenceType === 'venzel' || state.fenceType === 'casting' || state.fenceType === 'model_3d') {
+    } else if (state.fenceGateEnabled !== false && (state.fenceType === 'venzel' || state.fenceType === 'casting' || state.fenceType === 'model_3d')) {
         console.warn('⚠️ Модель калитки ещё не загружена:', state.fenceType);
     }
 }
@@ -427,12 +429,12 @@ export function createFenceGroup(state) {
     
     sides.forEach(side => {
         let isGate = false;
-        if (state.fenceGateEnabled !== false) {
-            if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
-            if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
-            if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;
-            if (state.fenceGateSide === 'left' && side.name === 'left') isGate = true;
-        }
+        // Выбранная сторона сохраняет проём всегда: при выключенной калитке
+        // в его краях остаются только две опорные стойки.
+        if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
+        if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
+        if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;
+        if (state.fenceGateSide === 'left' && side.name === 'left') isGate = true;
         
         if (isGate && state.fenceGateSide !== 'none') {
             createSideWithGate(side.start, side.end, side.name, state, fenceGroup);
