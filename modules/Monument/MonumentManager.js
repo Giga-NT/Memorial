@@ -469,6 +469,7 @@ class MultiMonumentManager {
             'fenceMaterial': 'fenceMaterial',
             'fenceGateSide': 'fenceGateSide',
             'gateWidth': 'gateWidth',
+            'fenceGateEnabled': 'fenceGateEnabled',
             'fenceGateOffset': 'fenceGateOffset',
             'fenceOffsetX': 'fenceOffsetX',
             'fenceOffsetZ': 'fenceOffsetZ',
