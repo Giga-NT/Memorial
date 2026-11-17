@@ -5640,6 +5640,11 @@ function buildPriceBreakdown() {
             `${fencePriceLabels[state.fenceType] || state.fenceType}, ${fencePerimeter.toFixed(2)} м × ${fencePrice} ₽/м × ${fenceHeightFactor.toFixed(2)} (высота ${fenceHeight.toFixed(2)} м)`,
             fencePerimeter * fencePrice * fenceHeightFactor
         );
+
+        if (state.fenceGateEnabled !== false && state.fenceGateSide !== 'none') {
+            const gatePrice = getPriceValue('gate_price');
+            addRow('🚪 Калитка', '1 шт.', gatePrice);
+        }
     }
 
     if (state.pathEnabled) {
