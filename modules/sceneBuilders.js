@@ -1151,7 +1151,9 @@ export function createPavingTexture(
     if (layoutKey === 'straight') {
         spanX = spanY = cells * elementSize;
     } else if (layoutKey === 'diagonal') {
-        spanX = spanY = periods * elementSize * Math.SQRT2;
+        // Поворот рисунка на 45° не должен увеличивать физический размер камня.
+        // Размер тайла остаётся таким же, как у остальных схем укладки.
+        spanX = spanY = periods * elementSize;
     } else {
         spanX = spanY = cells * elementSize / 2;
     }
