@@ -133,19 +133,22 @@ export async function createSiteCurb(params = {}) {
     };
 
     const sideLength = Math.max(0, length - curbWidth * 2);
-    if (gateSide === 'left' || gateSide === 'right') {
+    // Обе продольные стороны бордюра должны существовать всегда.
+    // Разрыв создаём только на той стороне, где расположена калитка.
+    for (const sideName of ['left', 'right']) {
+        const x = (sideName === 'left' ? -1 : 1) * (width / 2 - curbWidth / 2);
+        if (gateSide !== sideName) {
+            addPiece(curbWidth, sideLength, x, 0);
+            continue;
+        }
+
         const opening = Math.min(gateWidth, sideLength);
         const maxOpeningOffset = Math.max(0, (sideLength - opening) / 2);
         const openingOffset = Math.max(-maxOpeningOffset, Math.min(maxOpeningOffset, curbGateCenterOffset));
         const beforeOpening = Math.max(0, sideLength / 2 + openingOffset - opening / 2);
         const afterOpening = Math.max(0, sideLength / 2 - openingOffset - opening / 2);
-        const sign = gateSide === 'left' ? -1 : 1;
-        const x = sign * (width / 2 - curbWidth / 2);
         addPiece(curbWidth, beforeOpening, x, -sideLength / 2 + beforeOpening / 2);
         addPiece(curbWidth, afterOpening, x, sideLength / 2 - afterOpening / 2);
-    } else {
-        addPiece(curbWidth, sideLength, -(width / 2 - curbWidth / 2), 0);
-        addPiece(curbWidth, sideLength, width / 2 - curbWidth / 2, 0);
     }
 
     // With the fence visible, keep the old inset ends. Without it, extend
