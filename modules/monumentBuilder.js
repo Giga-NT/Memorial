@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Rectangle } from '../steleTypes.js';
-import { createCustomSteleMesh } from '../customSteleLoader.js';
+import { createCustomSteleMesh, customModels } from '../customSteleLoader.js';
 import { loadPBRMaterial, getTextureTypeFromMaterial, loadFlowerbedTexture } from './textures.min.js';
 // ⭐ ПРАВИЛЬНЫЙ ИМПОРТ ИЗ sceneBuilders.js
 import { 
@@ -1169,14 +1169,15 @@ export async function createStele(params, decalsGroup) {
             }
         }
         
-    } else if (steleType && steleType.startsWith('custom_stl')) {
+    } else if (steleType && (steleType.startsWith('custom_stl') || customModels[steleType])) {
+		const customConfig = customModels[steleType];
 		steleObj = await createCustomSteleMesh(
 			steleType, 
 			width, 
 			height, 
 			depth, 
 			material, 
-			'vertical', 
+			customConfig?.modelType || 'vertical', 
 			decalsGroup,
 			false
 		);

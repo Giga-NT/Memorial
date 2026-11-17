@@ -8,7 +8,11 @@ export async function getPreviewUrl(modelId) {
         return sessionStorage.getItem(cacheKey);
     }
 
-    // Путь к картинке: ./models/previews/ID.png
+    // Новые GLB из админского каталога пока не имеют отдельного preview-файла.
+    // Не запрашиваем заведомо отсутствующий PNG: карточка покажет placeholder.
+    if (String(modelId).startsWith('catalog_stele_')) return null;
+
+    // Путь к картинке для старых моделей.
     const previewPath = `./models/previews/${modelId}.png`;
     
     try {
