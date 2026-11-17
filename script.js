@@ -5150,9 +5150,9 @@ function isPriceIntentionallyZero(key) {
     return priceFlags?.[key]?.zero_means_included === true;
 }
 
-function addMissingWorkRate(key, label, unit) {
+function addMissingWorkRate(target, key, label, unit) {
     if (getPriceValue(key) <= 0 && !isPriceIntentionallyZero(key)) {
-        missingCatalogPrices.push(`${label}: не задана цена работы (${unit})`);
+        target.push(`${label}: не задана цена работы (${unit})`);
     }
 }
 
@@ -5719,16 +5719,17 @@ function buildPriceBreakdown() {
                 surfaceType,
                 tileMaterialArea
             );
-            const tileWorkPrice = surfaceType === 'slab'
-                ? getPriceValueOrDefault('path_slab_work_per_m2', getPriceValue('path_tile_work_per_m2'))
-                : getPriceValue('path_tile_work_per_m2');
+            const tileWorkPriceKey = surfaceType === 'slab' && Object.prototype.hasOwnProperty.call(prices || {}, 'path_slab_work_per_m2')
+                ? 'path_slab_work_per_m2'
+                : 'path_tile_work_per_m2';
+            const tileWorkPrice = getPriceValue(tileWorkPriceKey);
             addRow(
                 `🔧 Укладка ${surfaceLabel}`,
                 `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
                 coverageArea * tileWorkPrice
             );
-            addMissingWorkRate(
-                surfaceType === 'slab' ? 'path_slab_work_per_m2' : 'path_tile_work_per_m2',
+            addMissingWorkRate(missingCatalogPrices,
+                tileWorkPriceKey,
                 `Укладка ${surfaceLabel}`,
                 '₽/м²'
             );
@@ -5747,7 +5748,7 @@ function buildPriceBreakdown() {
                 `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
                 coverageArea * workPrice
             );
-            addMissingWorkRate('site_fill_work_per_m2', 'Устройство отсыпки / покрытия', '₽/м²');
+            addMissingWorkRate(missingCatalogPrices,'site_fill_work_per_m2', 'Устройство отсыпки / покрытия', '₽/м²');
         }
 
         // Add the underlying construction layers by actual thickness and volume.
@@ -5769,14 +5770,14 @@ function buildPriceBreakdown() {
                 `${coverageArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
                 coverageArea * prepRate);
         } else {
-            addMissingWorkRate('site_base_preparation_per_m2', 'Подготовка и планировка основания', '₽/м²');
+            addMissingWorkRate(missingCatalogPrices,'site_base_preparation_per_m2', 'Подготовка и планировка основания', '₽/м²');
         }
         if (excavationRate > 0) {
             addRow('🚜 Выемка грунта под конструкцию',
                 `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (объём учитывает расширение нижних слоёв; максимальная глубина ${(excavationDepth * 100).toFixed(1)} см)`,
                 excavationVolume * excavationRate);
         } else {
-            addMissingWorkRate('site_excavation_per_m3', 'Выемка грунта под конструкцию', '₽/м³');
+            addMissingWorkRate(missingCatalogPrices,'site_excavation_per_m3', 'Выемка грунта под конструкцию', '₽/м³');
         }
 
         for (const layer of layerTotals.layers) {
@@ -5807,7 +5808,7 @@ function buildPriceBreakdown() {
                 `${compactableVolume.toFixed(3)} м³ × ${compactionRate} ₽/м³`,
                 compactableVolume * compactionRate);
         } else if (compactableVolume > 0) {
-            addMissingWorkRate('site_compaction_per_m3', 'Уплотнение песка и щебня', '₽/м³');
+            addMissingWorkRate(missingCatalogPrices,'site_compaction_per_m3', 'Уплотнение песка и щебня', '₽/м³');
         }
     }
 
@@ -5961,7 +5962,7 @@ function buildPriceBreakdown() {
 
     if (missingCatalogPrices.length) {
         rows.push({
-            name: '⚠️ Не найдена цена в прайсе',
+            name: '⚠️ Требуется настройка прайса',
             desc: [...new Set(missingCatalogPrices)].join('; '),
             price: 0,
             missing: true
