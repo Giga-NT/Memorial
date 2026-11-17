@@ -417,7 +417,7 @@ const ALLOWED_PRICE_KEYS = new Set([
     'pipe', 'chain', 'casting', 'model_3d', 'venzel',
     'stele_work', 'engraving', 'text_character_price', 'photo', 'photo_price', 'vase_base_price',
     'background_price_per_m2', 'table', 'bench', 'picnic_set',
-    'delivery', 'install', 'fence_per_m', 'fence_base_height',
+    'delivery', 'install', 'fence_per_m', 'fence_base_height', 'gate_price',
     'path_work_per_m2', 'site_fill_work_per_m2',
     'site_base_preparation_per_m2', 'site_excavation_per_m3',
     'site_compaction_per_m3', 'path_tile_work_per_m2',
@@ -465,6 +465,7 @@ const DEFAULT_PRICES = {
 
     fence_per_m: 1500,
     fence_base_height: 0.6,
+    gate_price: 13500,
     path_work_per_m2: 1500,
     site_fill_work_per_m2: 0,
     site_base_preparation_per_m2: 0,
