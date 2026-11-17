@@ -1062,7 +1062,8 @@
 
             await loadMaterialPrices();
             await loadSupplierPrices();
-            await loadSteleCatalog();
+            try { await loadSteleCatalog(); }
+            catch(catalogError){ console.error('Ошибка загрузки каталога стел:',catalogError); steleNotice(catalogError.message,true); }
 
         } catch (error) {
 
@@ -1582,7 +1583,12 @@
             fetch('/api/admin/steles',{credentials:'include',cache:'no-store'}),
             fetch('/api/admin/stele-work-settings',{credentials:'include',cache:'no-store'})
         ]);
-        const c=await cr.json(),s=await sr.json();
+        const readJson=async response=>{
+            if(!(response.headers.get('content-type')||'').includes('application/json'))
+                throw new Error(`Сервер вернул не JSON (HTTP ${response.status}). Проверь, что запущен обновлённый server.js.`);
+            return response.json();
+        };
+        const [c,s]=await Promise.all([readJson(cr),readJson(sr)]);
         if(!cr.ok||!c.success)throw new Error(c.message||'Не удалось загрузить каталог');
         if(!sr.ok||!s.success)throw new Error(s.message||'Не удалось загрузить ставки');
         adminSteleRows=c.steles||[];adminSteleSettings=s.settings||adminSteleSettings;
