@@ -1224,6 +1224,10 @@ updatePhotoPosition(photoMesh, x, y) {
 		}
 
 		
+		const gateEnabledEl =
+			document.getElementById('fenceGateEnabled');
+		if (gateEnabledEl) data.fenceGateEnabled = gateEnabledEl.checked;
+
 		const gateOffsetEl =
 			document.getElementById('fenceGateOffset');
 
