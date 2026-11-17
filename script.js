@@ -5817,7 +5817,13 @@ function buildPriceBreakdown() {
         }
     }
 
-    if (state.curbVisible) {
+    // Смета учитывает бордюр только после его фактического добавления
+    // в основную сцену, а не только по включённому флажку интерфейса.
+    const hasSiteCurbInScene = window.monumentGroup?.children?.some(
+        child => child.userData?.isSiteCurb === true
+    ) === true;
+
+    if (state.curbVisible && hasSiteCurbInScene) {
         const width = Math.max(0.2, Number(state.fenceWidth) || 1.5);
         const length = Math.max(0.2, Number(state.fenceLength) || 2.5);
         const gateSide = state.curbGateOpeningEnabled ? (state.fenceGateSide || 'none') : 'none';
