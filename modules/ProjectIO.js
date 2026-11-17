@@ -2869,25 +2869,6 @@ export class ProjectIO {
         );
 
 
-        if (
-            state.pathWidth !== undefined
-        ) {
-
-            setVal(
-                'pathWidth',
-                state.pathWidth
-            );
-
-            setText(
-                'pathWidthVal',
-                Number(
-                    state.pathWidth
-                ).toFixed(2) +
-                ' м'
-            );
-        }
-
-
         setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');
         setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
         setSelect('pathSlabFormat', state.pathSlabFormat || 'square300');
