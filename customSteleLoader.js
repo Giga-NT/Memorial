@@ -205,6 +205,30 @@ export async function applyMaterialToCustomModel(model, materialType, modelId = 
     }
 }
 
+function parseSteleRotation(value) {
+    const result = { x: 0, y: 0, z: 0 };
+    if (value == null || value === '') return result;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+        for (const axis of ['x', 'y', 'z']) {
+            const n = Number(value[axis] ?? 0);
+            if (Number.isFinite(n)) result[axis] = n;
+        }
+        return result;
+    }
+    const text = String(value).trim();
+    // Поддержка форматов: "x:90", "x:90,y:180,z:0", "90,0,0".
+    const matches = [...text.matchAll(/([xyz])\s*[:=]\s*(-?\d+(?:\.\d+)?)/gi)];
+    if (matches.length) {
+        for (const match of matches) result[match[1].toLowerCase()] = Number(match[2]);
+    } else {
+        const values = text.split(/[;,\s]+/).filter(Boolean).map(Number);
+        if (values.length <= 3 && values.every(Number.isFinite)) {
+            ['x', 'y', 'z'].forEach((axis, index) => { if (values[index] !== undefined) result[axis] = values[index]; });
+        }
+    }
+    return result;
+}
+
 export async function createCustomSteleMesh(
     modelId,
     width,
@@ -242,6 +266,14 @@ export async function createCustomSteleMesh(
 
         if (oldModel) {
             group.remove(oldModel);
+        }
+
+        const rotation = parseSteleRotation(customModels[modelId]?.rotation);
+        const radians = Math.PI / 180;
+        model.rotation.set(rotation.x * radians, rotation.y * radians, rotation.z * radians);
+        model.updateMatrixWorld(true);
+        if (rotation.x || rotation.y || rotation.z) {
+            console.log('🔄 Поворот модели из каталога применён:', modelId, rotation);
         }
 
         const box =

@@ -290,8 +290,13 @@ app.use(express.static(__dirname, {
 
 app.use('/models', express.static(path.join(__dirname, 'storage', 'models'), {
     maxAge: '1h',
-    setHeaders: (res) => {
-        res.setHeader('Content-Type', 'model/gltf-binary');
+    setHeaders: (res, filePath) => {
+        const ext = path.extname(filePath).toLowerCase();
+        if (ext === '.glb') res.setHeader('Content-Type', 'model/gltf-binary');
+        else if (ext === '.png') res.setHeader('Content-Type', 'image/png');
+        else if (ext === '.jpg' || ext === '.jpeg') res.setHeader('Content-Type', 'image/jpeg');
+        else if (ext === '.webp') res.setHeader('Content-Type', 'image/webp');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
     }
 }));
