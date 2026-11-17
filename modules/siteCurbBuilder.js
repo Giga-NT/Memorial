@@ -132,11 +132,10 @@ export async function createSiteCurb(params = {}) {
         group.add(mesh);
     };
 
-    const sideLength = Math.max(0, length - curbWidth * 2);
-    // Обе продольные стороны бордюра должны существовать всегда.
-    // Разрыв создаём только на той стороне, где расположена калитка.
+    // Привязываем внешний контур к осям угловых столбов ограды.
+    const sideLength = length;
     for (const sideName of ['left', 'right']) {
-        const x = (sideName === 'left' ? -1 : 1) * (width / 2 - curbWidth / 2);
+        const x = (sideName === 'left' ? -1 : 1) * (width / 2);
         if (gateSide !== sideName) {
             addPiece(curbWidth, sideLength, x, 0);
             continue;
@@ -151,11 +150,10 @@ export async function createSiteCurb(params = {}) {
         addPiece(curbWidth, afterOpening, x, sideLength / 2 - afterOpening / 2);
     }
 
-    // With the fence visible, keep the old inset ends. Without it, extend
-    // front/back pieces by one curb width at each end to meet side pieces.
-    const frontBackWidth = Math.max(0, width - (params.fenceEnabled ? curbWidth * 2 : 0));
+    // Торцевые секции также идут по осям угловых столбов.
+    const frontBackWidth = width;
     const endSide = (zSign, isGateSide) => {
-        const z = zSign * (length / 2 - curbWidth / 2);
+        const z = zSign * (length / 2);
         if (!isGateSide) {
             addPiece(frontBackWidth, curbWidth, 0, z);
             return;
