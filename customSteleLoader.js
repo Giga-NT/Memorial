@@ -281,13 +281,20 @@ export async function createCustomSteleMesh(
             console.log('🔄 Поворот модели из каталога применён:', modelId, rotation);
         }
 
+        // Сначала определяем габариты уже ориентированной модели.
+        // Масштабируем отдельной внешней группой: её оси совпадают
+        // с осями сцены, поэтому поворот GLB не меняет местами W/H/D.
         const box = new THREE.Box3().setFromObject(orientedModel);
         const size = box.getSize(new THREE.Vector3());
+        const minDimension = 1e-6;
 
         if (
-            size.x === 0 ||
-            size.y === 0 ||
-            size.z === 0
+            !Number.isFinite(size.x) ||
+            !Number.isFinite(size.y) ||
+            !Number.isFinite(size.z) ||
+            size.x < minDimension ||
+            size.y < minDimension ||
+            size.z < minDimension
         ) {
             console.warn(
                 `⚠️ Некорректный размер модели ${modelId}:`,
@@ -297,25 +304,22 @@ export async function createCustomSteleMesh(
             return group;
         }
 
-        const scaleX =
-            width / size.x;
-
-        const scaleY =
-            height / size.y;
-
-        const scaleZ =
-            depth / size.z;
-
-        orientedModel.scale.set(scaleX, scaleY, scaleZ);
-
+        const scaleX = width / size.x;
+        const scaleY = height / size.y;
+        const scaleZ = depth / size.z;
         const center = box.getCenter(new THREE.Vector3());
-        orientedModel.position.set(
+
+        const sizedModel = new THREE.Group();
+        sizedModel.name = `sized-model-${modelId}`;
+        sizedModel.add(orientedModel);
+        sizedModel.scale.set(scaleX, scaleY, scaleZ);
+        sizedModel.position.set(
             -center.x * scaleX,
             -center.y * scaleY,
             -center.z * scaleZ
         );
 
-        group.userData.modelRef = orientedModel;
+        group.userData.modelRef = sizedModel;
         group.userData.isLoaded = true;
 
         await applyMaterialToCustomModel(
@@ -325,7 +329,7 @@ export async function createCustomSteleMesh(
             modelType
         );
 
-        group.add(orientedModel);
+        group.add(sizedModel);
 
         // Декали
         if (
