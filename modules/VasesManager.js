@@ -347,7 +347,7 @@ getSurfaceHeight(x, z) {
     // ⭐ ДОБАВЛЕНИЕ ВАЗЫ
     // ============================================================
 
-async addVase(vaseId, x, z, scale = 1.0) {
+async addVase(vaseId, x, z, scale = 1.0, materialOverride = null) {
     try {
         const config = this.vasesConfig[vaseId];
 
@@ -358,9 +358,10 @@ async addVase(vaseId, x, z, scale = 1.0) {
 
         // Материал должен быть загружен ДО добавления вазы
 		const materialType =
-			this.vaseMaterial ||
-			config.defaultMaterial ||
-			'marble';
+            materialOverride ||
+            this.vaseMaterial ||
+            config.defaultMaterial ||
+            'marble';
 
         const material = await this.loadMaterial(materialType);
 
