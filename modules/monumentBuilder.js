@@ -1810,6 +1810,7 @@ export async function updateMainMonument(
                 ? String(state.fenceMaterial)
                 : 'steel',
 
+        fenceGateEnabled: state.fenceGateEnabled !== false,
         fenceGateSide:
             state.fenceGateSide !== undefined
                 ? String(state.fenceGateSide)
