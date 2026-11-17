@@ -262,25 +262,27 @@ export async function createCustomSteleMesh(
             return group;
         }
 
-        const oldModel = group.userData.modelRef;
-
-        if (oldModel) {
-            group.remove(oldModel);
-        }
-
         const rotation = parseSteleRotation(customModels[modelId]?.rotation);
         const radians = Math.PI / 180;
-        model.rotation.set(rotation.x * radians, rotation.y * radians, rotation.z * radians);
-        model.updateMatrixWorld(true);
+
+        // Поворачиваем модель во внешней группе: так габариты считаются
+        // уже после поворота, а масштабирование не сбрасывает ориентацию GLB.
+        const orientedModel = new THREE.Group();
+        orientedModel.name = `catalog-model-${modelId}`;
+        orientedModel.add(model);
+        orientedModel.rotation.set(
+            rotation.x * radians,
+            rotation.y * radians,
+            rotation.z * radians
+        );
+        orientedModel.updateMatrixWorld(true);
+
         if (rotation.x || rotation.y || rotation.z) {
             console.log('🔄 Поворот модели из каталога применён:', modelId, rotation);
         }
 
-        const box =
-            new THREE.Box3().setFromObject(model);
-
-        const size =
-            box.getSize(new THREE.Vector3());
+        const box = new THREE.Box3().setFromObject(orientedModel);
+        const size = box.getSize(new THREE.Vector3());
 
         if (
             size.x === 0 ||
@@ -304,34 +306,26 @@ export async function createCustomSteleMesh(
         const scaleZ =
             depth / size.z;
 
-        model.scale.set(
-            scaleX,
-            scaleY,
-            scaleZ
-        );
+        orientedModel.scale.set(scaleX, scaleY, scaleZ);
 
-        const center =
-            box.getCenter(
-                new THREE.Vector3()
-            );
-
-        model.position.set(
+        const center = box.getCenter(new THREE.Vector3());
+        orientedModel.position.set(
             -center.x * scaleX,
             -center.y * scaleY,
             -center.z * scaleZ
         );
 
-        group.userData.modelRef = model;
+        group.userData.modelRef = orientedModel;
         group.userData.isLoaded = true;
 
         await applyMaterialToCustomModel(
-            model,
+            orientedModel,
             materialType,
             modelId,
             modelType
         );
 
-        group.add(model);
+        group.add(orientedModel);
 
         // Декали
         if (
@@ -411,12 +405,30 @@ export async function updateCurrentCustomSteleMaterial(materialType) {
 }
 
 export function getModelList() {
-    return Object.keys(customModels).map(id => ({
-        id: id,
-        name: customModels[id].name,
-        modelType: customModels[id].modelType || 'vertical',
-        category: customModels[id].category || 'uncategorized'
-    }));
+    return Object.keys(customModels).map(id => {
+        const model = customModels[id];
+        return {
+            id,
+            name: model.name,
+            file: model.file,
+            path: model.path,
+            modelType: model.modelType || 'vertical',
+            category: model.category || 'uncategorized',
+            previewUrl: model.previewUrl || null,
+            defaultWidth: Number(model.defaultWidth) || 0.6,
+            defaultHeight: Number(model.defaultHeight) || 1.3,
+            defaultDepth: Number(model.defaultDepth) || 0.08,
+            rotation: model.rotation || '',
+            machine_hours: Number(model.machine_hours) || 0,
+            machine_rate: model.machine_rate,
+            master_hours: Number(model.master_hours) || 0,
+            master_rate: model.master_rate,
+            other_cost: Number(model.other_cost) || 0,
+            polish_mode: model.polish_mode || 'none',
+            polish_hours: Number(model.polish_hours) || 0,
+            polish_cost: Number(model.polish_cost) || 0
+        };
+    });
 }
 
 export function getModelDimensions(model) {

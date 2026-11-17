@@ -1170,22 +1170,28 @@ export async function createStele(params, decalsGroup) {
         }
         
     } else if (steleType && (steleType.startsWith('custom_stl') || customModels[steleType])) {
-		const customConfig = customModels[steleType];
-		steleObj = await createCustomSteleMesh(
-			steleType, 
-			width, 
-			height, 
-			depth, 
-			material, 
-			customConfig?.modelType || 'vertical', 
-			decalsGroup,
-			false
-		);
-		steleObj.position.y =
-			baseHeight +
-			pedestalHeight +
-			(height / 2);
-        steleObj.position.z = -(graveLength / 2 - depth / 2 - 0.05);
+        const customConfig = customModels[steleType];
+        // Для каталожной модели размеры из админки — целевые габариты
+        // готовой стелы. Для старых custom STL сохраняем размеры проекта.
+        const customWidth = Number(customConfig?.defaultWidth) || width;
+        const customHeight = Number(customConfig?.defaultHeight) || height;
+        const customDepth = Number(customConfig?.defaultDepth) || depth;
+
+        steleObj = await createCustomSteleMesh(
+            steleType,
+            customWidth,
+            customHeight,
+            customDepth,
+            material,
+            customConfig?.modelType || 'vertical',
+            decalsGroup,
+            false
+        );
+        steleObj.position.y =
+            baseHeight +
+            pedestalHeight +
+            (customHeight / 2);
+        steleObj.position.z = -(graveLength / 2 - customDepth / 2 - 0.05);
         group.add(steleObj);
         console.log(`✅ Кастомная стела ${steleType} создана`);
         

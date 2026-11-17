@@ -2,14 +2,14 @@
 
 // ⭐ ФУНКЦИЯ ЗАГРУЗКИ ПРЕВЬЮ ИЗ ФАЙЛА
 export async function getPreviewUrl(modelId, model = null) {
-    // Если картинка уже загружена в кэш браузера — вернём
+    // Для каталога админки приоритет всегда у актуального preview_file.
+    // Старый sessionStorage-кэш не должен подменять новую картинку.
+    if (model?.previewUrl) return model.previewUrl;
+
     const cacheKey = `preview_${modelId}`;
     if (sessionStorage.getItem(cacheKey)) {
         return sessionStorage.getItem(cacheKey);
     }
-
-    // Модели, загруженные через админку, используют прикреплённую картинку.
-    if (model?.previewUrl) return model.previewUrl;
     // Для старых моделей сохраняем совместимость со статичными PNG.
     if (String(modelId).startsWith('catalog_stele_')) return null;
     const previewPath = `./models/previews/${modelId}.png`;
@@ -73,7 +73,7 @@ export async function renderSteleGrid() {
             <div class="stele-grid-item" data-model="${model.id}" data-model-id="${model.id}" data-name="${model.name}">
                 <div class="stele-grid-preview">
                     ${previewUrl 
-                        ? `<img src="${previewUrl}" alt="${model.name}" loading="lazy" draggable="false">` 
+                        ? `<img src="${previewUrl}" alt="${model.name}" loading="lazy" draggable="false" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stele-placeholder',textContent:'📦'}))">` 
                         : `<div class="stele-placeholder">📦</div>`
                     }
                 </div>
