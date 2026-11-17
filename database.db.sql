@@ -38,4 +38,5 @@ INSERT INTO "prices" ("id","key","value","updated_at") VALUES (1,'granite',5000,
  (31,'picnic_set',25000,'2026-08-17 17:42:05'),
  (32,'delivery',3000,'2026-08-17 17:42:05'),
  (33,'install',5000,'2026-08-17 17:42:05');
+INSERT OR IGNORE INTO prices (key, value) VALUES ('gate_price', 13500);
 COMMIT;
