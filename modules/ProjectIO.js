@@ -160,6 +160,7 @@ export class ProjectIO {
         // Checkbox
         const checkboxFields = [
             'fenceEnabled',
+            'fenceGateEnabled',
             'pathEnabled',
             'curbVisible',
             'curbInstallEnabled',
@@ -783,6 +784,7 @@ export class ProjectIO {
             fenceType: this.state.fenceType || 'pipe',
             fenceHeight: this.state.fenceHeight ?? 0.6,
             fenceMaterial: this.state.fenceMaterial || 'steel',
+            fenceGateEnabled: this.state.fenceGateEnabled !== false,
             fenceGateSide: this.state.fenceGateSide || 'back',
             gateWidth: this.state.gateWidth ?? 0.8,
             fenceGateOffset: this.state.fenceGateOffset ?? 0,
