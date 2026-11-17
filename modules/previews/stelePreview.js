@@ -1,18 +1,17 @@
 // modules/stelePreview.js
 
 // ⭐ ФУНКЦИЯ ЗАГРУЗКИ ПРЕВЬЮ ИЗ ФАЙЛА
-export async function getPreviewUrl(modelId) {
+export async function getPreviewUrl(modelId, model = null) {
     // Если картинка уже загружена в кэш браузера — вернём
     const cacheKey = `preview_${modelId}`;
     if (sessionStorage.getItem(cacheKey)) {
         return sessionStorage.getItem(cacheKey);
     }
 
-    // Новые GLB из админского каталога пока не имеют отдельного preview-файла.
-    // Не запрашиваем заведомо отсутствующий PNG: карточка покажет placeholder.
+    // Модели, загруженные через админку, используют прикреплённую картинку.
+    if (model?.previewUrl) return model.previewUrl;
+    // Для старых моделей сохраняем совместимость со статичными PNG.
     if (String(modelId).startsWith('catalog_stele_')) return null;
-
-    // Путь к картинке для старых моделей.
     const previewPath = `./models/previews/${modelId}.png`;
     
     try {
@@ -68,7 +67,7 @@ export async function renderSteleGrid() {
         if (!firstId) firstId = model.id;
         
         // Пытаемся загрузить статичную превьюшку
-        const previewUrl = await getPreviewUrl(model.id);
+        const previewUrl = await getPreviewUrl(model.id, model);
         
         html += `
             <div class="stele-grid-item" data-model="${model.id}" data-model-id="${model.id}" data-name="${model.name}">

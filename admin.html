@@ -157,7 +157,8 @@
                     <label>Толщина, м<input id="stele-depth" type="number" min="0.001" max="1" step="0.001" value="0.08"></label>
                     <label>Ориентация<select id="stele-model-type"><option value="vertical">Вертикальная</option><option value="horizontal">Горизонтальная</option></select></label>
                     <label>Поворот<input id="stele-rotation" maxlength="100" placeholder="Например x:90"></label>
-                    <label>GLB-модель, до 50 МБ<input id="stele-file" type="file" accept=".glb,model/gltf-binary"></label>
+                    <label>3D-модель GLB, до 50 МБ<input id="stele-file" type="file" accept=".glb,model/gltf-binary"></label>
+                    <label>Картинка для карточки, до 10 МБ<input id="stele-preview-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
                 </div>
                 <h4>Дополнительные операции</h4>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px">
@@ -1623,12 +1624,12 @@
             else if(['name','rotation','machine_rate','master_rate'].includes(key))el.value='';
             else el.value=key==='width'?.6:key==='height'?1.3:key==='depth'?.08:0;
         });
-        document.getElementById('stele-file').value='';document.getElementById('stele-active').checked=true;
+        document.getElementById('stele-file').value='';document.getElementById('stele-preview-file').value='';document.getElementById('stele-active').checked=true;
     }
     function fillSteleForm(row){
         document.getElementById('stele-edit-id').value=row.id;document.getElementById('stele-form-title').textContent='Редактировать: '+row.name;
         Object.entries(steleFields).forEach(([key,id])=>document.getElementById(id).value=row[key]??'');
-        document.getElementById('stele-active').checked=Number(row.active)===1;document.getElementById('stele-file').value='';
+        document.getElementById('stele-active').checked=Number(row.active)===1;document.getElementById('stele-file').value='';document.getElementById('stele-preview-file').value='';
         document.getElementById('section-stele-catalog').classList.add('open');
         document.getElementById('stele-form-title').scrollIntoView({behavior:'smooth',block:'center'});
     }
@@ -1652,15 +1653,21 @@
     document.getElementById('stele-save').addEventListener('click',async()=>{
         const button=document.getElementById('stele-save');button.disabled=true;
         try{
-            const editId=document.getElementById('stele-edit-id').value,file=document.getElementById('stele-file').files[0];
-            let modelFile=editId?adminSteleRows.find(x=>String(x.id)===editId)?.model_file:'';
+            const editId=document.getElementById('stele-edit-id').value,file=document.getElementById('stele-file').files[0],previewFile=document.getElementById('stele-preview-file').files[0];
+            const existingRow=editId?adminSteleRows.find(x=>String(x.id)===editId):null;
+            let modelFile=existingRow?.model_file||'',modelPreview=existingRow?.preview_file||null;
             if(file){
                 if(!/\.glb$/i.test(file.name)||file.size>50*1024*1024)throw new Error('Выбери GLB до 50 МБ');
                 const upload=await fetch('/api/admin/steles/upload',{method:'POST',credentials:'include',
                     headers:{'Content-Type':'application/octet-stream','X-File-Name':encodeURIComponent(file.name)},body:file});
                 const ud=await upload.json();if(!upload.ok||!ud.success)throw new Error(ud.message||'Ошибка загрузки GLB');modelFile=ud.filename;
             }
-            const payload={model_file:modelFile,active:document.getElementById('stele-active').checked};
+            if(previewFile){
+                if(!['image/png','image/jpeg','image/webp'].includes(previewFile.type)||previewFile.size>10*1024*1024)throw new Error('Выбери PNG, JPG или WebP до 10 МБ');
+                const upload=await fetch('/api/admin/steles/preview-upload',{method:'POST',credentials:'include',headers:{'Content-Type':'application/octet-stream','X-File-Name':encodeURIComponent(previewFile.name)},body:previewFile});
+                const ud=await upload.json();if(!upload.ok||!ud.success)throw new Error(ud.message||'Ошибка загрузки превью');modelPreview=ud.filename;
+            }
+            const payload={model_file:modelFile,preview_file:modelPreview,active:document.getElementById('stele-active').checked};
             Object.entries(steleFields).forEach(([key,id])=>{const value=document.getElementById(id).value;
                 payload[key]=['name','category','model_type','rotation','polish_mode'].includes(key)?value:(value===''?null:Number(value));});
             if(!payload.name.trim())throw new Error('Укажи название модели');if(!modelFile)throw new Error('Выбери GLB-файл');

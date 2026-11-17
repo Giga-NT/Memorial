@@ -40,7 +40,7 @@ export async function loadModelList() {
                     id:item.model_id,file:item.model_file,name:item.name,
                     defaultWidth:Number(item.width)||0.6,defaultHeight:Number(item.height)||1.3,
                     defaultDepth:Number(item.depth)||0.08,modelType:item.model_type||'vertical',
-                    rotation:item.rotation||'',category:item.category||'uncategorized',
+                    rotation:item.rotation||'',category:item.category||'uncategorized',previewUrl:item.preview_file?'/models/previews/'+item.preview_file:null,
                     machine_hours:Number(item.machine_hours)||0,machine_rate:item.machine_rate==null?null:Number(item.machine_rate),
                     master_hours:Number(item.master_hours)||0,master_rate:item.master_rate==null?null:Number(item.master_rate),
                     other_cost:Number(item.other_cost)||0,polish_mode:item.polish_mode||'none',
