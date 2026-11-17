@@ -339,6 +339,10 @@ export async function createCustomSteleMesh(
             window.state
         ) {
             setTimeout(() => {
+                // Модель могла быть заменена, пока загружалась GLB.
+                // Не создаём декали для группы, уже удалённой из сцены.
+                if (!group.parent) return;
+
                 window.positionDecalsOnCustomStele(
                     group,
                     externalDecalsGroup,
