@@ -5728,11 +5728,13 @@ function buildPriceBreakdown() {
                 `${coverageArea.toFixed(2)} м² × ${tileWorkPrice} ₽/м²`,
                 coverageArea * tileWorkPrice
             );
-            addMissingWorkRate(missingCatalogPrices,
-                tileWorkPriceKey,
-                `Укладка ${surfaceLabel}`,
-                '₽/м²'
-            );
+            if (coverageArea > 0) {
+                addMissingWorkRate(missingCatalogPrices,
+                    tileWorkPriceKey,
+                    `Укладка ${surfaceLabel}`,
+                    '₽/м²'
+                );
+            }
         } else {
             addCatalogComponent(
                 `🪨 Покрытие площадки — ${materialLabels[material] || material}`,
@@ -5748,7 +5750,9 @@ function buildPriceBreakdown() {
                 `${coverageArea.toFixed(2)} м² × ${workPrice} ₽/м² работы`,
                 coverageArea * workPrice
             );
-            addMissingWorkRate(missingCatalogPrices,'site_fill_work_per_m2', 'Устройство отсыпки / покрытия', '₽/м²');
+            if (coverageArea > 0) {
+                addMissingWorkRate(missingCatalogPrices,'site_fill_work_per_m2', 'Устройство отсыпки / покрытия', '₽/м²');
+            }
         }
 
         // Add the underlying construction layers by actual thickness and volume.
@@ -5765,18 +5769,19 @@ function buildPriceBreakdown() {
             layerTotals.layers.reduce((sum, layer) => sum + layer.volume, 0);
         const excavationRate = getPriceValue('site_excavation_per_m3');
         const prepRate = getPriceValue('site_base_preparation_per_m2');
-        if (prepRate > 0) {
+        const preparationArea = layerTotals.layers[0]?.area || coverageArea;
+        if (prepRate > 0 && preparationArea > 0) {
             addRow('🔧 Подготовка и планировка основания',
-                `${coverageArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
-                coverageArea * prepRate);
-        } else {
+                `${preparationArea.toFixed(2)} м² × ${prepRate} ₽/м²`,
+                preparationArea * prepRate);
+        } else if (preparationArea > 0) {
             addMissingWorkRate(missingCatalogPrices,'site_base_preparation_per_m2', 'Подготовка и планировка основания', '₽/м²');
         }
-        if (excavationRate > 0) {
+        if (excavationRate > 0 && excavationVolume > 0) {
             addRow('🚜 Выемка грунта под конструкцию',
                 `${excavationVolume.toFixed(3)} м³ × ${excavationRate} ₽/м³ (объём учитывает расширение нижних слоёв; максимальная глубина ${(excavationDepth * 100).toFixed(1)} см)`,
                 excavationVolume * excavationRate);
-        } else {
+        } else if (excavationVolume > 0) {
             addMissingWorkRate(missingCatalogPrices,'site_excavation_per_m3', 'Выемка грунта под конструкцию', '₽/м³');
         }
 
