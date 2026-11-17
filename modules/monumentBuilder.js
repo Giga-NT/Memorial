@@ -1820,6 +1820,11 @@ export async function updateMainMonument(
                 ? Number(state.gateWidth)
                 : 0.8,
 
+        fenceGateOffset:
+            state.fenceGateOffset !== undefined
+                ? Number(state.fenceGateOffset)
+                : 0,
+
         fenceOffsetX:
             state.fenceOffsetX !== undefined
                 ? Number(state.fenceOffsetX)
