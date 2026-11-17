@@ -77,7 +77,7 @@ export class ProjectIO {
             'width', 'height', 'depth',
             'graveWidth', 'graveLength', 'baseHeight',
             'flowerWidth', 'flowerLength',
-            'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
+            'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth', 'fenceGateOffset',
             'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
             'pathWidth', 'pathTileSize',
@@ -777,6 +777,17 @@ export class ProjectIO {
                 this.state.epitaphOffsetY ??
                 0,
 
+            fenceEnabled: this.state.fenceEnabled !== false,
+            fenceWidth: this.state.fenceWidth ?? 1.5,
+            fenceLength: this.state.fenceLength ?? 2.5,
+            fenceType: this.state.fenceType || 'pipe',
+            fenceHeight: this.state.fenceHeight ?? 0.6,
+            fenceMaterial: this.state.fenceMaterial || 'steel',
+            fenceGateSide: this.state.fenceGateSide || 'back',
+            gateWidth: this.state.gateWidth ?? 0.8,
+            fenceGateOffset: this.state.fenceGateOffset ?? 0,
+            fenceOffsetX: this.state.fenceOffsetX ?? 0,
+            fenceOffsetZ: this.state.fenceOffsetZ ?? 0,
 
             // ----------------------------------------------------
             // ФОТО
@@ -892,6 +903,7 @@ export class ProjectIO {
             'fenceLength',
             'fenceHeight',
             'gateWidth',
+            'fenceGateOffset',
 
             'fenceOffsetX',
             'fenceOffsetZ',
@@ -1820,6 +1832,11 @@ export class ProjectIO {
                                 parseFloat(
                                     ui.gateWidth
                                 ) || 0.8,
+
+                            fenceGateOffset:
+                                parseFloat(
+                                    ui.fenceGateOffset
+                                ) || 0,
 
 							flowerEnabled:
 								ui.flowerEnabled ??

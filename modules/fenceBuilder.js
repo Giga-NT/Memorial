@@ -324,19 +324,24 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const remainingLength = totalLength - gateWidth;
     const halfRemaining = remainingLength / 2;
     const direction = pEnd.clone().sub(pStart).normalize();
-    const gateStartPoint = pStart.clone().add(direction.clone().multiplyScalar(halfRemaining));
+    const maxGateOffset = Math.max(0, halfRemaining);
+    const gateOffset = Math.max(-maxGateOffset, Math.min(maxGateOffset, Number(state.fenceGateOffset) || 0));
+    const gateStartDistance = halfRemaining + gateOffset;
+    const leftSideLength = gateStartDistance;
+    const rightSideLength = totalLength - gateStartDistance - gateWidth;
+    const gateStartPoint = pStart.clone().add(direction.clone().multiplyScalar(gateStartDistance));
     const gateEndPoint = gateStartPoint.clone().add(direction.clone().multiplyScalar(gateWidth));
-    
-    if (halfRemaining > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup);
-    else if (halfRemaining > 0.05) {
+
+    if (leftSideLength > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup);
+    else if (leftSideLength > 0.05) {
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
         post.position.copy(gateStartPoint);
         post.position.y = state.fenceHeight / 2;
         post.castShadow = true;
         fenceGroup.add(post);
     }
-    if (halfRemaining > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup);
-    else if (halfRemaining > 0.05) {
+    if (rightSideLength > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup);
+    else if (rightSideLength > 0.05) {
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
         post.position.copy(gateEndPoint);
         post.position.y = state.fenceHeight / 2;

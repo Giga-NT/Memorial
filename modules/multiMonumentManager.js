@@ -1223,7 +1223,16 @@ updatePhotoPosition(photoMesh, x, y) {
 				parseFloat(gateWEl.value);
 		}
 
-		const fenceOffXEl =
+		
+		const gateOffsetEl =
+			document.getElementById('fenceGateOffset');
+
+		if (gateOffsetEl) {
+			data.fenceGateOffset =
+				parseFloat(gateOffsetEl.value) || 0;
+		}
+
+const fenceOffXEl =
 			document.getElementById('fenceOffsetX');
 
 		if (fenceOffXEl) {

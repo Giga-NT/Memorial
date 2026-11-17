@@ -697,7 +697,13 @@
                         <span class="value-display" id="gateWidthVal">0.8 м</span>
                     </div>
                     
-                    <div class="subsection-title" style="margin-top:15px;">📍 Смещение</div>
+                    <div class="subsection-title" style="margin-top:15px;">📍 Положение калитки по выбранной стороне</div>
+                    <div class="control-group-with-input">
+                        <label for="fenceGateOffset">Сдвиг вдоль стороны: <span id="fenceGateOffsetDisplay" class="value">0.00 м</span></label>
+                        <input type="range" id="fenceGateOffset" min="-0.35" max="0.35" step="0.05" value="0">
+                    </div>
+
+                    <div class="subsection-title" style="margin-top:15px;">📍 Смещение оградки</div>
                     <div class="fence-offset-buttons">
                         <button id="moveFenceModeBtn" class="btn-move-fence">✋ Перемещать</button>
                         <button id="resetFencePositionBtn" class="btn-reset-fence">⟲ В центр</button>

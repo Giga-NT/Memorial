@@ -857,7 +857,7 @@ const state = {
     fontFamily: "Arial, sans-serif", nameFontSize: 24, datesFontSize: 24, epitaphFontSize: 24,
     photoShape: 'oval', photoWidthMm: 100, photoHeightMm: 140,
     fenceHeight: 0.6, fenceType: 'pipe',
-    fenceMaterial: 'steel', fenceOffset: 0.50, fenceGateSide: 'back', gateWidth: 0.8,
+    fenceMaterial: 'steel', fenceOffset: 0.50, fenceGateSide: 'back', gateWidth: 0.8, fenceGateOffset: 0,
     modelScale: 1.0, modelPosY: 0.31, modelMaterial: 'original', modelFontFamily: "Arial, sans-serif",
     modelFrontText: "Светлая память!\nПока получается неплохо", modelFrontFontSize: 36, frontDecalSize: 0.85,
     modelBackName: "Иванов И.И.", modelBackDates: "1950 - 2026", modelBackFontSize: 48, backDecalSize: 0.65,
@@ -4479,16 +4479,64 @@ document.addEventListener('steleModelSelected', (e) => {
 // ============================================================
 const fenceGateSideSelect = document.getElementById('fenceGateSide');
 if (fenceGateSideSelect) fenceGateSideSelect.addEventListener('change', (e) => { 
-    state.fenceGateSide = e.target.value; 
+    state.fenceGateSide = e.target.value;
+    syncGateOffsetSlider();
     throttledUpdate(); 
 });
 
+function getGateOffsetLimit() {
+    const side = state.fenceGateSide;
+    const sideLength = (side === 'front' || side === 'back')
+        ? (parseFloat(document.getElementById('fenceWidth')?.value) || state.fenceWidth || 1.5)
+        : (parseFloat(document.getElementById('fenceLength')?.value) || state.fenceLength || 2.5);
+    const width = parseFloat(document.getElementById('gateWidth')?.value) || state.gateWidth || 0.8;
+    return Math.max(0, (sideLength - width) / 2);
+}
+
+function syncGateOffsetSlider() {
+    const slider = document.getElementById('fenceGateOffset');
+    const display = document.getElementById('fenceGateOffsetDisplay');
+    if (!slider) return;
+
+    const limit = getGateOffsetLimit();
+    const current = Number(state.fenceGateOffset) || 0;
+    const clamped = Math.max(-limit, Math.min(limit, current));
+    state.fenceGateOffset = clamped;
+    slider.min = String(-limit);
+    slider.max = String(limit);
+    slider.value = String(clamped);
+    slider.disabled = state.fenceGateSide === 'none' || limit <= 0;
+    if (display) display.textContent = clamped.toFixed(2) + ' м';
+}
+
+const gatePositionRange = document.getElementById('fenceGateOffset');
+if (gatePositionRange) {
+    gatePositionRange.addEventListener('input', (e) => {
+        const limit = getGateOffsetLimit();
+        state.fenceGateOffset = Math.max(-limit, Math.min(limit, parseFloat(e.target.value) || 0));
+        e.target.value = String(state.fenceGateOffset);
+        const display = document.getElementById('fenceGateOffsetDisplay');
+        if (display) display.textContent = state.fenceGateOffset.toFixed(2) + ' м';
+        throttledUpdate();
+    });
+}
+
 const gateWidthRange = document.getElementById('gateWidth');
-if (gateWidthRange) gateWidthRange.addEventListener('input', (e) => { 
-    state.gateWidth = parseFloat(e.target.value); 
-    document.getElementById('gateWidthVal').textContent = state.gateWidth.toFixed(1) + ' м'; 
-    throttledUpdate(); 
+if (gateWidthRange) gateWidthRange.addEventListener('input', (e) => {
+    state.gateWidth = parseFloat(e.target.value);
+    document.getElementById('gateWidthVal').textContent = state.gateWidth.toFixed(1) + ' м';
+    syncGateOffsetSlider();
+    throttledUpdate();
 });
+
+document.getElementById('fenceWidth')?.addEventListener('input', syncGateOffsetSlider);
+document.getElementById('fenceLength')?.addEventListener('input', syncGateOffsetSlider);
+document.getElementById('fenceWidthInput')?.addEventListener('input', syncGateOffsetSlider);
+document.getElementById('fenceLengthInput')?.addEventListener('input', syncGateOffsetSlider);
+
+
+syncGateOffsetSlider();
+setTimeout(syncGateOffsetSlider, 1000);
 
 const fenceOffsetRange = document.getElementById('fenceOffset');
 if (fenceOffsetRange) fenceOffsetRange.addEventListener('input', (e) => { 
