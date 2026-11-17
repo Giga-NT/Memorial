@@ -29,7 +29,7 @@ export class CustomSteleEpitaphDrag extends EpitaphBlockDrag {
         return Boolean(
             checkbox?.checked &&
             typeof model === 'string' &&
-            model.startsWith('custom_stl')
+            (model.startsWith('custom_stl') || model.startsWith('catalog_stele_'))
         );
     }
 
