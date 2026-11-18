@@ -38,7 +38,7 @@ export class VasesManager {
         this.highlightColor = 0x00ff88;
         this.originalColors = new Map();
         
-        this.loadVasesConfig();
+        this.configPromise = this.loadVasesConfig();
         this.bindEvents();
     }
     
@@ -349,6 +349,7 @@ getSurfaceHeight(x, z) {
 
 async addVase(vaseId, x, z, scale = 1.0, materialOverride = null, restoreTransform = null) {
     try {
+        await this.configPromise;
         const config = this.vasesConfig[vaseId];
 
         if (!config) {
