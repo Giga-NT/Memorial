@@ -4317,9 +4317,8 @@ function initVasesManager() {
     return vasesManager;
 }
 
-setTimeout(() => {
-    initVasesManager();
-}, isMobile ? 3000 : 1500);
+// Менеджер ваз создаётся при первом обращении к вазам, а не при запуске.
+window.initVasesManager = initVasesManager;
 
 // Обработчики кнопок
 document.getElementById('addVaseBtn')?.addEventListener('click', async function() {
