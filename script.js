@@ -36,7 +36,6 @@ import { MobileImprovements } from './modules/mobile-improvements.min.js';
 import { initDragManagers } from './modules/drag/index.js';
 import { VasesManager } from './modules/VasesManager.js';
 import { ProjectIO } from './modules/ProjectIO.js';
-import { downloadProjectAsGLB, formatFileSize } from './modules/GLBExporter.js';
 import { MultiMonumentManager } from './modules/multiMonumentManager.js';
 import { MonumentController } from './modules/Monument/MonumentController.js';
 import { renderSteleGrid, getPreviewUrl, selectSteleModelGrid } from './modules/previews/stelePreview.js';
@@ -6472,6 +6471,9 @@ setTimeout(() => {
 		button.textContent = 'Собираем GLB...';
 
 		try {
+			const { downloadProjectAsGLB, formatFileSize } =
+				await import('./modules/GLBExporter.js');
+
 			projectIO.syncStateFromUI();
 
 			const result = await downloadProjectAsGLB({
