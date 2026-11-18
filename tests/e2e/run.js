@@ -254,6 +254,22 @@ async function main() {
             pressed: el.getAttribute('aria-pressed'),
             text: el.textContent.trim()
         }));
+        const hitTest = await page.$eval('#lightingModeBtn', el => {
+            const rect = el.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const hit = document.elementFromPoint(x, y);
+            return {
+                rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                hitTag: hit?.tagName || null,
+                hitId: hit?.id || null,
+                hitClass: typeof hit?.className === 'string' ? hit.className : '',
+                hitIsButton: Boolean(hit && (hit === el || el.contains(hit))),
+                pointerEvents: getComputedStyle(el).pointerEvents,
+                visibility: getComputedStyle(el).visibility,
+                display: getComputedStyle(el).display
+            };
+        });
         await page.click('#lightingModeBtn');
         await page.waitForFunction(() => {
             const button = document.querySelector('#lightingModeBtn');
@@ -266,8 +282,11 @@ async function main() {
                 title: el.title,
                 disabled: el.disabled
             }));
+            const storedMode = await page.evaluate(() => localStorage.getItem('memorialLightingMode'));
             throw new Error('Освещение не переключилось. До: ' + JSON.stringify(before)
-                + '; после: ' + JSON.stringify(after));
+                + '; после: ' + JSON.stringify(after)
+                + '; hitTest: ' + JSON.stringify(hitTest)
+                + '; localStorage: ' + JSON.stringify(storedMode));
         });
 
         await page.click('#refreshPriceBtn');
