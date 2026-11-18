@@ -14,6 +14,38 @@ let browser;
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+function pngChunk(type, data) {
+    const name = Buffer.from(type, 'ascii');
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crcInput = Buffer.concat([name, data]);
+    let crc = 0xffffffff;
+    for (const byte of crcInput) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit++) {
+            crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+        }
+    }
+    const crcBuffer = Buffer.alloc(4);
+    crcBuffer.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
+    return Buffer.concat([length, name, data, crcBuffer]);
+}
+
+function createTestPng() {
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 6;
+    const idat = require('zlib').deflateSync(Buffer.from([0, 220, 30, 30, 255]));
+    return Buffer.concat([
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+        pngChunk('IHDR', ihdr),
+        pngChunk('IDAT', idat),
+        pngChunk('IEND', Buffer.alloc(0))
+    ]);
+}
+
 function record(name, status, details = '') {
     results.push({ name, status, details });
     const icon = status === 'passed' ? 'PASS' : status === 'failed' ? 'FAIL' : 'SKIP';
@@ -36,7 +68,8 @@ async function test(name, fn) {
     } catch (error) {
         const file = path.join(OUT_DIR, name.replace(/[^a-z0-9а-я_-]+/gi, '_') + '.png');
         try { await page.screenshot({ path: file, fullPage: true }); } catch (_) {}
-        record(name, 'failed', error.message + ` (screenshot: ${file})`);
+        const runtimeErrors = errors.length ? '\\nОшибки страницы: ' + errors.join(' | ') : '';
+        record(name, 'failed', error.message + runtimeErrors + ` (screenshot: ${file})`);
     } finally {
         await page.close();
     }
@@ -141,24 +174,36 @@ async function main() {
         const input = await page.$('#textureUpload');
         if (!input) throw new Error('Не найден input #textureUpload');
 
-        // Приложение принимает JPEG/PNG/WebP; SVG fixture не поддерживается.
         const pngFixture = path.join(OUT_DIR, 'e2e-test-photo.png');
-        const onePixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=';
-        fs.writeFileSync(pngFixture, Buffer.from(onePixelPng, 'base64'));
-
+        fs.writeFileSync(pngFixture, createTestPng());
+        const fileBefore = await page.$eval('#textureUpload', el => ({
+            accept: el.accept,
+            disabled: el.disabled
+        }));
         await input.uploadFile(pngFixture);
+
         await page.waitForFunction(() => {
             const state = window.state;
-            return Boolean(state && state.textureUrl && state.textureUrl.startsWith('data:image/png'));
-        }, { timeout: 10000 });
-
-        const result = await page.$eval('#textureUpload', el => ({
-            name: el.files && el.files[0] && el.files[0].name,
-            type: el.files && el.files[0] && el.files[0].type
-        }));
-        if (result.name !== 'e2e-test-photo.png' || result.type !== 'image/png') {
-            throw new Error('Файл не прошёл загрузку: ' + JSON.stringify(result));
-        }
+            return Boolean(state && typeof state.textureUrl === 'string'
+                && state.textureUrl.startsWith('data:image/png'));
+        }, { timeout: 10000 }).catch(async () => {
+            const diagnostic = await page.$eval('#textureUpload', el => ({
+                fileCount: el.files ? el.files.length : null,
+                fileName: el.files && el.files[0] ? el.files[0].name : null,
+                fileType: el.files && el.files[0] ? el.files[0].type : null,
+                fileSize: el.files && el.files[0] ? el.files[0].size : null,
+                value: el.value
+            }));
+            const state = await page.evaluate(() => ({
+                stateExists: Boolean(window.state),
+                textureUrlType: typeof window.state?.textureUrl,
+                textureUrlPrefix: window.state?.textureUrl?.slice?.(0, 40),
+                toast: document.querySelector('[role="alert"]')?.textContent || ''
+            }));
+            throw new Error('Фото не попало в состояние приложения. input='
+                + JSON.stringify({ ...fileBefore, ...diagnostic })
+                + '; state=' + JSON.stringify(state));
+        });
     });
 
     await test('Добавление предметов мебели и ваз', async page => {
@@ -202,28 +247,28 @@ async function main() {
     await test('Кнопки освещения и расчёта стоимости', async page => {
         await page.evaluate(() => localStorage.setItem('memorialLightingMode', 'bright'));
         await page.reload({ waitUntil: 'networkidle2' });
-        await page.waitForSelector('#lightingModeBtn', { visible: true });
+        await page.waitForFunction(() => Boolean(window.state && window.calculatePrice
+            && document.querySelector('#lightingModeBtn')), { timeout: 30000 });
 
         const before = await page.$eval('#lightingModeBtn', el => ({
             pressed: el.getAttribute('aria-pressed'),
             text: el.textContent.trim()
         }));
         await page.click('#lightingModeBtn');
-        try {
-            await page.waitForFunction(() => {
-                const button = document.querySelector('#lightingModeBtn');
-                return button && button.getAttribute('aria-pressed') === 'true'
-                    && button.textContent.includes('Пасмурно');
-            }, { timeout: 5000 });
-        } catch (_) {
+        await page.waitForFunction(() => {
+            const button = document.querySelector('#lightingModeBtn');
+            return button && button.getAttribute('aria-pressed') === 'true'
+                && button.textContent.includes('Пасмурно');
+        }, { timeout: 5000 }).catch(async () => {
             const after = await page.$eval('#lightingModeBtn', el => ({
                 pressed: el.getAttribute('aria-pressed'),
                 text: el.textContent.trim(),
-                title: el.title
+                title: el.title,
+                disabled: el.disabled
             }));
             throw new Error('Освещение не переключилось. До: ' + JSON.stringify(before)
                 + '; после: ' + JSON.stringify(after));
-        }
+        });
 
         await page.click('#refreshPriceBtn');
         await sleep(300);
