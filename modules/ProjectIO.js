@@ -220,17 +220,10 @@ export class ProjectIO {
                 furnitureData.push({
                     type: item.type || 'table',
 
-                    x: typeof item.x === 'number'
-                        ? item.x
-                        : 0,
-
-                    z: typeof item.z === 'number'
-                        ? item.z
-                        : 0,
-
-                    rotation: typeof item.rotation === 'number'
-                        ? item.rotation
-                        : 0,
+                    // Сохраняем реальные координаты и поворот 3D-группы.
+                    x: item.group ? item.group.position.x : item.x,
+                    z: item.group ? item.group.position.z : item.z,
+                    rotation: item.group ? item.group.rotation.y : item.rotation,
 
                     scale: typeof item.scale === 'number'
                         ? item.scale
@@ -262,17 +255,12 @@ export class ProjectIO {
                 vasesData.push({
                     type: v.vaseType || v.type || 'vase1',
 
-                    x: typeof v.x === 'number'
-                        ? v.x
-                        : 0,
-
-                    z: typeof v.z === 'number'
-                        ? v.z
-                        : 0,
-
-                    rotation: typeof v.rotation === 'number'
-                        ? v.rotation
-                        : 0,
+                    // Источник истины — фактический 3D-трансформ группы,
+                    // а не потенциально устаревшие поля менеджера.
+                    x: v.group ? v.group.position.x : v.x,
+                    y: v.group ? v.group.position.y : 0,
+                    z: v.group ? v.group.position.z : v.z,
+                    rotation: v.group ? v.group.rotation.y : v.rotation,
 
                     scale: typeof v.scale === 'number'
                         ? v.scale
@@ -2264,12 +2252,9 @@ export class ProjectIO {
                                     Number(item.x) || 0,
                                     Number(item.z) || 0,
                                     Number(item.scale) > 0 ? Number(item.scale) : 1,
-                                    item.material || 'marble'
+                                    item.material || 'marble',
+                                    item
                                 );
-                                if (vase && vase.group) {
-                                    vase.group.rotation.y = Number(item.rotation) || 0;
-                                    vase.rotation = vase.group.rotation.y;
-                                }
                             }
                             console.log(`✅ Восстановлено ваз: ${vasesManager.vases.length}`);
                         } catch (vasesError) {
