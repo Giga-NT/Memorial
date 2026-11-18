@@ -2104,111 +2104,136 @@ function createBackTexture() {
 // ⭐ ЗАГРУЗКА МОДЕЛЕЙ
 // ============================================================
 const gltfLoader = new GLTFLoader();
-document.getElementById('loading-msg').style.display = 'block';
+document.getElementById('loading-msg').style.display = 'none';
 
+const fenceAssetLoadPromises = new Map();
+
+function loadFenceAsset(key, url, getModel, setModel, successMessage, afterLoad) {
+    const existingModel = getModel();
+    if (existingModel) return Promise.resolve(existingModel);
+
+    const pendingLoad = fenceAssetLoadPromises.get(key);
+    if (pendingLoad) return pendingLoad;
+
+    const loadPromise = new Promise((resolve, reject) => {
+        gltfLoader.load(url, (gltf) => {
+            const model = gltf.scene;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = !isMobile;
+                    child.receiveShadow = !isMobile;
+                }
+            });
+
+            setModel(model);
+            if (typeof afterLoad === 'function') afterLoad(model);
+            console.log(successMessage);
+            resolve(model);
+        }, undefined, (error) => {
+            fenceAssetLoadPromises.delete(key);
+            console.error(`Ошибка загрузки ${url}:`, error);
+            reject(error);
+        });
+    });
+
+    fenceAssetLoadPromises.set(key, loadPromise);
+    return loadPromise;
+}
+
+function loadFenceGateModel() {
+    return loadFenceAsset(
+        'fence-gate',
+        './models/gates/fence_gate.glb',
+        () => window.fenceGateModel,
+        model => { window.fenceGateModel = model; },
+        '✅ Калитка для Вензеля и Литья загружена'
+    );
+}
+
+function loadLittleGateModel() {
+    return loadFenceAsset(
+        'little-gate',
+        './models/gates/litle.glb',
+        () => window.litleGateModel,
+        model => { window.litleGateModel = model; },
+        '✅ Калитка для 3D-ограды загружена'
+    );
+}
+
+// Оставляем общий загрузчик для совместимости с возможными внешними вызовами.
 function loadGateModels() {
-    gltfLoader.load('./models/gates/fence_gate.glb', (gltf) => {
-        window.fenceGateModel = gltf.scene;
-        window.fenceGateModel.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = !isMobile;
-                child.receiveShadow = !isMobile;
-            }
-        });
-        console.log('✅ Калитка для Вензеля и Литья загружена');
-        throttledUpdate();
-    }, undefined, (error) => {
-        console.error('Ошибка загрузки models/gates/fence_gate.glb:', error);
-    });
-
-    gltfLoader.load('./models/gates/litle.glb', (gltf) => {
-        window.litleGateModel = gltf.scene;
-        window.litleGateModel.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = !isMobile;
-                child.receiveShadow = !isMobile;
-            }
-        });
-        console.log('✅ Калитка для 3D-ограды загружена');
-        throttledUpdate();
-    }, undefined, (error) => {
-        console.error('Ошибка загрузки models/gates/litle.glb:', error);
-    });
+    return Promise.all([loadFenceGateModel(), loadLittleGateModel()]);
 }
 
 function loadFence3DModel() {
-    // ⭐ УДАЛЕНА СТРОКА С ПРОВЕРКОЙ
-    // if (window.multiMonumentManager) { return; }
-    
-    gltfLoader.load('./models/fence/11.glb', (gltf) => {
-        fence3DModel = gltf.scene;
-        
-        // ⭐ ИСПРАВЛЕНИЕ: присваиваем правильную переменную
-        window.fence3DModel = fence3DModel; 
-        
-        console.log('✅ 3D модель оградки 11.glb загружена');
-        fence3DModel.traverse((child) => { 
-            if (child.isMesh) { 
-                child.castShadow = !isMobile; 
-                child.receiveShadow = !isMobile; 
-            } 
-        });
-        updateFence3DMaterials();
-        document.getElementById('loading-msg').style.display = 'none';
-        throttledUpdate();
-    }, undefined, (error) => { 
-        console.error('Ошибка загрузки 3D модели:', error); 
-        document.getElementById('loading-msg').style.display = 'none'; 
-    });
+    return loadFenceAsset(
+        'fence-3d',
+        './models/fence/11.glb',
+        () => window.fence3DModel,
+        model => {
+            fence3DModel = model;
+            window.fence3DModel = model;
+        },
+        '✅ 3D модель оградки 11.glb загружена',
+        () => updateFence3DMaterials()
+    );
 }
 
 function loadVenzelModel() {
-    gltfLoader.load('./models/fence/rozetka2.glb', (gltf) => {
-        venzelModel = gltf.scene;
-        window.venzelModel = venzelModel; // Сохраняем для fenceBuilder
-        isVenzelLoaded = true;
-        console.log('✅ Модель вензеля загружена и сохранена в window.venzelModel');
-        
-        venzelModel.traverse((child) => { 
-            if (child.isMesh) { 
-                child.castShadow = !isMobile; 
-                child.receiveShadow = !isMobile; 
-            } 
-        });
-        
-        // ⭐ ВАЖНО: МЫ БОЛЬШЕ НЕ ДОБАВЛЯЕМ ЕЁ В СЦЕНУ!
-        // venzelModel.visible = false; // Это тоже больше не нужно
-        // scene.add(venzelModel); // <-- ЭТА СТРОКА БЫЛА УДАЛЕНА
-        
-        console.log('✅ Вензель загружен, но в сцену не добавлен (ждет вызова из fenceBuilder)');
-        throttledUpdate();
-    }, undefined, (error) => { 
-        console.error('Ошибка загрузки модели вензеля:', error); 
-    });
+    return loadFenceAsset(
+        'venzel',
+        './models/fence/rozetka2.glb',
+        () => window.venzelModel,
+        model => {
+            venzelModel = model;
+            window.venzelModel = model;
+            isVenzelLoaded = true;
+        },
+        '✅ Модель вензеля загружена и сохранена в window.venzelModel'
+    );
 }
+
 function loadCastingModel() {
-    gltfLoader.load('./fence_section.glb', (gltf) => {
-        castingModel = gltf.scene;
-        
-        // Сохраняем в обе переменные, чтобы точно не промахнуться
-        window.castingModel = castingModel; 
+    return loadFenceAsset(
+        'casting',
+        './fence_section.glb',
+        () => window.castingModel,
+        model => {
+            castingModel = model;
+            window.castingModel = model;
+            isCastingLoaded = true;
+        },
+        '✅ Модель литья fence_section.glb загружена'
+    );
+}
 
+async function ensureFenceModelsForState(currentState) {
+    if (!currentState || !currentState.fenceEnabled || currentState.fenceType === 'none') {
+        return;
+    }
 
-        isCastingLoaded = true;
-        console.log('✅ Модель литья fence_section.glb загружена');
-        
-        castingModel.traverse((child) => { 
-            if (child.isMesh) { 
-                child.castShadow = !isMobile; 
-                child.receiveShadow = !isMobile; 
-            } 
-        });
+    const loads = [];
 
+    if (currentState.fenceType === 'model_3d') {
+        loads.push(loadFence3DModel());
+    } else if (currentState.fenceType === 'casting') {
+        loads.push(loadCastingModel());
+    } else if (currentState.fenceType === 'venzel') {
+        loads.push(loadVenzelModel());
+    }
 
-        throttledUpdate();
-    }, undefined, (error) => { 
-        console.error('Ошибка загрузки fence_section.glb:', error); 
-    });
+    if (currentState.fenceGateEnabled !== false && currentState.fenceGateSide && currentState.fenceGateSide !== 'none') {
+        if (currentState.fenceType === 'venzel' || currentState.fenceType === 'casting') {
+            loads.push(loadFenceGateModel());
+        } else if (currentState.fenceType === 'model_3d') {
+            loads.push(loadLittleGateModel());
+        }
+    }
+
+    await Promise.all(loads.map(load => load.catch(error => {
+        console.error('Не удалось подготовить модель выбранной ограды:', error);
+        return null;
+    })));
 }
 
 function updateFence3DMaterials() {
@@ -3981,6 +4006,15 @@ async function updateSceneReal() {
             requestVersion
         );
 
+        // Готовим только те GLB ограды, которые нужны текущей конфигурации.
+        // Это также покрывает восстановление fenceType из JSON до пересборки сцены.
+        await ensureFenceModelsForState(state);
+
+        if (requestVersion !== mainSceneUpdateVersion) {
+            console.log('⏭️ Обновление сцены устарело во время загрузки моделей ограды');
+            return;
+        }
+
         await updateMainMonument(
             state,
             monumentGroup,
@@ -4057,22 +4091,7 @@ window.throttledUpdate = throttledUpdate;
 console.log('✅ updateScene и throttledUpdate переопределены');
 
 
-// ============================================================
-// ⭐ ЗАГРУЗКА МОДЕЛЕЙ
-// ============================================================
-if (isMobile) {
-    setTimeout(() => {
-        loadGateModels();  // Готовые створки для калиток
-        loadCastingModel(); // ⭐ Сначала грузим литьё (оно не перезаписывает fence3DModel)
-        loadVenzelModel();  // Вензель
-        loadFence3DModel(); // ⭐ 3D модель грузим ПОСЛЕДНЕЙ! Она останется в window.fence3DModel.
-    }, 3000);
-} else {
-    loadGateModels();  // Готовые створки для калиток
-    loadCastingModel(); // ⭐ Сначала литьё
-    loadVenzelModel();  // Вензель
-    loadFence3DModel(); // ⭐ 3D модель ПОСЛЕДНЕЙ!
-}
+// Специализированные модели ограды загружаются по требованию при выборе типа.
 
 
 
