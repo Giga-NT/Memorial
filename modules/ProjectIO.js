@@ -2239,6 +2239,9 @@ export class ProjectIO {
                         console.warn('Менеджер мебели не найден — мебель из JSON не восстановлена');
                     }
 
+                    if (vaseItems.length && typeof window.initVasesManager === 'function') {
+                        window.initVasesManager();
+                    }
                     const vasesManager = window.vasesManager;
                     if (vasesManager) {
                         try {
