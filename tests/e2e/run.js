@@ -12,6 +12,8 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'test-photo.svg');
 const results = [];
 let browser;
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 function record(name, status, details = '') {
     results.push({ name, status, details });
     const icon = status === 'passed' ? 'PASS' : status === 'failed' ? 'FAIL' : 'SKIP';
@@ -27,7 +29,7 @@ async function test(name, fn) {
     });
     try {
         await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-        await page.waitForSelector('canvas', { timeout: 30000 });
+        await page.waitForSelector('#canvas-container canvas', { visible: true, timeout: 30000 });
         await fn(page, errors);
         if (errors.length) throw new Error(errors.join('\n'));
         record(name, 'passed');
@@ -107,27 +109,39 @@ async function main() {
         const failed = await page.evaluate(() => {
             const failures = [];
             for (const el of document.querySelectorAll('input[type="range"]')) {
-                const old = el.value;
-                const min = Number(el.min || 0), max = Number(el.max || 100);
-                const next = String(min + (max - min) * 0.63);
-                el.value = next;
+                const oldValue = Number(el.value);
+                const min = el.min === '' ? 0 : Number(el.min);
+                const max = el.max === '' ? 100 : Number(el.max);
+                const step = el.step && el.step !== 'any' ? Number(el.step) : 1;
+                const rawTarget = min + (max - min) * 0.63;
+                const target = Math.min(max, Math.max(min,
+                    min + Math.round((rawTarget - min) / step) * step));
+                el.value = String(target);
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
-                if (el.value !== next) failures.push(el.id || '(range without id)');
-                el.value = old;
+                const applied = Number(el.value);
+                const tolerance = Math.max(1e-7, Math.abs(step) * 1e-5);
+                if (!Number.isFinite(applied) || Math.abs(applied - target) > tolerance) {
+                    failures.push(el.id || '(range without id)');
+                }
+                const pairedNumber = el.id ? document.getElementById(el.id + 'Input') : null;
+                if (pairedNumber && Math.abs(Number(pairedNumber.value) - applied) > tolerance) {
+                    failures.push((el.id || '(range)') + ' ↔ ' + pairedNumber.id);
+                }
+                el.value = String(oldValue);
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             }
             return failures;
         });
-        if (failed.length) throw new Error('Не применились значения ползунков: ' + failed.join(', '));
+        if (failed.length) throw new Error('Не применились значения ползунков или связанных числовых полей: ' + failed.join(', '));
     });
 
     await test('Загрузка фотографии', async page => {
         const input = await page.$('#textureUpload');
         if (!input) throw new Error('Не найден input #textureUpload');
         await input.uploadFile(FIXTURE);
-        await page.waitForTimeout(500);
+        await sleep(500);
         const value = await page.$eval('#textureUpload', el => el.files && el.files[0] && el.files[0].name);
         if (value !== 'test-photo.svg') throw new Error('Файл фотографии не выбран');
     });
@@ -138,7 +152,7 @@ async function main() {
         if (missing.length) throw new Error('Не найдены кнопки добавления: ' + missing.join(', '));
         for (const id of ids) {
             await page.$eval(id, el => el.click());
-            await page.waitForTimeout(250);
+            await sleep(250);
         }
     });
 
@@ -159,7 +173,7 @@ async function main() {
     });
 
     await test('Перетаскивание мышью по 3D canvas', async page => {
-        const canvas = await page.$('canvas');
+        const canvas = await page.$('#canvas-container canvas');
         const box = await canvas.boundingBox();
         if (!box || box.width < 100 || box.height < 100) throw new Error('Canvas недоступен для взаимодействия');
         const x = box.x + box.width * 0.5, y = box.y + box.height * 0.5;
@@ -167,7 +181,7 @@ async function main() {
         await page.mouse.down();
         await page.mouse.move(x + 70, y + 35, { steps: 8 });
         await page.mouse.up();
-        await page.waitForTimeout(300);
+        await sleep(300);
     });
 
     await test('Кнопки освещения и расчёта стоимости', async page => {
