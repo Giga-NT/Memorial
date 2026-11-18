@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "node tests/run.js",
     "test:verbose": "node tests/run.js --verbose",
-    "test:log": "node tests/run.js --log-dir=./test-logs"
+    "test:log": "node tests/run.js --log-dir=./test-logs",
+    "test:e2e": "node tests/e2e/run.js"
   },
   "dependencies": {
     "compression": "^1.8.1",
