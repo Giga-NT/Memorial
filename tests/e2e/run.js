@@ -140,10 +140,25 @@ async function main() {
     await test('Загрузка фотографии', async page => {
         const input = await page.$('#textureUpload');
         if (!input) throw new Error('Не найден input #textureUpload');
-        await input.uploadFile(FIXTURE);
-        await sleep(500);
-        const value = await page.$eval('#textureUpload', el => el.files && el.files[0] && el.files[0].name);
-        if (value !== 'test-photo.svg') throw new Error('Файл фотографии не выбран');
+
+        // Приложение принимает JPEG/PNG/WebP; SVG fixture не поддерживается.
+        const pngFixture = path.join(OUT_DIR, 'e2e-test-photo.png');
+        const onePixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=';
+        fs.writeFileSync(pngFixture, Buffer.from(onePixelPng, 'base64'));
+
+        await input.uploadFile(pngFixture);
+        await page.waitForFunction(() => {
+            const state = window.state;
+            return Boolean(state && state.textureUrl && state.textureUrl.startsWith('data:image/png'));
+        }, { timeout: 10000 });
+
+        const result = await page.$eval('#textureUpload', el => ({
+            name: el.files && el.files[0] && el.files[0].name,
+            type: el.files && el.files[0] && el.files[0].type
+        }));
+        if (result.name !== 'e2e-test-photo.png' || result.type !== 'image/png') {
+            throw new Error('Файл не прошёл загрузку: ' + JSON.stringify(result));
+        }
     });
 
     await test('Добавление предметов мебели и ваз', async page => {
@@ -185,12 +200,33 @@ async function main() {
     });
 
     await test('Кнопки освещения и расчёта стоимости', async page => {
-        const before = await page.$eval('#lightingModeBtn', el => el.getAttribute('aria-pressed'));
+        await page.evaluate(() => localStorage.setItem('memorialLightingMode', 'bright'));
+        await page.reload({ waitUntil: 'networkidle2' });
+        await page.waitForSelector('#lightingModeBtn', { visible: true });
+
+        const before = await page.$eval('#lightingModeBtn', el => ({
+            pressed: el.getAttribute('aria-pressed'),
+            text: el.textContent.trim()
+        }));
         await page.click('#lightingModeBtn');
-        const after = await page.$eval('#lightingModeBtn', el => el.getAttribute('aria-pressed'));
-        if (before === after) throw new Error('Переключатель освещения не изменил состояние');
+        try {
+            await page.waitForFunction(() => {
+                const button = document.querySelector('#lightingModeBtn');
+                return button && button.getAttribute('aria-pressed') === 'true'
+                    && button.textContent.includes('Пасмурно');
+            }, { timeout: 5000 });
+        } catch (_) {
+            const after = await page.$eval('#lightingModeBtn', el => ({
+                pressed: el.getAttribute('aria-pressed'),
+                text: el.textContent.trim(),
+                title: el.title
+            }));
+            throw new Error('Освещение не переключилось. До: ' + JSON.stringify(before)
+                + '; после: ' + JSON.stringify(after));
+        }
+
         await page.click('#refreshPriceBtn');
-        await page.waitForTimeout(300);
+        await sleep(300);
         const price = await page.$eval('#totalPriceDisplay', el => el.textContent.trim());
         if (!price) throw new Error('Не отображается стоимость');
     });
