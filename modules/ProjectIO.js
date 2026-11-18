@@ -225,9 +225,7 @@ export class ProjectIO {
                     z: item.group ? item.group.position.z : item.z,
                     rotation: item.group ? item.group.rotation.y : item.rotation,
 
-                    scale: typeof item.scale === 'number'
-                        ? item.scale
-                        : 1
+                    scale: item.group ? item.group.scale.x : (typeof item.scale === 'number' ? item.scale : 1)
                 });
 
             });
