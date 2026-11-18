@@ -347,7 +347,7 @@ getSurfaceHeight(x, z) {
     // ⭐ ДОБАВЛЕНИЕ ВАЗЫ
     // ============================================================
 
-async addVase(vaseId, x, z, scale = 1.0, materialOverride = null) {
+async addVase(vaseId, x, z, scale = 1.0, materialOverride = null, restoreTransform = null) {
     try {
         const config = this.vasesConfig[vaseId];
 
@@ -418,37 +418,37 @@ async addVase(vaseId, x, z, scale = 1.0, materialOverride = null) {
             finalScale
         );
 
-        // Ограничиваем координаты
-        const clampedX =
-            Math.max(-0.5, Math.min(0.5, x));
+        // При восстановлении проекта сохраняем исходные координаты без
+        // ограничений и повторного случайного поворота.
+        // Ограничение применяется только к новым вазам, добавляемым вручную.
+        const isRestoring = restoreTransform && typeof restoreTransform === 'object';
 
-        const clampedZ =
-            Math.max(-0.5, Math.min(0.5, z));
+        const clampedX = isRestoring
+            ? Number(x)
+            : Math.max(-0.5, Math.min(0.5, x));
 
-        const surfaceHeight =
-            this.getSurfaceHeight(
-                clampedX,
-                clampedZ
-            );
+        const clampedZ = isRestoring
+            ? Number(z)
+            : Math.max(-0.5, Math.min(0.5, z));
 
-        const vaseY =
-            surfaceHeight - 0.01;
+        const surfaceHeight = this.getSurfaceHeight(clampedX, clampedZ);
+        const vaseY = isRestoring && Number.isFinite(Number(restoreTransform.y))
+            ? Number(restoreTransform.y)
+            : surfaceHeight - 0.01;
 
-        clone.position.set(
-            clampedX,
-            vaseY,
-            clampedZ
-        );
-
-        clone.rotation.y =
-            Math.random() * Math.PI * 2;
+        clone.position.set(clampedX, vaseY, clampedZ);
+        clone.rotation.y = isRestoring && Number.isFinite(Number(restoreTransform.rotation))
+            ? Number(restoreTransform.rotation)
+            : Math.random() * Math.PI * 2;
 
         // Данные объекта
         clone.userData.type = 'vase';
         clone.userData.vaseType = vaseId;
         clone.userData.rotation = clone.rotation.y;
         clone.userData.selected = false;
-        clone.userData.surfaceHeight = surfaceHeight;
+        clone.userData.surfaceHeight = isRestoring && Number.isFinite(Number(restoreTransform.surfaceHeight))
+            ? Number(restoreTransform.surfaceHeight)
+            : surfaceHeight;
 
         clone.userData.material = materialType;
         clone.userData.scale = userScale;
@@ -479,7 +479,7 @@ async addVase(vaseId, x, z, scale = 1.0, materialOverride = null) {
             config: config,
 
             selected: false,
-            surfaceHeight: surfaceHeight
+            surfaceHeight: clone.userData.surfaceHeight
         };
 
         this.vases.push(vaseData);
