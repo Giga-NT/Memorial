@@ -141,22 +141,26 @@ function placeSectionModel(pStart, pEnd, heightScale, is3DModel, state, fenceGro
 // ОСНОВНЫЕ ФУНКЦИИ ПОСТРОЕНИЯ
 // ============================================================
 
-function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
+function createSolidSide(pStart, pEnd, sideName, state, fenceGroup, skipStartPost = false, skipEndPost = false) {
     const totalLength = pStart.distanceTo(pEnd);
     if (totalLength < 0.3) return;
     const direction = pEnd.clone().sub(pStart).normalize();
     
-    const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
-    leftPost.position.copy(pStart);
-    leftPost.position.y = state.fenceHeight / 2;
-    leftPost.castShadow = true;
-    fenceGroup.add(leftPost);
-    
-    const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
-    rightPost.position.copy(pEnd);
-    rightPost.position.y = state.fenceHeight / 2;
-    rightPost.castShadow = true;
-    fenceGroup.add(rightPost);
+    if (!skipStartPost) {
+        const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
+        leftPost.position.copy(pStart);
+        leftPost.position.y = state.fenceHeight / 2;
+        leftPost.castShadow = true;
+        fenceGroup.add(leftPost);
+    }
+
+    if (!skipEndPost) {
+        const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08), fenceMaterials[state.fenceMaterial]);
+        rightPost.position.copy(pEnd);
+        rightPost.position.y = state.fenceHeight / 2;
+        rightPost.castShadow = true;
+        fenceGroup.add(rightPost);
+    }
     
     // ============================================================
     // ⭐ 1. ЕСЛИ ВЫБРАНА 3D МОДЕЛЬ (11.glb)
@@ -188,7 +192,9 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
                 }
             });
             
-            clone.scale.set(1.0, heightScale, 1.0);
+            // Продольная ось модели после rotateY(PI/2) — локальная Z.
+            // Небольшой нахлёст 1 см убирает просветы между соседними секциями.
+            clone.scale.set(1.0, heightScale, (actualStep + 0.01) / modelBaseWidth);
             clone.position.copy(centerPos);
             clone.position.y = (state.fenceHeight / 2);
             
@@ -251,9 +257,90 @@ function createSolidSide(pStart, pEnd, sideName, state, fenceGroup) {
     }
 }
 
+function placeGateModel(sourceModel, pStart, pEnd, state, fenceGroup) {
+    if (!sourceModel) return;
+
+    const clone = sourceModel.clone(true);
+    const bounds = new THREE.Box3().setFromObject(clone);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+
+    if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
+        console.warn('⚠️ У модели калитки некорректные размеры');
+        return;
+    }
+
+    // GLB ориентирован локально: X — ширина, Y — высота, Z — толщина.
+    const targetWidth = Math.max(0.1, pStart.distanceTo(pEnd));
+    const targetHeight = Math.max(0.1, Number(state.fenceHeight) || 0.6);
+    const scaleX = targetWidth / size.x;
+    const scaleY = targetHeight / size.y;
+
+    const gateGroup = new THREE.Group();
+    clone.scale.set(scaleX, scaleY, scaleX);
+    clone.position.set(
+        -center.x * scaleX,
+        -bounds.min.y * scaleY,
+        -center.z * scaleX
+    );
+
+    const selectedFenceMaterial = fenceMaterials[state.fenceMaterial] || fenceMaterials.steel;
+    clone.traverse((child) => {
+        if (child.isMesh) {
+            // Сохраняем исходные карты и настройки прозрачности GLB,
+            // меняя только цвет и металлические свойства под выбранную ограду.
+            const applyFenceFinish = (sourceMaterial) => {
+                if (!sourceMaterial) return sourceMaterial;
+                const material = sourceMaterial.clone();
+                if (material.color) material.color.copy(selectedFenceMaterial.color);
+                if ('metalness' in material) material.metalness = selectedFenceMaterial.metalness;
+                if ('roughness' in material) material.roughness = selectedFenceMaterial.roughness;
+                material.needsUpdate = true;
+                return material;
+            };
+            child.material = Array.isArray(child.material)
+                ? child.material.map(applyFenceFinish)
+                : applyFenceFinish(child.material);
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    const midpoint = pStart.clone().add(pEnd).multiplyScalar(0.5);
+    // Калитка слегка выдвинута наружу относительно плоскости секций.
+    const outward = new THREE.Vector3(midpoint.x, 0, midpoint.z).normalize();
+    const gateFrontOffset = Number(state.gateFrontOffset) || 0.04;
+    gateGroup.position.set(
+        midpoint.x + outward.x * gateFrontOffset,
+        0,
+        midpoint.z + outward.z * gateFrontOffset
+    );
+    const direction = pEnd.clone().sub(pStart).normalize();
+    gateGroup.quaternion.setFromUnitVectors(
+        new THREE.Vector3(1, 0, 0),
+        direction
+    );
+    // Разворачиваем створку лицевой стороной наружу: ручки не должны смотреть внутрь ограды.
+    gateGroup.rotateY(Math.PI);
+    gateGroup.add(clone);
+    gateGroup.userData.isGateLeaf = true;
+    fenceGroup.add(gateGroup);
+}
+
 function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const totalLength = pStart.distanceTo(pEnd);
     const gateWidth = parseFloat(state.gateWidth) || 0.8;
+
+    // Готовые модели калиток уже содержат собственные опорные столбы.
+    let gateModel = null;
+    if (state.fenceGateEnabled !== false) {
+        if (state.fenceType === 'venzel' || state.fenceType === 'casting') {
+            gateModel = window.fenceGateModel;
+        } else if (state.fenceType === 'model_3d') {
+            gateModel = window.litleGateModel;
+        }
+    }
+    const hasBuiltInGatePosts = !!gateModel;
     if (gateWidth >= totalLength) {
         createSolidSide(pStart, pEnd, sideName, state, fenceGroup);
         return;
@@ -261,36 +348,42 @@ function createSideWithGate(pStart, pEnd, sideName, state, fenceGroup) {
     const remainingLength = totalLength - gateWidth;
     const halfRemaining = remainingLength / 2;
     const direction = pEnd.clone().sub(pStart).normalize();
-    const gateStartPoint = pStart.clone().add(direction.clone().multiplyScalar(halfRemaining));
+    const maxGateOffset = Math.max(0, halfRemaining);
+    const gateOffset = Math.max(-maxGateOffset, Math.min(maxGateOffset, Number(state.fenceGateOffset) || 0));
+    const gateStartDistance = halfRemaining + gateOffset;
+    const leftSideLength = gateStartDistance;
+    const rightSideLength = totalLength - gateStartDistance - gateWidth;
+    const gateStartPoint = pStart.clone().add(direction.clone().multiplyScalar(gateStartDistance));
     const gateEndPoint = gateStartPoint.clone().add(direction.clone().multiplyScalar(gateWidth));
-    
-    if (halfRemaining > 0.2) createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup);
-    else if (halfRemaining > 0.05) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
-        post.position.copy(gateStartPoint);
-        post.position.y = state.fenceHeight / 2;
-        post.castShadow = true;
-        fenceGroup.add(post);
+
+    // На концах секций возле проёма не ставим дополнительные стойки:
+    // там будут встроенные столбы модели либо две отдельные стойки проёма.
+    if (leftSideLength > 0.2) {
+        createSolidSide(pStart, gateStartPoint, sideName + '_left', state, fenceGroup, false, true);
     }
-    if (halfRemaining > 0.2) createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup);
-    else if (halfRemaining > 0.05) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, state.fenceHeight, 0.06), fenceMaterials[state.fenceMaterial]);
-        post.position.copy(gateEndPoint);
-        post.position.y = state.fenceHeight / 2;
-        post.castShadow = true;
-        fenceGroup.add(post);
+    if (rightSideLength > 0.2) {
+        createSolidSide(gateEndPoint, pEnd, sideName + '_right', state, fenceGroup, true, false);
     }
-    const gatePostGeo = new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08);
-    const gp1 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
-    gp1.position.copy(gateStartPoint);
-    gp1.position.y = state.fenceHeight / 2;
-    gp1.castShadow = true;
-    fenceGroup.add(gp1);
-    const gp2 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
-    gp2.position.copy(gateEndPoint);
-    gp2.position.y = state.fenceHeight / 2;
-    gp2.castShadow = true;
-    fenceGroup.add(gp2);
+    // Для моделей с собственными столбами не добавляем дублирующие опоры.
+    if (!hasBuiltInGatePosts) {
+        const gatePostGeo = new THREE.BoxGeometry(0.08, state.fenceHeight, 0.08);
+        const gp1 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
+        gp1.position.copy(gateStartPoint);
+        gp1.position.y = state.fenceHeight / 2;
+        gp1.castShadow = true;
+        fenceGroup.add(gp1);
+        const gp2 = new THREE.Mesh(gatePostGeo, fenceMaterials[state.fenceMaterial]);
+        gp2.position.copy(gateEndPoint);
+        gp2.position.y = state.fenceHeight / 2;
+        gp2.castShadow = true;
+        fenceGroup.add(gp2);
+    }
+
+    if (gateModel) {
+        placeGateModel(gateModel, gateStartPoint, gateEndPoint, state, fenceGroup);
+    } else if (state.fenceGateEnabled !== false && (state.fenceType === 'venzel' || state.fenceType === 'casting' || state.fenceType === 'model_3d')) {
+        console.warn('⚠️ Модель калитки ещё не загружена:', state.fenceType);
+    }
 }
 
 // ============================================================
@@ -328,6 +421,8 @@ export function createFenceGroup(state) {
     
     sides.forEach(side => {
         let isGate = false;
+        // Выбранная сторона сохраняет проём всегда: при выключенной калитке
+        // в его краях остаются только две опорные стойки.
         if (state.fenceGateSide === 'front' && side.name === 'front') isGate = true;
         if (state.fenceGateSide === 'right' && side.name === 'right') isGate = true;
         if (state.fenceGateSide === 'back' && side.name === 'back') isGate = true;

@@ -3,13 +3,13 @@
 // ============================================
 require('dotenv').config();
 
-// Проверяем, что критичные переменные загружены
+// Секреты берутся только из окружения. Встроенных паролей и почтовых ключей нет.
 if (!process.env.ADMIN_PASSWORD) {
-    console.warn('⚠️ ADMIN_PASSWORD не задан в .env! Используется значение по умолчанию.');
+    console.warn('⚠️ ADMIN_PASSWORD не задан. Если администратор ещё не создан, запуск остановится.');
 }
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('⚠️ EMAIL не настроен в .env! Отправка писем не будет работать.');
+    console.warn('⚠️ EMAIL_USER/EMAIL_PASS не заданы. Отправка писем отключена.');
 }
 
 const express = require('express');
@@ -27,10 +27,10 @@ const app = express();
 // КОНСТАНТЫ ИЗ .ENV
 // ============================================
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-const EMAIL_USER = process.env.EMAIL_USER || 'gipsogen2008@gmail.com';
-const EMAIL_PASS = process.env.EMAIL_PASS || 'yzhv gyam rbai rune';
+const EMAIL_USER = process.env.EMAIL_USER || '';
+const EMAIL_PASS = process.env.EMAIL_PASS || '';
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'storage', 'database.db');
 
@@ -152,8 +152,8 @@ app.use(compression({
     threshold: 1024
 }));
 
-// JSON лимит
-app.use(express.json({ limit: '50mb' }));
+// Ограничиваем размер JSON-тела, чтобы один запрос не мог занять чрезмерно много памяти.
+app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
 // ============================================
@@ -204,11 +204,11 @@ async function downloadThreeJS() {
     }
     
     const files = [
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', name: 'three.module.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js', name: 'OrbitControls.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js', name: 'GLTFLoader.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js', name: 'DRACOLoader.js' },
-        { url: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/geometries/DecalGeometry.js', name: 'DecalGeometry.js' }
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js', name: 'three.module.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/controls/OrbitControls.js', name: 'OrbitControls.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/loaders/GLTFLoader.js', name: 'GLTFLoader.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/loaders/DRACOLoader.js', name: 'DRACOLoader.js' },
+        { url: 'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/geometries/DecalGeometry.js', name: 'DecalGeometry.js' }
     ];
     
     for (const file of files) {
@@ -216,9 +216,13 @@ async function downloadThreeJS() {
         if (!fs.existsSync(filePath)) {
             try {
                 console.log(`📥 Скачивание ${file.name}...`);
-                const response = await fetch(file.url);
+                const response = await fetch(file.url, { signal: AbortSignal.timeout(15000) });
+                if (!response.ok) throw new Error(`HTTP ${response.status} при загрузке ${file.name}`);
                 const content = await response.text();
-                fs.writeFileSync(filePath, content);
+                if (!content || content.length < 1000) throw new Error(`Получен пустой или неполный файл ${file.name}`);
+                const temporaryPath = `${filePath}.tmp`;
+                fs.writeFileSync(temporaryPath, content);
+                fs.renameSync(temporaryPath, filePath);
                 console.log(`✅ ${file.name} сохранен локально`);
             } catch (e) {
                 console.log(`⚠️ Не удалось скачать ${file.name}, будет использоваться CDN`);
@@ -230,34 +234,70 @@ async function downloadThreeJS() {
 }
 
 // Запускаем скачивание
-downloadThreeJS().catch(console.error);
+const threeJsDownloadPromise = downloadThreeJS();
+
+// Не публикуем внутренние каталоги и файлы через корневую раздачу статики.
+app.use((req, res, next) => {
+    let requestPath;
+    try {
+        requestPath = decodeURIComponent(req.path || '/');
+    } catch (error) {
+        return res.status(400).end();
+    }
+
+    const normalizedPath = path.posix.normalize(requestPath).toLowerCase();
+    const segments = normalizedPath.split('/').filter(Boolean);
+    const blockedDirectories = new Set([
+        'storage', 'data', 'tests', '.git', 'node_modules', 'blender'
+    ]);
+    const blockedFiles = new Set([
+        '.env', '.env.local', '.env.production',
+        'database.db', 'fake_admin.txt', 'audit_report.html',
+        'security_report.json', 'server.js', 'models.py', 'dast.py'
+    ]);
+    const fileName = segments[segments.length - 1] || '';
+    const hasBlockedDirectory = segments.some(segment => blockedDirectories.has(segment));
+    const hasBlockedFile = blockedFiles.has(fileName) ||
+        fileName.startsWith('.') ||
+        /\.(?:db|sqlite|sqlite3|log|backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp|py|sql|md|lock|ya?ml|sh|bat|ps1|map)$/i.test(fileName) ||
+        /(?:^|[._-])(?:backup\d*|bak(?:[-_.][\w-]+)?|old|orig|swp|tmp)(?:$|[._-])/i.test(fileName) ||
+        /^package(?:-lock)?\.json$/i.test(fileName);
+
+    if (hasBlockedDirectory || hasBlockedFile) {
+        return res.status(404).end();
+    }
+
+    next();
+});
 
 // Статика с кэшированием
 app.use(express.static(__dirname, {
-    maxAge: '365d',
-    immutable: true,
+    maxAge: '1h',
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
+        const extension = path.extname(filePath).toLowerCase();
+        if (extension === '.html') {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        }
-        if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        }
-        if (filePath.endsWith('.webp') || filePath.endsWith('.png') || filePath.endsWith('.jpg')) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        }
-        if (filePath.endsWith('.glb')) {
+        } else if (extension === '.js' || extension === '.css' || extension === '.json') {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        } else if (extension === '.glb') {
             res.setHeader('Content-Type', 'model/gltf-binary');
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        } else if (['.webp', '.png', '.jpg', '.jpeg'].includes(extension)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
         }
     }
 }));
 
 app.use('/models', express.static(path.join(__dirname, 'storage', 'models'), {
-    maxAge: '365d',
-    immutable: true,
-    setHeaders: (res) => {
-        res.setHeader('Content-Type', 'model/gltf-binary');
+    maxAge: '1h',
+    setHeaders: (res, filePath) => {
+        const ext = path.extname(filePath).toLowerCase();
+        if (ext === '.glb') res.setHeader('Content-Type', 'model/gltf-binary');
+        else if (ext === '.png') res.setHeader('Content-Type', 'image/png');
+        else if (ext === '.jpg' || ext === '.jpeg') res.setHeader('Content-Type', 'image/jpeg');
+        else if (ext === '.webp') res.setHeader('Content-Type', 'image/webp');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
     }
 }));
 
@@ -277,18 +317,16 @@ if (!fs.existsSync(CATALOG_PREVIEWS_DIR)) {
 }
 
 app.use('/textures', express.static(path.join(__dirname, 'storage', 'textures'), {
-    maxAge: '365d',
-    immutable: true,
+    maxAge: '1d',
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.webp')) {
-            res.setHeader('Content-Type', 'image/webp');
-        }
+        if (filePath.endsWith('.webp')) res.setHeader('Content-Type', 'image/webp');
+        res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
     }
 }));
 
 app.use('/modules', express.static(path.join(__dirname, 'storage', 'modules'), {
-    maxAge: '365d',
-    immutable: true
+    maxAge: 0,
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, must-revalidate')
 }));
 
 app.use('/fonts', express.static(path.join(__dirname, 'storage', 'fonts')));
@@ -312,17 +350,19 @@ app.get('/admin.html', (req, res) => {
 });
 
 app.get('/downloads/admin_panel', (req, res) => {
-    const ip = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    const ip = req.ip || req.socket?.remoteAddress || 'Не определен';
+    const userAgent = req.headers['user-agent'] || 'Не определен';
     const time = new Date().toISOString();
 
-    const logEntry = `[${time}] IP: ${ip} | User-Agent: ${userAgent}\n`;
-    fs.appendFileSync('hackers.log', logEntry);
-    console.log(`🚨 ХАКЕР ПОПАЛСЯ! IP: ${ip}`);
+    const logIp = String(ip).replace(/[\r\n]+/g, ' ').slice(0, 100);
+    const logUserAgent = String(userAgent).replace(/[\r\n]+/g, ' ').slice(0, 500);
+    fs.appendFileSync(path.join(__dirname, 'hackers.log'), `[${time}] IP: ${logIp} | User-Agent: ${logUserAgent}\n`);
+    console.log(`🚨 Запрос к закрытому маршруту. IP: ${logIp}`);
 
-    const forwarded = req.headers['x-forwarded-for'] || 'Не определен';
-    const language = req.headers['accept-language'] || 'Не определен';
-    const referer = req.headers['referer'] || 'Прямой переход';
+    const safeIp = sanitizeForServer(ip);
+    const safeUserAgent = sanitizeForServer(userAgent);
+    const language = sanitizeForServer(req.headers['accept-language'] || 'Не определен');
+    const referer = sanitizeForServer(req.headers['referer'] || 'Прямой переход');
 
     res.send(`
         <!DOCTYPE html>
@@ -344,7 +384,7 @@ app.get('/downloads/admin_panel', (req, res) => {
                 <div class="grid">
                     <div class="card">
                         <div class="card-label">IP-адрес</div>
-                        <div class="card-value danger">${ip}</div>
+                        <div class="card-value danger">${safeIp}</div>
                     </div>
                     <div class="card">
                         <div class="card-label">Время атаки</div>
@@ -352,7 +392,7 @@ app.get('/downloads/admin_panel', (req, res) => {
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
                         <div class="card-label">Операционная система / Браузер</div>
-                        <div class="card-value" style="font-size: 13px;">${userAgent}</div>
+                        <div class="card-value" style="font-size: 13px;">${safeUserAgent}</div>
                     </div>
                     <div class="card">
                         <div class="card-label">Язык системы</div>
@@ -382,66 +422,18 @@ app.get('/downloads/admin_panel', (req, res) => {
 let db;
 
 const ALLOWED_PRICE_KEYS = new Set([
-    'granite',
-    'black_galaxy',
-    'ninimyaki',
-    'marble',
-    'red_granite',
-    'beige_granite',
-    'gray_granite',
-
-    'base_granite',
-    'base_marble',
-    'base_red_granite',
-    'base_other',
-
-    'grass',
-    'gravel',
-    'marble_chips',
-    'red_gravel',
-    'blue_gravel',
-    'black_gravel',
-    'sand',
-    'flowers',
-    'moss',
-
-    'pipe',
-    'chain',
-    'casting',
-    'model_3d',
-    'venzel',
-
-    'stele_work',
-    'engraving',
-    'photo',
-    'photo_price',
-    'vase_base_price',
-    'background_price_per_m2',
-
-    'table',
-    'bench',
-    'picnic_set',
-
-    'delivery',
-    'install',
-
-    'fence_per_m',
-    'fence_base_height',
-    'path_work_per_m2',
-    'path_material_per_m2',
-    'install_full_set',
-    'install_flowerbed_base',
-    'install_pedestal_percent',
-    'tile_marble_per_m2',
-    'tile_gabbro_per_m2',
-    'tile_other_per_m2',
-    'tile_work_per_m2',
-    'bruschatka_per_m2',
-    'stele_base_price',
-    'stele_thickness_factor',
-    'pedestal_price',
-    'decoration_volume',
-    'decoration_engraving'
+    'pipe', 'chain', 'casting', 'model_3d', 'venzel',
+    'stele_work', 'engraving', 'text_character_price', 'photo', 'photo_price', 'vase_base_price',
+    'background_price_per_m2', 'table', 'bench', 'picnic_set',
+    'delivery', 'install', 'fence_per_m', 'fence_pipe_per_m', 'fence_chain_per_m',
+    'fence_casting_per_m', 'fence_model_3d_per_m', 'fence_venzel_per_m',
+    'fence_base_height', 'gate_price',
+    'path_work_per_m2', 'site_fill_work_per_m2',
+    'site_base_preparation_per_m2', 'site_excavation_per_m3',
+    'site_compaction_per_m3', 'path_tile_work_per_m2',
+    'path_slab_work_per_m2', 'site_curb_install_per_m',
+    'install_full_set', 'install_flowerbed_base', 'install_flowerbed_only', 'install_pedestal_percent', 'install_stele_pedestal', 'install_flowerbed_per_m',
+    'tile_work_per_m2', 'decoration_volume', 'decoration_engraving'
 ]);
 
 
@@ -460,29 +452,6 @@ const ALLOWED_PRICE_FLAGS = new Set([
 
 
 const DEFAULT_PRICES = {
-    granite: 5000,
-    black_galaxy: 5500,
-    ninimyaki: 4500,
-    marble: 8000,
-    red_granite: 7000,
-    beige_granite: 6500,
-    gray_granite: 6000,
-
-    base_granite: 4000,
-    base_marble: 6000,
-    base_red_granite: 5500,
-    base_other: 3500,
-
-    grass: 500,
-    gravel: 800,
-    marble_chips: 1500,
-    red_gravel: 1200,
-    blue_gravel: 1200,
-    black_gravel: 1400,
-    sand: 600,
-    flowers: 1800,
-    moss: 900,
-
     pipe: 800,
     chain: 600,
     casting: 2000,
@@ -491,6 +460,7 @@ const DEFAULT_PRICES = {
 
     stele_work: 5000,
     engraving: 1500,
+    text_character_price: 80,
     photo: 2000,
     photo_price: 0,
     vase_base_price: 0,
@@ -503,21 +473,31 @@ const DEFAULT_PRICES = {
     delivery: 3000,
     install: 5000,
 
+    // Отдельные стартовые цены за погонный метр для каждого типа ограды.
+    fence_pipe_per_m: 3500,
+    fence_chain_per_m: 3500,
+    fence_model_3d_per_m: 4500,
+    fence_casting_per_m: 5000,
+    fence_venzel_per_m: 5500,
+    // Старый общий ключ оставлен для совместимости.
     fence_per_m: 1500,
     fence_base_height: 0.6,
+    gate_price: 13500,
     path_work_per_m2: 1500,
-    path_material_per_m2: 0,
+    site_fill_work_per_m2: 0,
+    site_base_preparation_per_m2: 0,
+    site_excavation_per_m3: 0,
+    site_compaction_per_m3: 0,
+    path_tile_work_per_m2: 1200,
+    path_slab_work_per_m2: 1000,
+    site_curb_install_per_m: 0,
     install_full_set: 35000,
     install_flowerbed_base: 25000,
+    install_flowerbed_only: 0,
+    install_stele_pedestal: 5000,
+    install_flowerbed_per_m: 1000,
     install_pedestal_percent: 10,
-    tile_marble_per_m2: 0,
-    tile_gabbro_per_m2: 0,
-    tile_other_per_m2: 0,
     tile_work_per_m2: 1000,
-    bruschatka_per_m2: 0,
-    stele_base_price: 0,
-    stele_thickness_factor: 1,
-    pedestal_price: 0,
     decoration_volume: 0,
     decoration_engraving: 0
 };
@@ -532,11 +512,8 @@ const DEFAULT_PRICE_SETTINGS = {
 };
 
 
-const DEFAULT_PRICE_FLAGS = {
-    tile_marble_per_m2: { zero_means_included: true },
-    tile_gabbro_per_m2: { zero_means_included: true },
-    tile_other_per_m2: { zero_means_included: true }
-};
+const DEFAULT_PRICE_FLAGS = {};
+
 
 
 const ADMIN_SESSION_DAYS = 7;
@@ -730,7 +707,9 @@ async function getPrices() {
     const result = {};
 
     rows.forEach(row => {
-        result[row.key] = Number(row.value);
+        if (ALLOWED_PRICE_KEYS.has(row.key)) {
+            result[row.key] = Number(row.value);
+        }
     });
 
     return result;
@@ -750,6 +729,7 @@ async function getPriceFlags() {
     const result = {};
 
     rows.forEach(row => {
+        if (!ALLOWED_PRICE_KEYS.has(row.key)) return;
         if (!result[row.key]) {
             result[row.key] = {};
         }
@@ -1072,6 +1052,10 @@ async function createInitialAdmin() {
 
     if (!admin) {
 
+        if (!ADMIN_PASSWORD) {
+            throw new Error('ADMIN_PASSWORD обязателен для первичного создания администратора. Задайте его в .env.');
+        }
+
         console.log(
             `👤 Создание администратора: ${ADMIN_LOGIN}`
         );
@@ -1152,6 +1136,10 @@ async function resetAdminPasswordIfRequested() {
         return;
     }
 
+
+    if (!ADMIN_PASSWORD) {
+        throw new Error('ADMIN_PASSWORD обязателен при ADMIN_RESET_PASSWORD=true.');
+    }
 
     const passwordHash =
         await hashPassword(
@@ -1258,6 +1246,10 @@ async function initDB() {
 
     await ensurePrices();
 
+    // Заполняем только нулевые значения новых тарифов; ручные цены администратора не перезаписываем.
+    await dbRun("UPDATE prices SET value = 1200 WHERE key = 'path_tile_work_per_m2' AND value = 0");
+    await dbRun("UPDATE prices SET value = 1000 WHERE key = 'path_slab_work_per_m2' AND value = 0");
+
 
     // ========================================
     // ФЛАГИ И ПАРАМЕТРЫ ПРАЙСА
@@ -1267,6 +1259,144 @@ async function initDB() {
 
 
     // ========================================
+    // ЕДИНЫЙ КАТАЛОГ КЛИЕНТСКИХ ЦЕН ПО МАТЕРИАЛАМ
+    // ========================================
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS material_price_rows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            material TEXT NOT NULL,
+            product TEXT NOT NULL,
+            width_mm INTEGER NOT NULL DEFAULT 0,
+            height_mm INTEGER NOT NULL DEFAULT 0,
+            depth_mm INTEGER NOT NULL DEFAULT 0,
+            thickness_mm INTEGER NOT NULL DEFAULT 0,
+            finish TEXT NOT NULL DEFAULT '',
+            price REAL NOT NULL CHECK(price >= 0),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+        )
+    `);
+
+    // Отдельный закупочный каталог. Не используется клиентским калькулятором.
+    // Таблица создаётся без очистки и не зависит от material_price_rows.
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS supplier_material_price_rows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            supplier TEXT NOT NULL DEFAULT '',
+            material TEXT NOT NULL,
+            product TEXT NOT NULL,
+            width_mm INTEGER NOT NULL DEFAULT 0,
+            height_mm INTEGER NOT NULL DEFAULT 0,
+            depth_mm INTEGER NOT NULL DEFAULT 0,
+            thickness_mm INTEGER NOT NULL DEFAULT 0,
+            finish TEXT NOT NULL DEFAULT '',
+            purchase_price REAL NOT NULL CHECK(purchase_price >= 0),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+        )
+    `);
+
+    // Рыночные ориентиры по брусчатке, ₽/м². Оба формата имеют одну цену за площадь.
+    // INSERT OR IGNORE не затрагивает существующие и вручную отредактированные записи.
+    const paverPrices = {
+        tile_gray:{60:850,80:1120,100:1650},
+        tile_black:{60:1200,80:1400,100:1700},
+        tile_dark:{60:1200,80:1400,100:1700},
+        tile_red:{60:1120,80:1400,100:1700},
+        tile_beige:{60:2350,80:2350,100:2350},
+        tile_light:{60:2350,80:2350,100:2350},
+        tile_marble:{60:2350,80:2350,100:2350}
+    };
+    const initialMaterialPriceRows=[];
+    for(const [material,thicknesses] of Object.entries(paverPrices)){
+        for(const [thicknessText,price] of Object.entries(thicknesses)){
+            const thickness=Number(thicknessText);
+            initialMaterialPriceRows.push(
+                [material,'tile',200,200,thickness,thickness,'paver',price],
+                [material,'tile',200,100,thickness,thickness,'paver',price]
+            );
+        }
+    }
+    // Рыночные ориентиры по дополнительным типам мощения, ₽/м².
+    // Цены материалов — ориентиры по розничным предложениям, не привязаны к поставщику.
+    initialMaterialPriceRows.push(
+        ['tile_gray','tile',0,0,40,40,'paver_old_city',1500],
+        ['tile_gray','tile',0,0,60,60,'paver_old_city',1700],
+        ['tile_beige','tile',0,0,40,40,'paver_old_city',1650],
+        ['tile_beige','tile',0,0,60,60,'paver_old_city',1850],
+        ['natural_stone','tile',0,0,20,20,'slab',1100],
+        ['natural_stone','tile',0,0,30,30,'slab',1300],
+        ['natural_stone','tile',0,0,40,40,'slab',1500]
+    );
+    // Бетонные бордюры: садовый, дорожный и усиленный; ₽/пог.м.
+    initialMaterialPriceRows.push(
+        ['concrete','curb',1000,200,80,80,'',400],
+        ['concrete','curb',1000,300,150,150,'',650],
+        ['concrete','curb',1000,300,180,180,'',800],
+        // Компактные и промежуточные бетонные типоразмеры, цены за погонный метр.
+        ['concrete','curb',1000,100,100,100,'',300],
+        ['concrete','curb',1000,150,100,100,'',350],
+        ['concrete','curb',1000,200,100,100,'',400],
+        ['concrete','curb',1000,250,100,100,'',500],
+        ['concrete','curb',1000,250,150,150,'',600],
+        // Слои основания площадки: песок/щебень — ₽/м³, геотекстиль — ₽/м².
+        ['sand','other',0,0,0,0,'site_layer:sand',1200],
+        ['gravel','other',0,0,0,0,'site_layer:gravel',1700],
+        ['geotextile','other',0,0,0,0,'site_layer:geotextile',50]
+    );
+    for (const row of initialMaterialPriceRows) {
+        await dbRun(`INSERT OR IGNORE INTO material_price_rows
+            (material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, row);
+    }
+
+    // Закупочный каталог хранится отдельно. Старые таблицы поставщиков не удаляем.
+
+    // ========================================
+    // ПРАЙС РОМБАК (историческая таблица БД; не используется в интерфейсе или расчёте)
+
+    // ========================================
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS rombak_price_items (
+            item_key TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            thickness TEXT NOT NULL,
+            size TEXT NOT NULL,
+            sides INTEGER NOT NULL,
+            supplier_price REAL NOT NULL DEFAULT 0,
+            retail_override REAL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await dbRun(`
+        CREATE TABLE IF NOT EXISTS rombak_price_settings (
+            key TEXT PRIMARY KEY,
+            value REAL NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await dbRun(`INSERT OR IGNORE INTO rombak_price_settings (key, value) VALUES ('markup_percent', 100)`);
+    const rombakCount = await dbGet('SELECT COUNT(*) AS count FROM rombak_price_items');
+    if (Number(rombakCount?.count || 0) === 0) {
+        const rombakCatalog = {"stele":["Стела",{"0.012":[[3800,4080,5480],[4480,4960,6440],[5280,5960,8040],[5600,6890,9080]],"0.015":[[3750,4400,5480],[4480,4960,6440],[5280,6960,8040],[5600,7320,9080]],"0.020":[[7000,7750,8500],[8400,9300,10200],[8800,10360,11360],[10080,11160,12240]]}],"tumba":["Тумба",{"0.0043":[[1320,1680,2250],[1350,1730,2350],[1490,1910,2575],[1690,2160,2925]],"0.00675":[[1500,1880,2470],[1800,2250,2930],[1950,2500,3300],[2100,2810,3700]],"0.009":[[1800,2250,2970],[2150,2690,3500],[2350,2810,3715],[2500,3150,4070]],"0.01125":[[2090,2500,3355],[2400,2900,3715],[2600,3310,4000],[2850,3530,4580]],"0.01375":[[2500,3050,4030],[2850,3400,4540],[3100,3850,4850],[3350,4260,5275]],"0.018":[[2700,3400,4500],[3100,3790,5000],[3500,4200,5350],[3600,4680,5450]],"0.0225":[[3500,4100,5300],[3900,4640,5850],[4200,5130,6620],[4400,5650,7390]],"0.024":[[4200,4890,6320],[4680,5450,7020],[5200,6100,8150],[5390,6980,8800]],"0.036":[[5000,6000,8120],[5900,7110,8940],[7150,8100,10500],[7525,8650,11050]],"0.0432":[[5145,6300,8400],[6175,7550,8960],[7600,8790,11000],[7840,9160,12040]],"0.045":[[5400,6560,8770],[6480,7865,9450],[7865,9200,11000],[8100,9450,12100]]}],"stork":["Аист",{"0.108":[[4150,4995,6620],[4585,5500,7270],[5300,6110,8210],[5530,6610,8800]],"0.155":[[4450,5250,6950],[4900,5850,7550],[5600,6500,8790],[5950,6930,9290]],"0.17":[[4800,5680,7350],[5280,6350,8050],[6050,7100,9195],[6750,7760,9800]]}],"flowerbed":["Цветник",{"0.004":[[875,1000,1380],[900,1100,1530],[1000,1200,1680],[1030,1350,1850]],"0.0048":[[975,1200,1584],[1050,1300,1690],[1100,1400,2000],[1150,1600,2110]],"0.005":[[1000,1250,1650],[1100,1400,1750],[1180,1500,2120],[1250,1760,2400]],"0.0064":[[1100,1350,1950],[1150,1500,2100],[1350,1800,2450],[1450,1960,2700]],"0.007":[[1350,1700,2500],[1400,1800,2600],[1600,2100,2950],[1750,2300,3350]],"0.009":[[1500,1800,2600],[1700,2000,3000],[1900,2300,3400],[2100,2700,3900]],"0.018":[[1975,2425,3400],[2250,2760,3850],[2425,3100,4500],[2700,3500,4800]]}]};
+        const rombakWidths = [600, 800, 1000, 1200];
+        for (const [slug, definition] of Object.entries(rombakCatalog)) {
+            const [category, thicknesses] = definition;
+            for (const [thickness, sizeRows] of Object.entries(thicknesses)) {
+                for (let rowIndex = 0; rowIndex < sizeRows.length; rowIndex++) {
+                    const sides = 5;
+                    const itemKey = `rombak_${slug}_${thickness.replace(/\\./g, '_')}_${rombakWidths[rowIndex]}_400_50_5`;
+                    await dbRun('INSERT OR IGNORE INTO rombak_price_items (item_key, category, thickness, size, sides, supplier_price) VALUES (?, ?, ?, ?, ?, ?)', [itemKey, category, thickness, `${rombakWidths[rowIndex]}×400×50`, sides, sizeRows[rowIndex][2]]);
+                }
+            }
+        }
+    }
+
+
+    // ========================================
+    // В расчёте используется только полировка с пяти сторон.
+    await dbRun('DELETE FROM rombak_price_items WHERE sides <> 5');
+
     // КАТАЛОГ СТЕЛ
     // ========================================
 
@@ -1304,9 +1434,25 @@ async function initDB() {
     `);
 
 
-    console.log(
-        '✅ Таблица steles готова'
-    );
+    // Миграция каталога моделей и производственных доплат.
+    const steleMigrations = [
+        ["category", "TEXT NOT NULL DEFAULT 'uncategorized'"],
+        ["machine_hours", "REAL NOT NULL DEFAULT 0"], ["machine_rate", "REAL"],
+        ["master_hours", "REAL NOT NULL DEFAULT 0"], ["master_rate", "REAL"],
+        ["other_cost", "REAL NOT NULL DEFAULT 0"], ["polish_mode", "TEXT NOT NULL DEFAULT 'none'"],
+        ["polish_hours", "REAL NOT NULL DEFAULT 0"], ["polish_cost", "REAL NOT NULL DEFAULT 0"], ["preview_file", "TEXT"]
+    ];
+    for (const [column, definition] of steleMigrations) {
+        try { await dbRun(`ALTER TABLE steles ADD COLUMN ${column} ${definition}`); }
+        catch (error) { if (!/duplicate column name/i.test(String(error.message || error))) throw error; }
+    }
+    await dbRun(`CREATE TABLE IF NOT EXISTS stele_work_settings (
+        key TEXT PRIMARY KEY, value REAL NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await dbRun("INSERT OR IGNORE INTO stele_work_settings (key, value) VALUES ('machine_rate', 1300)");
+    await dbRun("INSERT OR IGNORE INTO stele_work_settings (key, value) VALUES ('master_rate', 1300)");
+    console.log('✅ Каталог стел и ставки доплат готовы');
 
 
     // ========================================
@@ -1501,8 +1647,17 @@ async function requireAdmin(req, res, next) {
 // API: ADMIN LOGIN
 // ============================================
 
+const adminLoginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Слишком много попыток входа. Повторите позже.' }
+});
+
 app.post(
     '/api/admin/login',
+    adminLoginLimiter,
     async (req, res) => {
 
         try {
@@ -1575,6 +1730,7 @@ app.post(
                     'HttpOnly',
                     'SameSite=Lax',
                     'Path=/',
+                    ...(process.env.NODE_ENV === 'production' ? ['Secure'] : []),
                     `Max-Age=${ADMIN_SESSION_DAYS * 24 * 60 * 60}`
                 ].join('; ')
             );
@@ -1687,325 +1843,20 @@ app.get(
 );
 
 // ============================================
-// API: КАТАЛОГ СТЕЛ
-// ============================================
+// API: STELE CATALOG
+const STELE_CATEGORIES=new Set(['carved','muslim','jewish','christian','uncategorized']);
+const STELE_FIELDS='id,model_id,name,model_file,preview_file,width,height,depth,model_type,rotation,active,category,machine_hours,machine_rate,master_hours,master_rate,other_cost,polish_mode,polish_hours,polish_cost,created_at,updated_at';
+app.get('/api/admin/stele-work-settings',requireAdmin,async(req,res)=>{try{const rows=await dbAll('SELECT key,value FROM stele_work_settings');res.json({success:true,settings:{machine_rate:1300,master_rate:1300,...Object.fromEntries(rows.map(x=>[x.key,Number(x.value)||0]))}});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось загрузить ставки'});}});
+app.post('/api/admin/stele-work-settings',requireAdmin,async(req,res)=>{try{const x=req.body?.settings;if(!x||typeof x!=='object'||Array.isArray(x))return res.status(400).json({success:false,message:'Некорректные настройки'});for(const key of ['machine_rate','master_rate']){const n=Number(x[key]);if(!Number.isFinite(n)||n<0||n>1e7)return res.status(400).json({success:false,message:'Некорректная ставка'});await dbRun('INSERT INTO stele_work_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP',[key,n]);}const rows=await dbAll('SELECT key,value FROM stele_work_settings');res.json({success:true,settings:Object.fromEntries(rows.map(x=>[x.key,Number(x.value)||0]))});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось сохранить ставки'});}});
+app.post('/api/admin/steles/upload',requireAdmin,express.raw({type:'application/octet-stream',limit:'50mb'}),(req,res)=>{try{const b=req.body;let name=String(req.headers['x-file-name']||'model.glb');try{name=decodeURIComponent(name);}catch{}if(!Buffer.isBuffer(b)||b.length<20)return res.status(400).json({success:false,message:'Файл пустой или повреждён'});if(!/\.glb$/i.test(name))return res.status(400).json({success:false,message:'Разрешены только .glb'});if(b.toString('ascii',0,4)!=='glTF'||b.readUInt32LE(4)!==2||b.readUInt32LE(8)!==b.length)return res.status(400).json({success:false,message:'Некорректный GLB 2.0'});const filename='catalog_'+crypto.randomUUID().replace(/-/g,'')+'.glb',target=path.join(CATALOG_MODELS_DIR,filename),tmp=target+'.tmp';fs.writeFileSync(tmp,b,{flag:'wx'});fs.renameSync(tmp,target);res.json({success:true,filename,size:b.length});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось сохранить GLB'});}});
+app.post('/api/admin/steles/preview-upload',requireAdmin,express.raw({type:'application/octet-stream',limit:'10mb'}),(req,res)=>{try{const b=req.body;if(!Buffer.isBuffer(b)||b.length<12)return res.status(400).json({success:false,message:'Файл пустой или повреждён'});let ext=null;if(b.length>=8&&b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))ext='png';else if(b[0]===0xff&&b[1]===0xd8&&b[2]===0xff)ext='jpg';else if(b.toString('ascii',0,4)==='RIFF'&&b.toString('ascii',8,12)==='WEBP')ext='webp';if(!ext)return res.status(400).json({success:false,message:'Поддерживаются только PNG, JPG и WebP'});const filename='catalog_preview_'+crypto.randomUUID().replace(/-/g,'')+'.'+ext,target=path.join(CATALOG_PREVIEWS_DIR,filename),tmp=target+'.tmp';fs.writeFileSync(tmp,b,{flag:'wx'});fs.renameSync(tmp,target);res.json({success:true,filename,size:b.length});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось сохранить превью'});}});
+app.get('/api/admin/steles',requireAdmin,async(req,res)=>{try{res.setHeader('Cache-Control','no-store');res.json({success:true,steles:await dbAll('SELECT '+STELE_FIELDS+' FROM steles ORDER BY id')});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось загрузить каталог'});}});
+app.get('/api/steles',async(req,res)=>{try{const pair=await Promise.all([dbAll('SELECT '+STELE_FIELDS+' FROM steles WHERE active=1 ORDER BY id'),dbAll('SELECT key,value FROM stele_work_settings')]);const rows=pair[1];res.setHeader('Cache-Control','no-store');res.json({success:true,steles:pair[0],settings:{machine_rate:1300,master_rate:1300,...Object.fromEntries(rows.map(x=>[x.key,Number(x.value)||0]))}});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось загрузить каталог'});}});
+function validateSteleNumber(v,k,max=1e7,optional=false){if(optional&&(v===undefined||v===null||v===''))return null;const n=Number(v??0);if(!Number.isFinite(n)||n<0||n>max)throw new Error('Некорректное поле: '+k);return n;}
+app.post('/api/admin/steles',requireAdmin,async(req,res)=>{try{const x=req.body||{},name=String(x.name||'').trim().slice(0,200),file=String(x.model_file||'');if(!name||!/^catalog_[a-f0-9]{32}\.glb$/i.test(file)||!fs.existsSync(path.join(CATALOG_MODELS_DIR,file)))return res.status(400).json({success:false,message:'Укажи название и загрузи GLB'});const cat=STELE_CATEGORIES.has(x.category)?x.category:'uncategorized',polish=['none','hours','fixed'].includes(x.polish_mode)?x.polish_mode:'none';const vals=['catalog_stele_'+crypto.randomUUID().replace(/-/g,''),name,file,validateSteleNumber(x.width,'width',5)||.6,validateSteleNumber(x.height,'height',5)||1.3,validateSteleNumber(x.depth,'depth',1)||.08,x.model_type==='horizontal'?'horizontal':'vertical',String(x.rotation||'').slice(0,100),x.active===false?0:1,cat,validateSteleNumber(x.machine_hours,'machine_hours',10000),validateSteleNumber(x.machine_rate,'machine_rate',1e7,true),validateSteleNumber(x.master_hours,'master_hours',10000),validateSteleNumber(x.master_rate,'master_rate',1e7,true),validateSteleNumber(x.other_cost,'other_cost'),polish,validateSteleNumber(x.polish_hours,'polish_hours',10000),validateSteleNumber(x.polish_cost,'polish_cost'),x.preview_file&&/^catalog_preview_[a-f0-9]{32}\.(png|jpg|webp)$/i.test(x.preview_file)&&fs.existsSync(path.join(CATALOG_PREVIEWS_DIR,x.preview_file))?x.preview_file:null];const row=await dbRun('INSERT INTO steles(model_id,name,model_file,width,height,depth,model_type,rotation,active,category,machine_hours,machine_rate,master_hours,master_rate,other_cost,polish_mode,polish_hours,polish_cost,preview_file) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',vals);res.json({success:true,stele:await dbGet('SELECT '+STELE_FIELDS+' FROM steles WHERE id=?',[row.lastID])});}catch(e){console.error(e);res.status(400).json({success:false,message:e.message||'Не удалось добавить модель'});}});
+app.put('/api/admin/steles/:id',requireAdmin,async(req,res)=>{try{const id=Number(req.params.id),old=await dbGet('SELECT * FROM steles WHERE id=?',[id]);if(!Number.isInteger(id)||id<1)return res.status(400).json({success:false,message:'Некорректный ID'});if(!old)return res.status(404).json({success:false,message:'Модель не найдена'});const x=req.body||{},name=String(x.name??old.name).trim().slice(0,200),file=String(x.model_file??old.model_file);if(!name||!/^catalog_[a-f0-9]{32}\.glb$/i.test(file)||!fs.existsSync(path.join(CATALOG_MODELS_DIR,file)))return res.status(400).json({success:false,message:'Название или GLB указаны неверно'});const n=(k,max=1e7,opt=false)=>x[k]===undefined?old[k]:validateSteleNumber(x[k],k,max,opt);const cat=STELE_CATEGORIES.has(x.category)?x.category:old.category,polish=['none','hours','fixed'].includes(x.polish_mode)?x.polish_mode:old.polish_mode;await dbRun('UPDATE steles SET name=?,model_file=?,width=?,height=?,depth=?,model_type=?,rotation=?,active=?,category=?,machine_hours=?,machine_rate=?,master_hours=?,master_rate=?,other_cost=?,polish_mode=?,polish_hours=?,polish_cost=?,preview_file=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',[name,file,n('width',5)||.6,n('height',5)||1.3,n('depth',1)||.08,x.model_type==='horizontal'?'horizontal':(x.model_type==='vertical'?'vertical':old.model_type),String(x.rotation??old.rotation??'').slice(0,100),x.active===undefined?old.active:(x.active?1:0),cat,n('machine_hours',10000),n('machine_rate',1e7,true),n('master_hours',10000),n('master_rate',1e7,true),n('other_cost'),polish,n('polish_hours',10000),n('polish_cost'),x.preview_file===undefined?old.preview_file:(x.preview_file&&/^catalog_preview_[a-f0-9]{32}\.(png|jpg|webp)$/i.test(x.preview_file)&&fs.existsSync(path.join(CATALOG_PREVIEWS_DIR,x.preview_file))?x.preview_file:null),id]);res.json({success:true,stele:await dbGet('SELECT '+STELE_FIELDS+' FROM steles WHERE id=?',[id])});}catch(e){console.error(e);res.status(400).json({success:false,message:e.message||'Не удалось изменить модель'});}});
+app.delete('/api/admin/steles/:id',requireAdmin,async(req,res)=>{try{const id=Number(req.params.id),old=await dbGet('SELECT id FROM steles WHERE id=?',[id]);if(!Number.isInteger(id)||id<1)return res.status(400).json({success:false,message:'Некорректный ID'});if(!old)return res.status(404).json({success:false,message:'Модель не найдена'});await dbRun('DELETE FROM steles WHERE id=?',[id]);res.json({success:true,message:'Модель убрана из каталога. GLB-файл оставлен для старых проектов.'});}catch(e){console.error(e);res.status(500).json({success:false,message:'Не удалось убрать модель'});}});
 
-// Получить список всех активных стел
-app.get('/api/admin/steles', requireAdmin, (req, res) => {
-    db.all(`
-        SELECT
-            id,
-            model_id,
-            name,
-            model_file,
-            width,
-            height,
-            depth,
-            model_type,
-            rotation,
-            active,
-            created_at,
-            updated_at
-        FROM steles
-        ORDER BY id ASC
-    `, (err, rows) => {
-        if (err) {
-            console.error('❌ Ошибка получения стел:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Ошибка получения каталога стел'
-            });
-        }
-
-        res.json({
-            success: true,
-            steles: rows
-        });
-    });
-});
-
-
-// Публичный список активных стел для конструктора
-app.get('/api/steles', (req, res) => {
-    db.all(`
-        SELECT
-            id,
-            model_id,
-            name,
-            model_file,
-            width,
-            height,
-            depth,
-            model_type,
-            rotation
-        FROM steles
-        WHERE active = 1
-        ORDER BY id ASC
-    `, (err, rows) => {
-        if (err) {
-            console.error('❌ Ошибка получения публичных стел:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Ошибка получения стел'
-            });
-        }
-
-        res.json({
-            success: true,
-            steles: rows
-        });
-    });
-});
-
-
-// Добавить новую стелу
-app.post('/api/admin/steles', requireAdmin, (req, res) => {
-    const {
-        name,
-        model_file,
-        width,
-        height,
-        depth,
-        model_type,
-        rotation,
-        active
-    } = req.body;
-
-    if (!name || !model_file) {
-        return res.status(400).json({
-            success: false,
-            message: 'Название и GLB-файл обязательны'
-        });
-    }
-
-    const cleanName = String(name).trim().slice(0, 200);
-    const cleanFile = path.basename(String(model_file).trim());
-
-    if (!cleanFile.toLowerCase().endsWith('.glb')) {
-        return res.status(400).json({
-            success: false,
-            message: 'Разрешены только GLB-файлы'
-        });
-    }
-
-    const modelId =
-        'catalog_stele_' +
-        Date.now() +
-        '_' +
-        Math.random().toString(36).slice(2, 8);
-
-    const w = Number(width) || 0.6;
-    const h = Number(height) || 1.3;
-    const d = Number(depth) || 0.08;
-
-    const type =
-        model_type === 'horizontal'
-            ? 'horizontal'
-            : 'vertical';
-
-    const rot =
-        rotation
-            ? String(rotation).slice(0, 100)
-            : '';
-
-    const isActive = active === false ? 0 : 1;
-
-    db.run(`
-        INSERT INTO steles (
-            model_id,
-            name,
-            model_file,
-            width,
-            height,
-            depth,
-            model_type,
-            rotation,
-            active
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-        modelId,
-        cleanName,
-        cleanFile,
-        w,
-        h,
-        d,
-        type,
-        rot,
-        isActive
-    ], function(err) {
-        if (err) {
-            console.error('❌ Ошибка добавления стелы:', err);
-
-            return res.status(500).json({
-                success: false,
-                message: 'Не удалось добавить стелу'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Стела добавлена',
-            stele: {
-                id: this.lastID,
-                model_id: modelId,
-                name: cleanName,
-                model_file: cleanFile,
-                width: w,
-                height: h,
-                depth: d,
-                model_type: type,
-                rotation: rot,
-                active: isActive
-            }
-        });
-    });
-});
-
-
-// Изменить стелу
-app.put('/api/admin/steles/:id', requireAdmin, (req, res) => {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id)) {
-        return res.status(400).json({
-            success: false,
-            message: 'Некорректный ID'
-        });
-    }
-
-    const {
-        name,
-        model_file,
-        width,
-        height,
-        depth,
-        model_type,
-        rotation,
-        active
-    } = req.body;
-
-    const cleanName = String(name || '').trim().slice(0, 200);
-    const cleanFile = path.basename(String(model_file || '').trim());
-
-    if (!cleanName || !cleanFile) {
-        return res.status(400).json({
-            success: false,
-            message: 'Название и GLB-файл обязательны'
-        });
-    }
-
-    if (!cleanFile.toLowerCase().endsWith('.glb')) {
-        return res.status(400).json({
-            success: false,
-            message: 'Разрешены только GLB-файлы'
-        });
-    }
-
-    db.run(`
-        UPDATE steles
-        SET
-            name = ?,
-            model_file = ?,
-            width = ?,
-            height = ?,
-            depth = ?,
-            model_type = ?,
-            rotation = ?,
-            active = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    `, [
-        cleanName,
-        cleanFile,
-        Number(width) || 0.6,
-        Number(height) || 1.3,
-        Number(depth) || 0.08,
-        model_type === 'horizontal' ? 'horizontal' : 'vertical',
-        rotation ? String(rotation).slice(0, 100) : '',
-        active === false ? 0 : 1,
-        id
-    ], function(err) {
-        if (err) {
-            console.error('❌ Ошибка изменения стелы:', err);
-
-            return res.status(500).json({
-                success: false,
-                message: 'Не удалось изменить стелу'
-            });
-        }
-
-        if (this.changes === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Стела не найдена'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Стела изменена'
-        });
-    });
-});
-
-
-// Удалить стелу
-app.delete('/api/admin/steles/:id', requireAdmin, (req, res) => {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id)) {
-        return res.status(400).json({
-            success: false,
-            message: 'Некорректный ID'
-        });
-    }
-
-    db.get(
-        'SELECT model_id, model_file FROM steles WHERE id = ?',
-        [id],
-        (err, stele) => {
-            if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Ошибка поиска стелы'
-                });
-            }
-
-            if (!stele) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Стела не найдена'
-                });
-            }
-
-            db.run(
-                'DELETE FROM steles WHERE id = ?',
-                [id],
-                function(deleteErr) {
-                    if (deleteErr) {
-                        console.error(
-                            '❌ Ошибка удаления стелы:',
-                            deleteErr
-                        );
-
-                        return res.status(500).json({
-                            success: false,
-                            message: 'Не удалось удалить стелу'
-                        });
-                    }
-
-                    res.json({
-                        success: true,
-                        message: 'Стела удалена'
-                    });
-                }
-            );
-        }
-    );
-});
-
-// ============================================
 // API: ЦЕНЫ
 // ============================================
 
@@ -2291,6 +2142,162 @@ app.post(
 
 
 // ============================================
+// API: КЛИЕНТСКИЙ ПРАЙС ПО МАТЕРИАЛАМ
+// ============================================
+app.get('/api/admin/material-prices', requireAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT id, material, product, width_mm, height_mm, depth_mm,
+                   thickness_mm, finish, price
+            FROM material_price_rows
+            ORDER BY material, product, width_mm, height_mm, depth_mm, thickness_mm, finish
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, rows });
+    } catch (error) {
+        console.error('Ошибка загрузки клиентского прайса:', error);
+        res.status(500).json({ success: false, message: 'Не удалось загрузить прайс' });
+    }
+});
+
+app.post('/api/admin/material-prices', requireAdmin, async (req, res) => {
+    const rows = req.body?.rows;
+    const allowedMaterials = /^[a-z0-9_-]{1,64}$/;
+    const allowedProducts = new Set(['stele', 'pedestal', 'flowerbed', 'grave_slab', 'tile', 'curb', 'other']);
+    if (!Array.isArray(rows) || rows.length > 5000) {
+        return res.status(400).json({ success: false, message: 'Некорректный список цен' });
+    }
+    const normalized = [];
+    const seen = new Set();
+    for (const row of rows) {
+        const material = String(row?.material || '').trim();
+        const product = String(row?.product || '').trim();
+        const finish = String(row?.finish || '').trim().slice(0, 100);
+        const dims = ['width_mm', 'height_mm', 'depth_mm', 'thickness_mm'].map(k => Number(row?.[k] || 0));
+        // В прайсе стелы используется только ширина, высота и толщина.
+        if (product === 'stele') dims[2] = 0;
+        const price = Number(row?.price);
+        if (!allowedMaterials.test(material) || !allowedProducts.has(product) ||
+            dims.some(v => !Number.isInteger(v) || v < 0 || v > 10000) ||
+            !Number.isFinite(price) || price < 0 || price > 100000000) {
+            return res.status(400).json({ success: false, message: 'Проверьте материал, изделие, размеры и цену' });
+        }
+        const item = { material, product, width_mm:dims[0], height_mm:dims[1], depth_mm:dims[2], thickness_mm:dims[3], finish, price };
+        const key = [material,product,...dims,finish].join('|');
+        if (seen.has(key)) return res.status(400).json({ success:false, message:'Есть повторяющиеся строки прайса' });
+        seen.add(key);
+        normalized.push(item);
+    }
+    try {
+        await dbRun('BEGIN TRANSACTION');
+        // Сохраняем каталог добавлением/обновлением строк: отсутствие строки в форме
+        // не должно удалять другие типоразмеры и цены из общей базы.
+        for (const row of normalized) {
+            await dbRun(`INSERT INTO material_price_rows
+                (material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+                DO UPDATE SET price = excluded.price, updated_at = CURRENT_TIMESTAMP`,
+            [row.material,row.product,row.width_mm,row.height_mm,row.depth_mm,row.thickness_mm,row.finish,row.price]);
+        }
+        await dbRun('COMMIT');
+        res.set('Cache-Control', 'no-store');
+        res.json({ success:true, rows:normalized, saved:normalized.length });
+    } catch (error) {
+        try { await dbRun('ROLLBACK'); } catch (_) {}
+        console.error('Ошибка сохранения клиентского прайса:', error);
+        res.status(500).json({ success:false, message:'Не удалось сохранить прайс' });
+    }
+});
+
+app.get('/api/material-prices', async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT material, product, width_mm, height_mm, depth_mm,
+                   thickness_mm, finish, price
+            FROM material_price_rows
+            ORDER BY material, product
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ rows });
+    } catch (error) {
+        console.error('Ошибка выдачи клиентского прайса:', error);
+        res.status(500).json({ error:'Ошибка сервера' });
+    }
+});
+
+
+
+/* ============================================
+   API: ОТДЕЛЬНЫЙ ЗАКУПОЧНЫЙ КАТАЛОГ
+   Не участвует в публичном калькуляторе.
+============================================ */
+app.get('/api/admin/supplier-material-prices', requireAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT id, supplier, material, product, width_mm, height_mm, depth_mm,
+                   thickness_mm, finish, purchase_price
+            FROM supplier_material_price_rows
+            ORDER BY supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ success:true, rows });
+    } catch (error) {
+        console.error('Ошибка загрузки закупочных цен:', error);
+        res.status(500).json({ success:false, message:'Не удалось загрузить закупочные цены' });
+    }
+});
+
+app.post('/api/admin/supplier-material-prices', requireAdmin, async (req, res) => {
+    const rows = req.body?.rows;
+    const allowedMaterials = /^[a-z0-9_-]{1,64}$/;
+    const allowedProducts = new Set(['stele','pedestal','flowerbed','grave_slab','tile','curb','other']);
+    if (!Array.isArray(rows) || rows.length > 5000) {
+        return res.status(400).json({ success:false, message:'Некорректный список закупочных позиций' });
+    }
+    const normalized = [];
+    const seen = new Set();
+    for (const row of rows) {
+        const supplier = String(row?.supplier || '').trim().slice(0,160);
+        const material = String(row?.material || '').trim();
+        const product = String(row?.product || '').trim();
+        const finish = String(row?.finish || '').trim().slice(0,100);
+        const dims = ['width_mm','height_mm','depth_mm','thickness_mm'].map(key => Number(row?.[key] || 0));
+        if (product === 'stele') dims[2] = 0;
+        const purchasePrice = Number(row?.purchase_price);
+        if (!allowedMaterials.test(material) || !allowedProducts.has(product) ||
+            dims.some(value => !Number.isInteger(value) || value < 0 || value > 10000) ||
+            !Number.isFinite(purchasePrice) || purchasePrice < 0 || purchasePrice > 100000000) {
+            return res.status(400).json({ success:false, message:'Проверьте поставщика, материал, изделие, размеры и закупочную цену' });
+        }
+        const item = { supplier, material, product, width_mm:dims[0], height_mm:dims[1], depth_mm:dims[2], thickness_mm:dims[3], finish, purchase_price:purchasePrice };
+        const uniqueKey = [supplier,material,product,...dims,finish].join('|');
+        if (seen.has(uniqueKey)) return res.status(400).json({ success:false, message:'В закупочном прайсе есть повторяющиеся строки' });
+        seen.add(uniqueKey);
+        normalized.push(item);
+    }
+    try {
+        await dbRun('BEGIN TRANSACTION');
+        // Только добавление и обновление по уникальному ключу; отсутствующие строки не удаляются.
+        for (const row of normalized) {
+            await dbRun(`INSERT INTO supplier_material_price_rows
+                (supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm, finish, purchase_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(supplier, material, product, width_mm, height_mm, depth_mm, thickness_mm, finish)
+                DO UPDATE SET purchase_price = excluded.purchase_price, updated_at = CURRENT_TIMESTAMP`,
+            [row.supplier,row.material,row.product,row.width_mm,row.height_mm,row.depth_mm,row.thickness_mm,row.finish,row.purchase_price]);
+        }
+        await dbRun('COMMIT');
+        res.set('Cache-Control', 'no-store');
+        res.json({ success:true, rows:normalized, saved:normalized.length });
+    } catch (error) {
+        try { await dbRun('ROLLBACK'); } catch (_) {}
+        console.error('Ошибка сохранения закупочных цен:', error);
+        res.status(500).json({ success:false, message:'Не удалось сохранить закупочные цены' });
+    }
+});
+
+// ============================================
 // API: ПУБЛИЧНЫЕ ЦЕНЫ
 // ============================================
 //
@@ -2391,21 +2398,6 @@ app.get(
 
 
 // ============================================
-// СТАРТ БД
-// ============================================
-
-initDB().catch(error => {
-
-    console.error(
-        '❌ Критическая ошибка инициализации БД:',
-        error
-    );
-
-
-    process.exit(1);
-});
-
-// ============================================
 // API: ЗАКАЗЫ (ПОЛНЫЙ ПАКЕТ: PDF + JSON)
 // ============================================
 
@@ -2473,12 +2465,19 @@ app.post('/api/order', async (req, res) => {
     
     // --- ДОРОЖКА ---
     const pathEnabled = data.pathEnabled || false;
-    const pathWidth = data.pathWidth || 0.5;
     const pathMaterial = data.pathMaterial || 'tile_gray';
     const pathColor = data.pathColor || '#888888';
     const pathTileSize = data.pathTileSize || 0.3;
     const pathJointColor = data.pathJointColor || '#666666';
     const pathTileLayout = data.pathTileLayout || 'brick';
+
+    // --- БОРДЮР ПЛОЩАДКИ ---
+    const curbVisible = data.curbVisible === true;
+    const curbMaterial = data.curbMaterial || 'granite';
+    const curbWidth = data.curbWidth || 0.08;
+    const curbHeight = data.curbHeight || 0.12;
+    const curbInstallEnabled = data.curbInstallEnabled !== false;
+    const curbGateOpeningEnabled = data.curbGateOpeningEnabled === true;
     
     // --- ОГРАДКА ---
     const fenceEnabled = data.fenceEnabled || false;
@@ -2527,8 +2526,30 @@ app.post('/api/order', async (req, res) => {
     const backPosY = data.backPosY || 0.64;
     const backPosZ = data.backPosZ || -0.69;
     
-    // --- СТОИМОСТЬ ---
-    const total = data.totalPrice || 0;
+    // --- ДЕТАЛЬНАЯ СМЕТА ---
+    const priceBreakdown = data.priceBreakdown && typeof data.priceBreakdown === 'object'
+        ? data.priceBreakdown
+        : { total: Number(data.totalPrice) || 0, rows: [], missingCatalogPrices: [] };
+    const breakdownRows = Array.isArray(priceBreakdown.rows) ? priceBreakdown.rows.slice(0, 500) : [];
+    const missingCatalogPrices = Array.isArray(priceBreakdown.missingCatalogPrices)
+        ? priceBreakdown.missingCatalogPrices.slice(0, 200)
+        : [];
+    const hasMissingPrices = missingCatalogPrices.length > 0 || breakdownRows.some(row => row?.missing === true);
+    const total = Number.isFinite(Number(priceBreakdown.total))
+        ? Number(priceBreakdown.total)
+        : (Number(data.totalPrice) || 0);
+    const formatMoney = value => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+    const breakdownRowsHtml = breakdownRows.map(row => {
+        const name = String(row?.name || 'Позиция');
+        const description = String(row?.desc || '');
+        const missing = row?.missing === true;
+        const amount = Number(row?.price);
+        const priceText = missing ? 'Цена не задана' : formatMoney(Number.isFinite(amount) ? amount : 0) + ' ₽';
+        return `<tr><td>${name}</td><td>${description}</td><td>${priceText}</td></tr>`;
+    }).join('');
+    const missingPricesHtml = missingCatalogPrices.length
+        ? `<p class="warning">Не заданы цены каталога: ${missingCatalogPrices.join('; ')}</p>`
+        : '';
     
     // ============================================================
     // 2. ФОРМИРУЕМ ПУТИ К ФАЙЛАМ
@@ -2545,8 +2566,11 @@ app.post('/api/order', async (req, res) => {
     // ============================================================
     // 3. СОХРАНЯЕМ JSON-ФАЙЛ ПРОЕКТА (ПОЛНАЯ ВЕРСИЯ)
     // ============================================================
-    const cleanProjectData = { 
-        version: '2.0',
+    const cleanProjectData = {
+        // Сохраняем весь полученный state конструктора, а ниже нормализуем поля,
+        // которые нужны PDF и совместимому восстановлению старых проектов.
+        ...data,
+        version: '3.1',
         savedAt: new Date().toISOString(),
         
         projectInfo: {
@@ -2598,12 +2622,17 @@ app.post('/api/order', async (req, res) => {
         flowerPosX: flowerPosX,
         flowerPosZ: flowerPosZ,
         pathEnabled: pathEnabled,
-        pathWidth: pathWidth,
         pathMaterial: pathMaterial,
         pathColor: pathColor,
         pathTileSize: pathTileSize,
         pathJointColor: pathJointColor,
         pathTileLayout: pathTileLayout,
+        curbVisible: curbVisible,
+        curbMaterial: curbMaterial,
+        curbWidth: curbWidth,
+        curbHeight: curbHeight,
+        curbInstallEnabled: curbInstallEnabled,
+        curbGateOpeningEnabled: curbGateOpeningEnabled,
         fenceEnabled: fenceEnabled,
         fenceWidth: fenceW,
         fenceLength: fenceL,
@@ -2649,6 +2678,7 @@ app.post('/api/order', async (req, res) => {
         backPosY: backPosY,
         backPosZ: backPosZ,
         totalPrice: total,
+        priceBreakdown: priceBreakdown,
         clientName: clientName,
         clientPhone: clientPhone,
         clientEmail: clientEmail,
@@ -2664,7 +2694,16 @@ app.post('/api/order', async (req, res) => {
             hasFurniture: (tableCount + benchCount + picnicCount) > 0,
             hasVases: (data.vases?.length || 0) > 0,
             savedAt: new Date().toISOString()
-        }
+        },
+
+        // JSON-вложение должно содержать исходный state конструктора.
+        // sanitizeObject() предназначен только для отображаемых HTML-данных:
+        // он заменяет символы в data URI и строках настроек HTML-сущностями.
+        // Сохраняем исходные поля поверх нормализованных значений, не используя
+        // rawData для HTML/PDF ниже — там остаются только санитизированные data.
+        ...rawData,
+        version: '3.1',
+        savedAt: new Date().toISOString()
     };
         
     fs.writeFileSync(fullJsonPath, JSON.stringify(cleanProjectData, null, 2));
@@ -2689,6 +2728,7 @@ app.post('/api/order', async (req, res) => {
             th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
             th { background-color: #f2f2f2; font-weight: bold; }
             .price-total { font-size: 28px; font-weight: bold; color: #00a896; }
+            .warning { color: #a33; background: #fff3cd; padding: 10px; border: 1px solid #e2c46d; }
             .detail-item { margin: 5px 0; }
             .highlight { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0; }
             .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -2717,7 +2757,7 @@ app.post('/api/order', async (req, res) => {
             <tr><th>Тип стелы</th><td>${steleName}</td><th>Основание</th><td>${graveW}×${graveL} м</td></tr>
             <tr><th>Высота основания</th><td>${baseH} м</td><th>Цветник</th><td>${flowerEnabled ? '<span class="badge badge-on">Включён</span>' : '<span class="badge badge-off">Отключён</span>'}</td></tr>
             <tr><th>Размер цветника</th><td>${flowerEnabled ? flowerW+'×'+flowerL+' м' : '—'}</td><th>Покрытие</th><td>${flowerEnabled ? flowerType : '—'}</td></tr>
-            <tr><th>Дорожка</th><td>${pathEnabled ? '<span class="badge badge-on">Включена</span>' : '<span class="badge badge-off">Отключена</span>'}</td><th>Ширина дорожки</th><td>${pathEnabled ? pathWidth+' м' : '—'}</td></tr>
+            <tr><th>Дорожка</th><td colspan="3">${pathEnabled ? '<span class="badge badge-on">Включена</span>' : '<span class="badge badge-off">Отключена</span>'}</td></tr>
         </table>
 
         <h2>🖼️ ОФОРМЛЕНИЕ</h2>
@@ -2795,8 +2835,14 @@ app.post('/api/order', async (req, res) => {
             <tr><th>Показывать мебель</th><td>${showFurniture ? '✅ Да' : '❌ Нет'}</td><th>Показывать вазы</th><td>${showVases ? '✅ Да' : '❌ Нет'}</td></tr>
         </table>
 
-        <h2>💰 СТОИМОСТЬ</h2>
-        <div class="price-total">${total.toLocaleString('ru-RU')} ₽</div>
+        <h2>💰 ДЕТАЛЬНАЯ СМЕТА</h2>
+        <table>
+            <thead><tr><th>Позиция</th><th>Описание / материал / размер / количество</th><th>Стоимость</th></tr></thead>
+            <tbody>${breakdownRowsHtml || '<tr><td colspan="3">Детализация не передана</td></tr>'}</tbody>
+        </table>
+        ${missingPricesHtml}
+        <h2>${hasMissingPrices ? 'ПРЕДВАРИТЕЛЬНЫЙ ИТОГ' : 'ИТОГО'}</h2>
+        <div class="price-total">${formatMoney(total)} ₽</div>
 
         <p style="margin-top: 30px; color: #888; font-size: 12px;">
             *Срок изготовления: 7-14 рабочих дней. Предоплата 50%.<br>
@@ -2810,17 +2856,34 @@ app.post('/api/order', async (req, res) => {
     // ============================================================
     // 5. ГЕНЕРИРУЕМ PDF
     // ============================================================
+    let pdfBrowser = null;
     try {
         const puppeteer = require('puppeteer');
-        const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-        const page = await browser.newPage();
+        pdfBrowser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+        const page = await pdfBrowser.newPage();
         await page.setContent(htmlContent);
         await page.pdf({ path: fullPdfPath, format: 'A4', margin: { top: '20px', bottom: '20px' } });
-        await browser.close();
+        await pdfBrowser.close();
+        pdfBrowser = null;
         console.log(`✅ PDF смета создана: ${pdfFileName}`);
     } catch (error) {
         console.error('❌ Ошибка генерации PDF:', error);
-        return res.status(500).json({ success: false, message: 'Ошибка генерации PDF' });
+        if (pdfBrowser) {
+            try { await pdfBrowser.close(); } catch (closeError) {
+                console.error('❌ Ошибка закрытия браузера PDF:', closeError);
+            }
+        }
+        // JSON проекта уже записан: не сообщаем клиенту, будто заявка потеряна.
+        return res.status(200).json({
+            success: true,
+            filesSaved: true,
+            jsonSaved: true,
+            pdfCreated: false,
+            emailSent: false,
+            projectName,
+            fileName: `project_${projectName.replace(/\s+/g, '_')}_${timestamp}.json`,
+            message: 'Заявка и JSON проекта сохранены, но PDF сформировать не удалось. Мы свяжемся с вами.'
+        });
     }
     
     // ============================================================
@@ -2840,7 +2903,7 @@ app.post('/api/order', async (req, res) => {
             from: EMAIL_USER,
             to: EMAIL_USER,
             subject: `🪦 ${projectName} - Смета на памятник + JSON проект`,
-            text: `Уважаемый клиент!\n\nПроект: ${projectName}\nКлиент: ${clientName}\nСтелa: ${steleName} (${steleW}×${steleH} м, ${steleMat})\nШрифт: ${fontFamily}\nСтоимость: ${total.toLocaleString('ru-RU')} ₽\n\nВо вложении:\n1. Смета.pdf — полный отчёт по заказу.\n2. project.json — проект для открытия в 3D конструкторе.\n\nС уважением, Giga-NT.`,
+            text: `Уважаемый клиент!\n\nПроект: ${projectName}\nКлиент: ${clientName}\nСтелa: ${steleName} (${steleW}×${steleH} м, ${steleMat})\nШрифт: ${fontFamily}\nСтоимость: ${formatMoney(total)} ₽${hasMissingPrices ? ' (предварительный расчёт: есть позиции без цены)' : ''}\n\nВо вложении:\n1. Смета.pdf — полный отчёт по заказу.\n2. project.json — проект для открытия в 3D конструкторе.\n\nС уважением, Giga-NT.`,
             attachments: [
                 {
                     filename: `Смета_${projectName.replace(/\s+/g, '_')}_${timestamp}.pdf`,
@@ -2870,9 +2933,14 @@ app.post('/api/order', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Ошибка отправки email:', error);
-        res.json({ 
-            success: true, 
-            message: '✅ Заказ принят (файлы созданы локально). Мы свяжемся с вами.' 
+        // PDF и JSON уже сохранены на сервере: заказ принят, но письмо не доставлено.
+        res.json({
+            success: true,
+            emailSent: false,
+            filesSaved: true,
+            projectName,
+            fileName: `project_${projectName.replace(/\s+/g, '_')}_${timestamp}.json`,
+            message: 'Заказ и файлы сохранены на сервере, но письмо не отправлено. Мы проверим доставку и свяжемся с вами.'
         });
     }
 });
@@ -2881,7 +2949,7 @@ app.post('/api/order', async (req, res) => {
 // API: ПРОЕКТЫ
 // ============================================
 
-app.get('/api/projects', (req, res) => {
+app.get('/api/projects', requireAdmin, (req, res) => {
     try {
         const projectsFile = path.join(__dirname, 'data', 'projects.json');
         
@@ -2898,7 +2966,7 @@ app.get('/api/projects', (req, res) => {
     }
 });
 
-app.post('/api/projects', (req, res) => {
+app.post('/api/projects', requireAdmin, (req, res) => {
     try {
         const rawProject = req.body;
         // ⭐ Санитизируем проект перед сохранением
@@ -2941,7 +3009,7 @@ app.post('/api/projects', (req, res) => {
     }
 });
 
-app.delete('/api/projects/:id', (req, res) => {
+app.delete('/api/projects/:id', requireAdmin, (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const projectsFile = path.join(__dirname, 'data', 'projects.json');
@@ -3018,11 +3086,18 @@ app.use('/engravings', express.static(path.join(__dirname, 'storage', 'engraving
 // ============================================================
 
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`📍 Главная: http://localhost:${PORT}/`);
-    console.log(`🔐 Админка: http://localhost:${PORT}/admin`);
-    console.log(`📡 API: http://localhost:${PORT}/api/prices`);
-    console.log(`🔑 Пароль админа: ${ADMIN_PASSWORD}`);
-    console.log(`📦 Кэш памяти: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}MB`);
-});
+Promise.all([initDB(), threeJsDownloadPromise])
+    .then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Сервер запущен на порту ${PORT}`);
+            console.log(`📍 Главная: http://localhost:${PORT}/`);
+            console.log(`🔐 Админка: http://localhost:${PORT}/admin`);
+            console.log(`📡 API: http://localhost:${PORT}/api/prices`);
+            console.log(`📦 Кэш памяти: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}MB`);
+        });
+    })
+    .catch(error => {
+        console.error('❌ Критическая ошибка запуска сервера:', error);
+        if (db) db.close();
+        process.exit(1);
+    });

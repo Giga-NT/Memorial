@@ -469,11 +469,24 @@ class MultiMonumentManager {
             'fenceMaterial': 'fenceMaterial',
             'fenceGateSide': 'fenceGateSide',
             'gateWidth': 'gateWidth',
+            'fenceGateOffset': 'fenceGateOffset',
             'fenceOffsetX': 'fenceOffsetX',
             'fenceOffsetZ': 'fenceOffsetZ',
             'pathEnabled': 'pathEnabled',
-            'pathWidth': 'pathWidth',
             'pathMaterial': 'pathMaterial',
+
+            'curbVisible': 'curbVisible',
+
+            'curbMaterial': 'curbMaterial',
+
+            'curbWidth': 'curbWidth',
+
+            'curbHeight': 'curbHeight',
+
+            'curbInstallEnabled': 'curbInstallEnabled',
+
+
+            'curbGateOpeningEnabled': 'curbGateOpeningEnabled',
             'pathColor': 'pathColor',
             'pathTileSize': 'pathTileSize',
             'pathJointColor': 'pathJointColor',

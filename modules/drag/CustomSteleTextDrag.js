@@ -31,7 +31,7 @@ export class CustomSteleTextDrag extends DragManager {
 		return Boolean(
 			checkbox?.checked &&
 			typeof model === 'string' &&
-			model.startsWith('custom_stl')
+			(model.startsWith('custom_stl') || model.startsWith('catalog_stele_'))
 		);
 	}
 

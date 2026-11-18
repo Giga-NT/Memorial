@@ -13,81 +13,46 @@ let currentModelId = null;
 const photoRenderVersions = new WeakMap();
 
 export async function loadModelList() {
-    // =====================================================
-    // ВРЕМЕННО: ОСНОВНОЙ ИСТОЧНИК — СТАРЫЙ КАТАЛОГ
-    //
-    // БД steles пока не подключаем к сцене.
-    // Таблица в SQLite остаётся и будет подключена
-    // после того, как сделаем совместимость с createStele().
-    // =====================================================
-
+    const merged = [];
     try {
-        const response =
-            await fetch('./models/models-list.json', {
-                cache: 'no-store'
-            });
-
-        if (!response.ok) {
-            throw new Error(
-                'Файл models-list.json не найден'
-            );
+        const response = await fetch('./models/models-list.json', { cache: 'no-store' });
+        if (response.ok) {
+            const data = await response.json();
+            for (const item of (Array.isArray(data.models) ? data.models : [])) {
+                const model = {
+                    id:item.id, file:item.file, name:item.name || String(item.file||'').replace(/\.glb$/i,''),
+                    defaultWidth:Number(item.defaultWidth)||0.6, defaultHeight:Number(item.defaultHeight)||1.3,
+                    defaultDepth:Number(item.defaultDepth)||0.08, modelType:item.modelType||'vertical',
+                    rotation:item.rotation||'', category:item.category||'uncategorized'
+                };
+                customModels[model.id] = {...model,path:`./models/${model.file}`};
+                merged.push(model);
+            }
         }
-
-        const data =
-            await response.json();
-
-        // Очищаем текущий список
-        Object.keys(customModels).forEach(key => {
-            delete customModels[key];
-        });
-
-        // Загружаем старые модели
-        data.models.forEach(item => {
-
-            customModels[item.id] = {
-
-                path:
-                    `./models/${item.file}`,
-
-                name:
-                    item.name ||
-                    item.file.replace('.glb', ''),
-
-                defaultWidth:
-                    Number(item.defaultWidth) || 0.6,
-
-                defaultHeight:
-                    Number(item.defaultHeight) || 1.3,
-
-                defaultDepth:
-                    Number(item.defaultDepth) || 0.08,
-
-                modelType:
-                    item.modelType ||
-                    'vertical',
-
-                rotation:
-                    item.rotation || ''
-            };
-        });
-
-        console.log(
-            `✅ Загружено ${data.models.length} моделей из старого каталога`
-        );
-
-        return data.models;
-
-    } catch (error) {
-
-        console.error(
-            '❌ Не удалось загрузить models-list.json:',
-            error
-        );
-
-        return [];
-    }
+    } catch(error){console.warn('Старый список моделей недоступен:',error);}
+    try {
+        const response=await fetch('/api/steles',{cache:'no-store'});
+        if(response.ok){
+            const data=await response.json();
+            window.steleWorkSettings={machine_rate:1300,master_rate:1300,...(data.settings||{})};
+            for(const item of (Array.isArray(data.steles)?data.steles:[])){
+                const model={
+                    id:item.model_id,file:item.model_file,name:item.name,
+                    defaultWidth:Number(item.width)||0.6,defaultHeight:Number(item.height)||1.3,
+                    defaultDepth:Number(item.depth)||0.08,modelType:item.model_type||'vertical',
+                    rotation:item.rotation||'',category:item.category||'uncategorized',previewUrl:item.preview_file?'/models/previews/'+item.preview_file:null,
+                    machine_hours:Number(item.machine_hours)||0,machine_rate:item.machine_rate==null?null:Number(item.machine_rate),
+                    master_hours:Number(item.master_hours)||0,master_rate:item.master_rate==null?null:Number(item.master_rate),
+                    other_cost:Number(item.other_cost)||0,polish_mode:item.polish_mode||'none',
+                    polish_hours:Number(item.polish_hours)||0,polish_cost:Number(item.polish_cost)||0
+                };
+                customModels[model.id]={...model,path:`/models/${model.file}`};
+                merged.push(model);
+            }
+        }
+    }catch(error){console.warn('Каталог загруженных стел недоступен:',error);}
+    return merged;
 }
-
 export async function loadCustomStele(modelId) {
     const config = customModels[modelId];
     if (!config) {
@@ -238,6 +203,30 @@ export async function applyMaterialToCustomModel(model, materialType, modelId = 
             await applyMaterialToCustomModel(model, 'granite', modelId, modelType);
         }
     }
+}
+
+function parseSteleRotation(value) {
+    const result = { x: 0, y: 0, z: 0 };
+    if (value == null || value === '') return result;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+        for (const axis of ['x', 'y', 'z']) {
+            const n = Number(value[axis] ?? 0);
+            if (Number.isFinite(n)) result[axis] = n;
+        }
+        return result;
+    }
+    const text = String(value).trim();
+    // Поддержка форматов: "x:90", "x:90,y:180,z:0", "90,0,0".
+    const matches = [...text.matchAll(/([xyz])\s*[:=]\s*(-?\d+(?:\.\d+)?)/gi)];
+    if (matches.length) {
+        for (const match of matches) result[match[1].toLowerCase()] = Number(match[2]);
+    } else {
+        const values = text.split(/[;,\s]+/).filter(Boolean).map(Number);
+        if (values.length <= 3 && values.every(Number.isFinite)) {
+            ['x', 'y', 'z'].forEach((axis, index) => { if (values[index] !== undefined) result[axis] = values[index]; });
+        }
+    }
+    return result;
 }
 
 export async function createCustomSteleMesh(
@@ -414,11 +403,30 @@ export async function updateCurrentCustomSteleMaterial(materialType) {
 }
 
 export function getModelList() {
-    return Object.keys(customModels).map(id => ({
-        id: id,
-        name: customModels[id].name,
-        modelType: customModels[id].modelType || 'vertical',
-    }));
+    return Object.keys(customModels).map(id => {
+        const model = customModels[id];
+        return {
+            id,
+            name: model.name,
+            file: model.file,
+            path: model.path,
+            modelType: model.modelType || 'vertical',
+            category: model.category || 'uncategorized',
+            previewUrl: model.previewUrl || null,
+            defaultWidth: Number(model.defaultWidth) || 0.6,
+            defaultHeight: Number(model.defaultHeight) || 1.3,
+            defaultDepth: Number(model.defaultDepth) || 0.08,
+            rotation: model.rotation || '',
+            machine_hours: Number(model.machine_hours) || 0,
+            machine_rate: model.machine_rate,
+            master_hours: Number(model.master_hours) || 0,
+            master_rate: model.master_rate,
+            other_cost: Number(model.other_cost) || 0,
+            polish_mode: model.polish_mode || 'none',
+            polish_hours: Number(model.polish_hours) || 0,
+            polish_cost: Number(model.polish_cost) || 0
+        };
+    });
 }
 
 export function getModelDimensions(model) {

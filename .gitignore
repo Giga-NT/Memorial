@@ -1,7 +1,33 @@
-node_modules/ 
-.env 
-.DS_Store 
-Thumbs.db 
-*.log 
+# Dependencies
+node_modules/
 
+# Environment and secrets
 .env
+.env.*
+!.env.example
+
+# Local databases and runtime files
+*.db
+*.sqlite
+*.sqlite3
+*.log
+hackers.log
+
+# Temporary, backup and editor files
+*.bak
+*.bak-*
+*.backup*
+*.old
+*.orig
+*.swp
+*.tmp
+*~
+.DS_Store
+Thumbs.db
+
+# Test/build output
+logs/
+test-logs/
+coverage/
+dist/
+build/

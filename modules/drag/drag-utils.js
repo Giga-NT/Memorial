@@ -234,7 +234,7 @@ export function createFrontTextureWithOffset(state, offsetX, offsetY, steleWidth
     
     // Сбор строк
     let linesArray = [];
-    if (state.fullName.trim()) {
+    if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && state.fullName.trim()) {
         const rawLines = state.fullName.split(/\r?\n/);
         rawLines.forEach(line => {
             if (line.includes('/')) {
@@ -246,7 +246,7 @@ export function createFrontTextureWithOffset(state, offsetX, offsetY, steleWidth
             }
         });
     }
-    if (state.dates.trim()) {
+    if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && state.dates.trim()) {
         linesArray.push(state.dates.trim());
     }
     

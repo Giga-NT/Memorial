@@ -1,14 +1,17 @@
 // modules/stelePreview.js
 
 // ⭐ ФУНКЦИЯ ЗАГРУЗКИ ПРЕВЬЮ ИЗ ФАЙЛА
-export async function getPreviewUrl(modelId) {
-    // Если картинка уже загружена в кэш браузера — вернём
+export async function getPreviewUrl(modelId, model = null) {
+    // Для каталога админки приоритет всегда у актуального preview_file.
+    // Старый sessionStorage-кэш не должен подменять новую картинку.
+    if (model?.previewUrl) return model.previewUrl;
+
     const cacheKey = `preview_${modelId}`;
     if (sessionStorage.getItem(cacheKey)) {
         return sessionStorage.getItem(cacheKey);
     }
-
-    // Путь к картинке: ./models/previews/ID.png
+    // Для старых моделей сохраняем совместимость со статичными PNG.
+    if (String(modelId).startsWith('catalog_stele_')) return null;
     const previewPath = `./models/previews/${modelId}.png`;
     
     try {
@@ -28,6 +31,7 @@ export async function getPreviewUrl(modelId) {
 // ⭐ КАРТОЧКИ (плитки) — рендерит сетку 3 на 3
 export async function renderSteleGrid() {
     const container = document.getElementById('steleOptionsGrid');
+    const categoryContainer = document.getElementById('steleCategoryFilters');
     if (!container) {
         console.warn('⚠️ Контейнер #steleOptionsGrid не найден');
         return;
@@ -46,21 +50,30 @@ export async function renderSteleGrid() {
     }
 
     models.sort((a, b) => a.name.localeCompare(b.name));
-
+    const labels={all:'Все',carved:'Резные',muslim:'Мусульманские',jewish:'Еврейские',christian:'Христианские',uncategorized:'Без категории'};
+    const categories=['carved','muslim','jewish','christian','uncategorized'].filter(cat=>models.some(m=>(m.category||'uncategorized')===cat));
+    let active=categoryContainer?.dataset.activeCategory||'all';
+    if(active!=='all'&&!categories.includes(active))active='all';
+    if(categoryContainer){
+        categoryContainer.style.cssText='display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px';
+        categoryContainer.innerHTML=['all',...categories].map(cat=>`<button type="button" data-category="${cat}" style="border:1px solid #9996;border-radius:18px;padding:7px 12px;cursor:pointer;background:${cat===active?'#00a896':'transparent'};color:${cat===active?'white':'inherit'}">${labels[cat]}</button>`).join('');
+        categoryContainer.dataset.activeCategory=active;
+        categoryContainer.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{categoryContainer.dataset.activeCategory=button.dataset.category;renderSteleGrid();}));
+    }
+    const visibleModels=active==='all'?models:models.filter(m=>(m.category||'uncategorized')===active);
     let html = '';
     let firstId = null;
-
-    for (const model of models) {
+    for (const model of visibleModels) {
         if (!firstId) firstId = model.id;
         
         // Пытаемся загрузить статичную превьюшку
-        const previewUrl = await getPreviewUrl(model.id);
+        const previewUrl = await getPreviewUrl(model.id, model);
         
         html += `
             <div class="stele-grid-item" data-model="${model.id}" data-model-id="${model.id}" data-name="${model.name}">
                 <div class="stele-grid-preview">
                     ${previewUrl 
-                        ? `<img src="${previewUrl}" alt="${model.name}" loading="lazy" draggable="false">` 
+                        ? `<img src="${previewUrl}" alt="${model.name}" loading="lazy" draggable="false" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stele-placeholder',textContent:'📦'}))">` 
                         : `<div class="stele-placeholder">📦</div>`
                     }
                 </div>
@@ -101,7 +114,7 @@ export async function renderSteleGrid() {
     // ⭐ ПРИВЯЗЫВАЕМ СОБЫТИЯ
     bindSteleGridEvents();
     
-    console.log(`✅ Сетка стел рендерена (${models.length} моделей)`);
+    console.log(`✅ Сетка стел рендерена (${visibleModels.length} моделей)`);
 }
 
 // ⭐ ПРИВЯЗКА СОБЫТИЙ К ЭЛЕМЕНТАМ СЕТКИ

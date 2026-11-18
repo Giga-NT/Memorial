@@ -25,8 +25,8 @@ const makePerson = () => ({
     textOffsetY: 0,
     epitaphOffsetX: 0,
     epitaphOffsetY: 0,
-    nameFontSize: 48,
-    datesFontSize: 32
+    nameFontSize: 24,
+    datesFontSize: 24
 });
 
 function invalidateTextures() {

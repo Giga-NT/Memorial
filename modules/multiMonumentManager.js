@@ -13,6 +13,7 @@ import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 // ⭐ КАРТА ТЕКСТУР
 const TEXTURE_PATHS = {
     'granite': './textures/gabbro/color.webp',
+    'rombak': './textures/rombak/color.svg',
     'black_galaxy': './textures/black_galaxy/color.webp',
     'ninimyaki': './textures/ninimyaki/color.webp',
     'marble': './textures/marble/color.webp',
@@ -23,6 +24,7 @@ const TEXTURE_PATHS = {
 
 const FALLBACK_COLORS = {
     'granite': 0x1a1a1a,
+    'rombak': 0x090909,
     'black_galaxy': 0x111111,
     'ninimyaki': 0x1a2a1a,
     'marble': 0xf5f5f5,
@@ -1099,12 +1101,19 @@ updatePhotoPosition(photoMesh, x, y) {
 		}
 
 		const baseHEl =
-			document.getElementById('baseHeight');
+            document.getElementById('baseHeight');
 
-		if (baseHEl) {
-			data.baseHeight =
-				parseFloat(baseHEl.value);
-		}
+        if (baseHEl) {
+            data.baseHeight =
+                parseFloat(baseHEl.value);
+        }
+
+        const baseEnabledEl =
+            document.getElementById('baseEnabled');
+
+        if (baseEnabledEl) {
+            data.baseEnabled = baseEnabledEl.checked;
+        }
 
 		const flowerEnabledEl =
 			document.getElementById('flowerEnabled');
@@ -1214,7 +1223,16 @@ updatePhotoPosition(photoMesh, x, y) {
 				parseFloat(gateWEl.value);
 		}
 
-		const fenceOffXEl =
+		
+		const gateOffsetEl =
+			document.getElementById('fenceGateOffset');
+
+		if (gateOffsetEl) {
+			data.fenceGateOffset =
+				parseFloat(gateOffsetEl.value) || 0;
+		}
+
+const fenceOffXEl =
 			document.getElementById('fenceOffsetX');
 
 		if (fenceOffXEl) {
@@ -1670,7 +1688,10 @@ updatePhotoPosition(photoMesh, x, y) {
 		if (graveLEl) window.state.graveLength = parseFloat(graveLEl.value);
 		
 		const baseHEl = document.getElementById('baseHeight');
-		if (baseHEl) window.state.baseHeight = parseFloat(baseHEl.value);
+        if (baseHEl) window.state.baseHeight = parseFloat(baseHEl.value);
+
+        const baseEnabledEl = document.getElementById('baseEnabled');
+        if (baseEnabledEl) window.state.baseEnabled = baseEnabledEl.checked;
 		
 		const flowerEnabledEl = document.getElementById('flowerEnabled');
 		if (flowerEnabledEl) window.state.flowerEnabled = flowerEnabledEl.checked;
@@ -1737,9 +1758,6 @@ updatePhotoPosition(photoMesh, x, y) {
 		
 		const pathEnabledEl = document.getElementById('pathEnabled');
 		if (pathEnabledEl) window.state.pathEnabled = pathEnabledEl.checked;
-		
-		const pathWEl = document.getElementById('pathWidth');
-		if (pathWEl) window.state.pathWidth = parseFloat(pathWEl.value);
 		
 		const pathMatEl = document.getElementById('pathMaterial');
 		if (pathMatEl) window.state.pathMaterial = pathMatEl.value;
@@ -1893,6 +1911,9 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const baseHEl = document.getElementById('baseHeight');
         if (baseHEl) data.baseHeight = parseFloat(baseHEl.value);
+
+        const baseEnabledEl = document.getElementById('baseEnabled');
+        if (baseEnabledEl) data.baseEnabled = baseEnabledEl.checked;
         
         const flowerEnabledEl = document.getElementById('flowerEnabled');
         if (flowerEnabledEl) data.flowerEnabled = flowerEnabledEl.checked;
@@ -1958,9 +1979,6 @@ updatePhotoPosition(photoMesh, x, y) {
         
         const pathEnabledEl = document.getElementById('pathEnabled');
         if (pathEnabledEl) data.pathEnabled = pathEnabledEl.checked;
-        
-        const pathWEl = document.getElementById('pathWidth');
-        if (pathWEl) data.pathWidth = parseFloat(pathWEl.value);
         
         const pathMatEl = document.getElementById('pathMaterial');
         if (pathMatEl) data.pathMaterial = pathMatEl.value;
@@ -2067,7 +2085,6 @@ updatePhotoPosition(photoMesh, x, y) {
 		
 		// ⭐ ДОРОЖКА
 		data.pathEnabled = document.getElementById('pathEnabled')?.checked || false;
-		data.pathWidth = parseFloat(document.getElementById('pathWidth')?.value) || 0.5;
 		data.pathMaterial = document.getElementById('pathMaterial')?.value || 'tile_gray';
 		data.pathTileSize = parseFloat(document.getElementById('pathTileSize')?.value) || 0.3;
 		data.pathJointColor = document.getElementById('pathJointColor')?.value || '#666666';
@@ -2531,8 +2548,20 @@ updatePhotoPosition(photoMesh, x, y) {
 			'fenceOffsetX': 'fenceOffsetX',
 			'fenceOffsetZ': 'fenceOffsetZ',
 			'pathEnabled': 'pathEnabled',
-			'pathWidth': 'pathWidth',
 			'pathMaterial': 'pathMaterial',
+
+			'curbVisible': 'curbVisible',
+
+			'curbMaterial': 'curbMaterial',
+
+			'curbWidth': 'curbWidth',
+
+			'curbHeight': 'curbHeight',
+
+			'curbInstallEnabled': 'curbInstallEnabled',
+
+
+			'curbGateOpeningEnabled': 'curbGateOpeningEnabled',
 			'nameFontSize': 'nameFontSize',
 			'datesFontSize': 'datesFontSize',
 			'epitaphFontSize': 'epitaphFontSize',
@@ -3283,8 +3312,11 @@ updatePhotoPosition(photoMesh, x, y) {
 			const graveL =
 				data.graveLength || 1.5;
 
-			const baseH =
-				data.baseHeight || 0.15;
+			// При скрытом надгробии вся конструкция начинается от земли.
+            const baseH =
+                data.baseEnabled === false
+                    ? 0
+                    : (Number(data.baseHeight) || 0.15);
 
 			const flowerW = data.flowerWidth || 1.2;
 			const flowerL = data.flowerLength || 0.8;
@@ -3293,41 +3325,43 @@ updatePhotoPosition(photoMesh, x, y) {
 			// 1. ОСНОВАНИЕ / НАДГРОБИЕ
 			// ========================================================
 
-			const baseGeo =
-				new THREE.BoxGeometry(
-					graveW,
-					baseH,
-					graveL
-				);
+			if (data.baseEnabled !== false) {
+                const baseGeo =
+                    new THREE.BoxGeometry(
+                        graveW,
+                        baseH,
+                        graveL
+                    );
 
-			const baseMat =
-				await createSteleMaterialWithTexture(
-					baseMaterialType,
-					true
-				);
+                const baseMat =
+                    await createSteleMaterialWithTexture(
+                        baseMaterialType,
+                        true
+                    );
 
-			const baseMesh =
-				new THREE.Mesh(
-					baseGeo,
-					baseMat
-				);
+                const baseMesh =
+                    new THREE.Mesh(
+                        baseGeo,
+                        baseMat
+                    );
 
-			baseMesh.position.y =
-				baseH / 2;
+                baseMesh.position.y =
+                    baseH / 2;
 
-			baseMesh.castShadow =
-				true;
+                baseMesh.castShadow =
+                    true;
 
-			baseMesh.receiveShadow =
-				true;
+                baseMesh.receiveShadow =
+                    true;
 
-			mon.group.add(
-				baseMesh
-			);
+                mon.group.add(
+                    baseMesh
+                );
 
-			console.log(
-				`🪦 Надгробие дублера: ${baseMaterialType}`
-			);
+                console.log(
+                    `🪦 Надгробие дублера: ${baseMaterialType}`
+                );
+            }
 
 
 			// ========================================================
@@ -3823,7 +3857,9 @@ updatePhotoPosition(photoMesh, x, y) {
 
 					pedestal.position.x = 0;
 					
-					pedestal.position.y = 0.21;
+					pedestal.position.y =
+                        baseH +
+                        (Number(data.stelePedestalHeight) || 0.12) / 2;
 
 					pedestal.position.z =
 						data.pedestalOffsetZ ||
@@ -4335,9 +4371,9 @@ if (photoDrag && decalsGroup) {
 		
 		if (type === 'front') {
 			// ФИО
-			if (data.fullName && data.fullName.trim()) {
+			if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && data.fullName && data.fullName.trim()) {
 				const safeFullName = data.fullName.trim();
-				const fontSize = (data.nameFontSize || 48) * (isMobile ? 0.8 : 1.5);
+				const fontSize = (data.nameFontSize || 24) * (isMobile ? 0.8 : 1.5);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
 				
 				const rawLines = safeFullName.split(/\r?\n/);
@@ -4355,15 +4391,15 @@ if (photoDrag && decalsGroup) {
 				
 				allLines.forEach(line => {
 					ctx.fillText(line, canvas.width / 2, currentY);
-					currentY += (data.nameFontSize || 48) * (isMobile ? 0.9 : 1.8);
+					currentY += (data.nameFontSize || 24) * (isMobile ? 0.9 : 1.8);
 				});
 				currentY += isMobile ? 12 : 25;
 			}
 			
 			// Даты
-			if (data.dates && data.dates.trim()) {
+			if (document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false && data.dates && data.dates.trim()) {
 				const safeDates = data.dates.trim();
-				const fontSize = (data.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
+				const fontSize = (data.datesFontSize || 24) * (isMobile ? 0.8 : 1.3);
 				ctx.font = `bold ${fontSize}px ${fontFamily}`;
 				ctx.fillText(safeDates, canvas.width / 2, currentY);
 			}

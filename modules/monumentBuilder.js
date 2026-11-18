@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Rectangle } from '../steleTypes.js';
-import { createCustomSteleMesh } from '../customSteleLoader.js';
+import { createCustomSteleMesh, customModels } from '../customSteleLoader.js';
 import { loadPBRMaterial, getTextureTypeFromMaterial, loadFlowerbedTexture } from './textures.min.js';
 // ⭐ ПРАВИЛЬНЫЙ ИМПОРТ ИЗ sceneBuilders.js
 import { 
@@ -10,6 +10,7 @@ import {
     createPathBetweenGraveAndFence 
 } from './sceneBuilders.js';
 import { createFenceGroup } from './fenceBuilder.js';
+import { createSiteCurb } from './siteCurbBuilder.js';
 import {
     applyBackgroundToGroup
 } from './backgrounds.js';
@@ -27,6 +28,7 @@ import { createBackEpitaphMeshes } from './epitaphMeshes.js';
 
 const stoneMaterials = {
     granite: { color: 0x1a1a1a, roughness: 0.2, metalness: 0.05 },
+    rombak: { color: 0x090909, roughness: 0.16, metalness: 0.06 },
     black_galaxy: { color: 0x111111, roughness: 0.15, metalness: 0.08 },
     ninimyaki: { color: 0x1a2a1a, roughness: 0.25, metalness: 0.03 },
     marble: { color: 0xf5f5f5, roughness: 0.15, metalness: 0.02 },
@@ -140,9 +142,9 @@ function createFrontTexture(params) {
     let currentY = 80 + offsetY;
     const fontFamily = params.fontFamily || 'Arial, sans-serif';
     
-    if (params.fullName && params.fullName.trim()) {
+    if (params.inscriptionsEnabled !== false && params.fullName && params.fullName.trim()) {
         const safeFullName = sanitizeText(params.fullName);
-        const fontSize = (params.nameFontSize || 48) * (isMobile ? 0.8 : 1.5);
+        const fontSize = (params.nameFontSize || 24) * (isMobile ? 0.8 : 1.5);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
         
         const rawLines = safeFullName.split(/\r?\n/);
@@ -160,14 +162,14 @@ function createFrontTexture(params) {
         
         allLines.forEach(line => {
             ctx.fillText(line, canvas.width/2 + offsetX, currentY);
-            currentY += (params.nameFontSize || 48) * (isMobile ? 0.9 : 1.8);
+            currentY += (params.nameFontSize || 24) * (isMobile ? 0.9 : 1.8);
         });
         currentY += isMobile ? 12 : 25;
     }
     
-    if (params.dates && params.dates.trim()) {
+    if (params.inscriptionsEnabled !== false && params.dates && params.dates.trim()) {
         const safeDates = sanitizeText(params.dates);
-        const fontSize = (params.datesFontSize || 32) * (isMobile ? 0.8 : 1.3);
+        const fontSize = (params.datesFontSize || 24) * (isMobile ? 0.8 : 1.3);
         ctx.font = `bold ${fontSize}px ${fontFamily}`;
         ctx.fillText(safeDates, canvas.width/2 + offsetX, currentY);
     }
@@ -1118,6 +1120,17 @@ export function createDecals(params, steleObj) {
 
 export async function createStele(params, decalsGroup) {
 
+    // Пересобираем декали вместе со стелой, чтобы фото, гравировки и фон
+    // не оставались на координатах предыдущего размера/положения стелы.
+    // createDecals и applyBackgroundToGroup ниже создадут актуальные элементы заново.
+    if (decalsGroup) {
+        const oldDecals = [...decalsGroup.children];
+        oldDecals.forEach(child => {
+            decalsGroup.remove(child);
+            disposeObject3D(child);
+        });
+    }
+
     const pedestalHeight =
         params.pedestalEnabled === false
             ? 0
@@ -1156,22 +1169,30 @@ export async function createStele(params, decalsGroup) {
             }
         }
         
-    } else if (steleType && steleType.startsWith('custom_stl')) {
-		steleObj = await createCustomSteleMesh(
-			steleType, 
-			width, 
-			height, 
-			depth, 
-			material, 
-			'vertical', 
-			decalsGroup,
-			false
-		);
-		steleObj.position.y =
-			baseHeight +
-			pedestalHeight +
-			(height / 2);
-        steleObj.position.z = -(graveLength / 2 - depth / 2 - 0.05);
+    } else if (steleType && (steleType.startsWith('custom_stl') || customModels[steleType])) {
+        const customConfig = customModels[steleType];
+        // Текущие размеры проекта — источник истины: это позволяет
+        // ползункам менять W/H/D и для моделей из каталога.
+        // Стартовые значения задаются состоянием конструктора (600×1200×70 мм).
+        const customWidth = Number(width) > 0 ? Number(width) : 0.6;
+        const customHeight = Number(height) > 0 ? Number(height) : 1.2;
+        const customDepth = Number(depth) > 0 ? Number(depth) : 0.07;
+
+        steleObj = await createCustomSteleMesh(
+            steleType,
+            customWidth,
+            customHeight,
+            customDepth,
+            material,
+            customConfig?.modelType || 'vertical',
+            decalsGroup,
+            false
+        );
+        steleObj.position.y =
+            baseHeight +
+            pedestalHeight +
+            (customHeight / 2);
+        steleObj.position.z = -(graveLength / 2 - customDepth / 2 - 0.05);
         group.add(steleObj);
         console.log(`✅ Кастомная стела ${steleType} создана`);
         
@@ -1579,9 +1600,13 @@ export async function updateMainMonument(
                 : 1.5,
 
         baseHeight:
-            state.baseHeight !== undefined
-                ? Number(state.baseHeight)
-                : 0.15,
+            state.baseEnabled === false
+                ? 0
+                : (state.baseHeight !== undefined
+                    ? Number(state.baseHeight)
+                    : 0.15),
+
+        baseEnabled: state.baseEnabled !== false,
 
 		// Материал стелы
 		material:
@@ -1652,6 +1677,8 @@ export async function updateMainMonument(
                 ? Number(state.depth)
                 : 0.07,
 
+        inscriptionsEnabled: document.querySelector('[data-module-toggle="inscriptions"]')?.checked !== false,
+
         fullName:
             state.fullName || '',
 
@@ -1671,17 +1698,17 @@ export async function updateMainMonument(
         nameFontSize:
             state.nameFontSize !== undefined
                 ? Number(state.nameFontSize)
-                : 48,
+                : 24,
 
         datesFontSize:
             state.datesFontSize !== undefined
                 ? Number(state.datesFontSize)
-                : 32,
+                : 24,
 
         epitaphFontSize:
             state.epitaphFontSize !== undefined
                 ? Number(state.epitaphFontSize)
-                : 40,
+                : 24,
 
         textOffsetX:
             state.textOffsetX || 0,
@@ -1791,6 +1818,11 @@ export async function updateMainMonument(
                 ? String(state.fenceMaterial)
                 : 'steel',
 
+        fenceGateEnabled:
+            state.fenceGateEnabled !== undefined
+                ? state.fenceGateEnabled !== false
+                : true,
+
         fenceGateSide:
             state.fenceGateSide !== undefined
                 ? String(state.fenceGateSide)
@@ -1800,6 +1832,11 @@ export async function updateMainMonument(
             state.gateWidth !== undefined
                 ? Number(state.gateWidth)
                 : 0.8,
+
+        fenceGateOffset:
+            state.fenceGateOffset !== undefined
+                ? Number(state.fenceGateOffset)
+                : 0,
 
         fenceOffsetX:
             state.fenceOffsetX !== undefined
@@ -1812,6 +1849,16 @@ export async function updateMainMonument(
                 : 0,
 
         // ========================================================
+        // БОРДЮР ПЛОЩАДКИ
+        // ========================================================
+        curbVisible: state.curbVisible === true,
+        curbMaterial: state.curbMaterial || 'granite',
+        curbWidth: Number(state.curbWidth) || 0.08,
+        curbHeight: Number(state.curbHeight) || 0.12,
+        curbInstallEnabled: state.curbInstallEnabled !== false,
+        curbGateOpeningEnabled: state.curbGateOpeningEnabled === true,
+
+        // ========================================================
         // ДОРОЖКА
         // ========================================================
 
@@ -1820,13 +1867,16 @@ export async function updateMainMonument(
                 ? state.pathEnabled
                 : true,
 
-        pathWidth:
-            state.pathWidth !== undefined
-                ? Number(state.pathWidth)
-                : 0.5,
-
         pathMaterial:
-            state.pathMaterial || 'tile_gray',
+            (state.pathSurfaceType === 'slab'
+                ? (state.pathSlabMaterial || state.pathMaterial)
+                : (state.pathPaverMaterial || state.pathMaterial)) || 'tile_gray',
+
+        pathSurfaceType:
+            state.pathSurfaceType || 'paver',
+
+        pathSlabFormat:
+            state.pathSlabFormat || 'square300',
 
         pathTileSize:
             state.pathTileSize !== undefined
@@ -1993,8 +2043,9 @@ export async function updateMainMonument(
 		}
 	);
 
-	const base =
-		await createBase(baseParams);
+	const base = params.baseEnabled === false
+		? null
+		: await createBase(baseParams);
 
 	if (base) {
 		monumentGroup.add(base);
@@ -2222,7 +2273,21 @@ export async function updateMainMonument(
     }
 
     // ============================================================
-    // 9. ДОРОЖКА
+    // 9. БОРДЮР ПЛОЩАДКИ
+    // ============================================================
+    const oldCurbs = monumentGroup.children.filter(child => child.userData?.isSiteCurb === true);
+    oldCurbs.forEach(curb => {
+        disposeObject3D(curb);
+        monumentGroup.remove(curb);
+    });
+    const siteCurb = await createSiteCurb(params);
+    if (siteCurb) {
+        siteCurb.position.set(Number(params.fenceOffsetX) || 0, 0, Number(params.fenceOffsetZ) || 0);
+        monumentGroup.add(siteCurb);
+    }
+
+    // ============================================================
+    // 10. ДОРОЖКА
     // ============================================================
 
     const path =
@@ -2309,7 +2374,11 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
             data.graveLength || 1.5,
 
         baseHeight:
-            data.baseHeight || 0.15,
+            data.baseEnabled === false
+                ? 0
+                : (Number(data.baseHeight) || 0.15),
+
+        baseEnabled: data.baseEnabled !== false,
 
         // ========================================================
         // СТЕЛА
@@ -2416,11 +2485,20 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         pathEnabled:
             data.pathEnabled ?? false,
 
-        pathWidth:
-            data.pathWidth || 0.5,
-
         pathMaterial:
-            data.pathMaterial || 'concrete'
+            data.pathMaterial || 'concrete',
+        fenceWidth: Number(data.fenceWidth) || 1.5,
+        fenceLength: Number(data.fenceLength) || 2.5,
+        fenceGateSide: data.fenceGateSide || 'none',
+        gateWidth: Number(data.gateWidth) || 0.8,
+        fenceOffsetX: Number(data.fenceOffsetX) || 0,
+        fenceOffsetZ: Number(data.fenceOffsetZ) || 0,
+        curbVisible: data.curbVisible === true,
+        curbMaterial: data.curbMaterial || 'granite',
+        curbWidth: Number(data.curbWidth) || 0.08,
+        curbHeight: Number(data.curbHeight) || 0.12,
+        curbInstallEnabled: data.curbInstallEnabled !== false,
+        curbGateOpeningEnabled: data.curbGateOpeningEnabled === true
     };
 
 
@@ -2435,8 +2513,9 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         material: params.baseMaterial
     };
 
-    const base =
-        await createBase(baseParams);
+    const base = params.baseEnabled === false
+        ? null
+        : await createBase(baseParams);
 
     if (base) {
         group.add(base);
@@ -2541,6 +2620,8 @@ export async function updateDuplicator(index, monuments, monumentGroup) {
         }
     }
 
+    // Бордюр площадки создаётся один раз в основной сцене,
+    // а не дублируется вокруг каждого памятника.
 
     // ============================================================
     // ПОЗИЦИЯ ДУБЛИКАТА

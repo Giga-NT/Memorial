@@ -63,13 +63,24 @@ export class ProjectIO {
 
     syncStateFromUI() {
 
+        // При редактировании дублера общие поля UI показывают его настройки.
+        // Не переносим их в state основного памятника: иначе при экспорте
+        // материалы и текстуры главного памятника будут заменены данными дублера.
+        const monumentManager = this.getMonumentManager();
+
+        if (monumentManager?.currentMode === 'duplicator') {
+            console.log('⏭️ Синхронизация основного state пропущена: активен дублер');
+            return;
+        }
+
         const numericFields = [
             'width', 'height', 'depth',
             'graveWidth', 'graveLength', 'baseHeight',
             'flowerWidth', 'flowerLength',
-            'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth',
+            'fenceWidth', 'fenceLength', 'fenceHeight', 'gateWidth', 'fenceGateOffset',
+            'curbWidth', 'curbHeight',
             'fenceOffsetX', 'fenceOffsetZ',
-            'pathWidth', 'pathTileSize',
+'pathTileSize',
             'photoScale', 'furnitureScale', 'vaseScale',
             'nameFontSize', 'datesFontSize', 'epitaphFontSize',
             'photoOffsetX', 'photoOffsetY',
@@ -108,7 +119,11 @@ export class ProjectIO {
             'fenceMaterial',
             'fenceGateSide',
             'pathMaterial',
+            'pathSurfaceType',
+            'slabMaterial',
+            'pathSlabFormat',
             'pathTileLayout',
+            'curbMaterial',
             'steleType',
             'steleModel',
             'material',
@@ -127,6 +142,11 @@ export class ProjectIO {
             }
         });
 
+        this.state.pathSurfaceType = document.getElementById('pathSurfaceType')?.value || this.state.pathSurfaceType || 'paver';
+        this.state.pathSlabMaterial = document.getElementById('slabMaterial')?.value || this.state.pathSlabMaterial || 'tile_gray';
+        this.state.pathPaverMaterial = document.getElementById('pathMaterial')?.value || this.state.pathPaverMaterial || 'tile_gray';
+        this.state.pathMaterial = this.state.pathSurfaceType === 'slab' ? this.state.pathSlabMaterial : this.state.pathPaverMaterial;
+
 
         // Название проекта
         const projectName = document.getElementById('projectName');
@@ -140,10 +160,15 @@ export class ProjectIO {
         // Checkbox
         const checkboxFields = [
             'fenceEnabled',
+            'fenceGateEnabled',
             'pathEnabled',
+            'curbVisible',
+            'curbInstallEnabled',
+            'curbGateOpeningEnabled',
             'flowerEnabled',
             'showFurniture',
-            'showVases'
+            'showVases',
+            'includeDuplicatorsInPrice'
         ];
 
         checkboxFields.forEach(id => {
@@ -195,21 +220,12 @@ export class ProjectIO {
                 furnitureData.push({
                     type: item.type || 'table',
 
-                    x: typeof item.x === 'number'
-                        ? item.x
-                        : 0,
+                    // Сохраняем реальные координаты и поворот 3D-группы.
+                    x: item.group ? item.group.position.x : item.x,
+                    z: item.group ? item.group.position.z : item.z,
+                    rotation: item.group ? item.group.rotation.y : item.rotation,
 
-                    z: typeof item.z === 'number'
-                        ? item.z
-                        : 0,
-
-                    rotation: typeof item.rotation === 'number'
-                        ? item.rotation
-                        : 0,
-
-                    scale: typeof item.scale === 'number'
-                        ? item.scale
-                        : 1
+                    scale: item.group ? item.group.scale.x : (typeof item.scale === 'number' ? item.scale : 1)
                 });
 
             });
@@ -237,17 +253,12 @@ export class ProjectIO {
                 vasesData.push({
                     type: v.vaseType || v.type || 'vase1',
 
-                    x: typeof v.x === 'number'
-                        ? v.x
-                        : 0,
-
-                    z: typeof v.z === 'number'
-                        ? v.z
-                        : 0,
-
-                    rotation: typeof v.rotation === 'number'
-                        ? v.rotation
-                        : 0,
+                    // Источник истины — фактический 3D-трансформ группы,
+                    // а не потенциально устаревшие поля менеджера.
+                    x: v.group ? v.group.position.x : v.x,
+                    y: v.group ? v.group.position.y : 0,
+                    z: v.group ? v.group.position.z : v.z,
+                    rotation: v.group ? v.group.rotation.y : v.rotation,
 
                     scale: typeof v.scale === 'number'
                         ? v.scale
@@ -727,15 +738,15 @@ export class ProjectIO {
 
             nameFontSize:
                 this.state.nameFontSize ??
-                48,
+                24,
 
             datesFontSize:
                 this.state.datesFontSize ??
-                32,
+                24,
 
             epitaphFontSize:
                 this.state.epitaphFontSize ??
-                40,
+                24,
 
             textOffsetX:
                 this.state.textOffsetX ??
@@ -753,6 +764,18 @@ export class ProjectIO {
                 this.state.epitaphOffsetY ??
                 0,
 
+            fenceEnabled: this.state.fenceEnabled !== false,
+            fenceWidth: this.state.fenceWidth ?? 1.5,
+            fenceLength: this.state.fenceLength ?? 2.5,
+            fenceType: this.state.fenceType || 'pipe',
+            fenceHeight: this.state.fenceHeight ?? 0.6,
+            fenceMaterial: this.state.fenceMaterial || 'steel',
+            fenceGateEnabled: this.state.fenceGateEnabled !== false,
+            fenceGateSide: this.state.fenceGateSide || 'back',
+            gateWidth: this.state.gateWidth ?? 0.8,
+            fenceGateOffset: this.state.fenceGateOffset ?? 0,
+            fenceOffsetX: this.state.fenceOffsetX ?? 0,
+            fenceOffsetZ: this.state.fenceOffsetZ ?? 0,
 
             // ----------------------------------------------------
             // ФОТО
@@ -868,11 +891,11 @@ export class ProjectIO {
             'fenceLength',
             'fenceHeight',
             'gateWidth',
+            'fenceGateOffset',
 
             'fenceOffsetX',
             'fenceOffsetZ',
 
-            'pathWidth',
             'pathTileSize',
 
             'photoScale',
@@ -928,7 +951,7 @@ export class ProjectIO {
     // СОХРАНЕНИЕ
     // ============================================================
 
-    saveToFile() {
+    async saveToFile(options = {}) {
 
         try {
 
@@ -1054,6 +1077,7 @@ export class ProjectIO {
                 vases:
                     vasesData,
 
+
                 camera:
                     cameraState,
 
@@ -1176,6 +1200,9 @@ export class ProjectIO {
 
 
             // ----------------------------------------------------
+            // GLB-экспорт получает тот же полный объект проекта, что и JSON-сохранение.
+            if (options.returnData === true) return projectData;
+
             // JSON
             // ----------------------------------------------------
 
@@ -1598,6 +1625,52 @@ export class ProjectIO {
 
     async loadFromFile(file) {
 
+        // Показываем загрузку до начала чтения JSON и держим её,
+        // пока не завершится восстановление сцены.
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'project-loading-overlay';
+        loadingOverlay.setAttribute('role', 'status');
+        loadingOverlay.setAttribute('aria-live', 'polite');
+        loadingOverlay.innerHTML = `
+            <style>
+                #project-loading-overlay {
+                    position: fixed; inset: 0; z-index: 100000;
+                    display: flex; align-items: center; justify-content: center;
+                    background: rgba(10, 10, 10, .72); color: #f5f5f5;
+                    font: 600 16px Arial, sans-serif; text-align: center;
+                    padding: 20px; box-sizing: border-box;
+                }
+                #project-loading-overlay .project-loading-card {
+                    min-width: 220px; max-width: 90vw; padding: 26px 30px;
+                    border: 1px solid rgba(212, 175, 55, .45);
+                    border-radius: 14px; background: #181818;
+                    box-shadow: 0 12px 40px rgba(0,0,0,.4);
+                }
+                #project-loading-overlay .project-loading-spinner {
+                    width: 38px; height: 38px; margin: 0 auto 16px;
+                    border: 4px solid rgba(255,255,255,.2);
+                    border-top-color: #d4af37; border-radius: 50%;
+                    animation: project-loading-spin .8s linear infinite;
+                }
+                #project-loading-overlay .project-loading-hint {
+                    margin-top: 8px; color: #bdbdbd; font-size: 13px;
+                    font-weight: 400;
+                }
+                @keyframes project-loading-spin { to { transform: rotate(360deg); } }
+            </style>
+            <div class="project-loading-card">
+                <div class="project-loading-spinner"></div>
+                <div class="project-loading-message">Читаем файл проекта…</div>
+                <div class="project-loading-hint">Пожалуйста, не закрывайте конструктор</div>
+            </div>`;
+        document.body.appendChild(loadingOverlay);
+
+        const setLoadingMessage = message => {
+            const label = loadingOverlay.querySelector('.project-loading-message');
+            if (label) label.textContent = message;
+        };
+        const hideLoading = () => loadingOverlay.remove();
+
         return new Promise(resolve => {
 
             const reader =
@@ -1747,6 +1820,11 @@ export class ProjectIO {
                                     ui.gateWidth
                                 ) || 0.8,
 
+                            fenceGateOffset:
+                                parseFloat(
+                                    ui.fenceGateOffset
+                                ) || 0,
+
 							flowerEnabled:
 								ui.flowerEnabled ??
 								true,
@@ -1774,14 +1852,11 @@ export class ProjectIO {
                                 ui.pathEnabled ??
                                 true,
 
-                            pathWidth:
-                                parseFloat(
-                                    ui.pathWidth
-                                ) || 0.5,
-
                             pathMaterial:
-                                ui.pathMaterial ||
-                                'tile_gray',
+                                ui.pathMaterial || 'tile_gray',
+                            pathSurfaceType: ui.pathSurfaceType || 'paver',
+                            pathSlabMaterial: ui.pathSlabMaterial || 'tile_gray',
+                            pathPaverMaterial: ui.pathPaverMaterial || ui.pathMaterial || 'tile_gray',
 
                             graveWidth:
                                 parseFloat(
@@ -1823,17 +1898,17 @@ export class ProjectIO {
                             nameFontSize:
                                 parseInt(
                                     ui.nameFontSize
-                                ) || 48,
+                                ) || 24,
 
                             datesFontSize:
                                 parseInt(
                                     ui.datesFontSize
-                                ) || 32,
+                                ) || 24,
 
                             epitaphFontSize:
                                 parseInt(
                                     ui.epitaphFontSize
-                                ) || 40,
+                                ) || 24,
 
                             fenceOffsetX:
                                 parseFloat(
@@ -1911,6 +1986,8 @@ export class ProjectIO {
                         };
                     }
 
+
+                    setLoadingMessage('Восстанавливаем параметры проекта…');
 
                     // ==================================================
                     // 3. ВОССТАНАВЛИВАЕМ ВЕСЬ STATE
@@ -2004,23 +2081,16 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 4. ОБНОВЛЯЕМ UI
+                    // 4. БЛОКИРУЕМ ОБРАБОТЧИКИ И ОБНОВЛЯЕМ UI
                     // ==================================================
-					window._isLoadingProject = true;
+                    window._isLoadingProject = true;
+                    window._disableAutoMonument = true;
+                    window._forceMainUpdate = true;
+
                     this.updateAllUIFromState();
-					if (typeof window.refreshBurialRecordsUI === 'function') {
-						window.refreshBurialRecordsUI();
-					}
-
-                    // ==================================================
-                    // 5. ОТКЛЮЧАЕМ АВТООБНОВЛЕНИЕ
-                    // ==================================================
-
-                    window._disableAutoMonument =
-                        true;
-
-                    window._forceMainUpdate =
-                        true;
+                    if (typeof window.refreshBurialRecordsUI === 'function') {
+                        window.refreshBurialRecordsUI();
+                    }
 
 
                     // ==================================================
@@ -2030,26 +2100,31 @@ export class ProjectIO {
                     this.clearDuplicators();
 
 
+                    setLoadingMessage('Строим памятник и загружаем материалы…');
+
                     // ==================================================
                     // 7. ПЕРЕСТРАИВАЕМ ОСНОВНОЙ
                     // ==================================================
 
-                    if (
-                        typeof window.throttledUpdate ===
-                        'function'
-                    ) {
-
-                        await window.throttledUpdate();
-
-                    } else if (
-                        typeof window.updateMonument ===
-                        'function'
-                    ) {
-
-                        await window.updateMonument();
-
+                    // updateSceneReal намеренно блокируется флагом загрузки.
+                    // Снимаем только этот флаг на время построения основного объекта,
+                    // затем возвращаем его до восстановления дублеров.
+                    window._disableAutoMonument = false;
+                    if (typeof window.updateScene === 'function') {
+                        await window.updateScene();
+                    } else if (typeof window.updateMainMonument === 'function') {
+                        throw new Error('Для восстановления основного памятника требуется window.updateScene');
                     }
+                    window._disableAutoMonument = true;
 
+                    // Даём браузеру применить изменения сцены и выполнить
+                    // два цикла рендеринга до перехода к следующему этапу.
+                    await new Promise(resolve => requestAnimationFrame(() => {
+                        requestAnimationFrame(resolve);
+                    }));
+
+
+                    setLoadingMessage('Восстанавливаем дополнительные объекты…');
 
                     // ==================================================
                     // 8. ВОССТАНАВЛИВАЕМ ДУБЛЕРОВ
@@ -2064,6 +2139,8 @@ export class ProjectIO {
                         );
                     }
 
+
+                    setLoadingMessage('Завершаем настройку сцены…');
 
                     // ==================================================
                     // 9. ВОССТАНАВЛИВАЕМ КАМЕРУ
@@ -2117,32 +2194,75 @@ export class ProjectIO {
 
 
                     // ==================================================
-                    // 10. МЕБЕЛЬ / ВАЗЫ
-                    //
-                    // Их существующие менеджеры могут восстановить
-                    // отдельно. Здесь сохраняем данные в state,
-                    // чтобы они были доступны проекту.
+                    // 10. ВОССТАНАВЛИВАЕМ МЕБЕЛЬ И ВАЗЫ ИЗ JSON
                     // ==================================================
 
-                    if (
-                        Array.isArray(data.furniture)
-                    ) {
+                    const furnitureItems = Array.isArray(data.furniture) ? data.furniture : [];
+                    const vaseItems = Array.isArray(data.vases) ? data.vases : [];
+                    this.state.savedFurniture = this.cloneData(furnitureItems);
+                    this.state.savedVases = this.cloneData(vaseItems);
 
-                        this.state.savedFurniture =
-                            this.cloneData(
-                                data.furniture
-                            );
+                    const furnitureManager = window.furniture3DManager;
+                    if (furnitureManager) {
+                        try {
+                            furnitureManager.clearAll();
+                            for (const item of furnitureItems) {
+                                const x = Number(item.x) || 0;
+                                const z = Number(item.z) || 0;
+                                const rotation = Number(item.rotation) || 0;
+                                const scale = Number(item.scale) > 0 ? Number(item.scale) : 1;
+                                switch (item.type) {
+                                    case 'table':
+                                        await furnitureManager.placeTable(x, z, rotation, scale);
+                                        break;
+                                    case 'bench':
+                                        await furnitureManager.placeBench(x, z, rotation, scale);
+                                        break;
+                                    case 'table_garden':
+                                    case 'tableGarden':
+                                        await furnitureManager.placeTableGarden(x, z, rotation, scale);
+                                        break;
+                                    case 'garden_bench':
+                                    case 'bench_garden':
+                                    case 'gardenBench':
+                                        await furnitureManager.placeGardenBench(x, z, rotation, scale);
+                                        break;
+                                    default:
+                                        console.warn('Неизвестный тип мебели в JSON:', item.type);
+                                }
+                            }
+                            console.log(`✅ Восстановлено предметов мебели: ${furnitureManager.furniture.length}`);
+                        } catch (furnitureError) {
+                            console.error('❌ Ошибка восстановления мебели:', furnitureError);
+                        }
+                    } else if (furnitureItems.length) {
+                        console.warn('Менеджер мебели не найден — мебель из JSON не восстановлена');
                     }
 
-
-                    if (
-                        Array.isArray(data.vases)
-                    ) {
-
-                        this.state.savedVases =
-                            this.cloneData(
-                                data.vases
-                            );
+                    if (vaseItems.length && typeof window.initVasesManager === 'function') {
+                        window.initVasesManager();
+                    }
+                    const vasesManager = window.vasesManager;
+                    if (vasesManager) {
+                        try {
+                            vasesManager.clearAll();
+                            await vasesManager.loadVasesConfig();
+                            for (const item of vaseItems) {
+                                const vase = await vasesManager.addVase(
+                                    item.type || 'vase1',
+                                    Number(item.x) || 0,
+                                    Number(item.z) || 0,
+                                    Number(item.scale) > 0 ? Number(item.scale) : 1,
+                                    item.material || 'marble',
+                                    item
+                                );
+                            }
+                            console.log(`✅ Восстановлено ваз: ${vasesManager.vases.length}`);
+                        } catch (vasesError) {
+                            console.error('❌ Ошибка восстановления ваз:', vasesError);
+                        }
+                    } else if (vaseItems.length) {
+                        console.warn('Менеджер ваз не найден — вазы из JSON не восстановлены');
                     }
 
 
@@ -2150,15 +2270,13 @@ export class ProjectIO {
                     // 11. СНИМАЕМ БЛОКИРОВКИ
                     // ==================================================
 
-					setTimeout(() => {
-						window._disableAutoMonument = false;
-						window._forceMainUpdate = false;
-						window._isLoadingProject = false;
+                    window._disableAutoMonument = false;
+                    window._forceMainUpdate = false;
+                    window._isLoadingProject = false;
 
-						console.log('🟢 Защита загрузки проекта снята');
-						console.log('🏛️ Итоговый steleType:', this.state.steleType);
-						console.log('🏛️ Итоговый steleModel:', this.state.steleModel);
-					}, 500);
+                    console.log('🟢 Защита загрузки проекта снята');
+                    console.log('🏛️ Итоговый steleType:', this.state.steleType);
+                    console.log('🏛️ Итоговый steleModel:', this.state.steleModel);
 
 
                     // ==================================================
@@ -2186,6 +2304,19 @@ export class ProjectIO {
                     }
 
 
+                    // ==================================================
+                    // 13. ПЕРЕСЧИТЫВАЕМ СТОИМОСТЬ ПОСЛЕ ПОЛНОГО ВОССТАНОВЛЕНИЯ
+                    // ==================================================
+                    // К этому моменту state, мебель, вазы и callback уже
+                    // восстановлены. Раньше цена оставалась от предыдущей
+                    // конфигурации до следующего действия пользователя.
+                    if (typeof window.calculatePrice === 'function') {
+                        window.calculatePrice();
+                        console.log('💰 Стоимость проекта пересчитана после загрузки JSON');
+                    } else {
+                        console.warn('⚠️ calculatePrice не найден после загрузки проекта');
+                    }
+
                     console.log(
                         '🎉 ПРОЕКТ ПОЛНОСТЬЮ ЗАГРУЖЕН'
                     );
@@ -2205,6 +2336,7 @@ export class ProjectIO {
                     );
 
 
+                    hideLoading();
                     resolve(true);
 
 
@@ -2223,6 +2355,7 @@ export class ProjectIO {
                         false;
 
 
+                    hideLoading();
                     showToast(
                         '❌ Ошибка загрузки: ' +
                         error.message,
@@ -2242,6 +2375,7 @@ export class ProjectIO {
                     error
                 );
 
+                hideLoading();
                 showToast(
                     '❌ Не удалось прочитать файл',
                     'error'
@@ -2791,30 +2925,19 @@ export class ProjectIO {
         );
 
 
-        if (
-            state.pathWidth !== undefined
-        ) {
-
-            setVal(
-                'pathWidth',
-                state.pathWidth
-            );
-
-            setText(
-                'pathWidthVal',
-                Number(
-                    state.pathWidth
-                ).toFixed(2) +
-                ' м'
-            );
-        }
-
-
-        setSelect(
-            'pathMaterial',
-            state.pathMaterial ||
-            'tile_gray'
-        );
+        setSelect('pathSurfaceType', state.pathSurfaceType || 'paver');
+        setSelect('slabMaterial', state.pathSlabMaterial || 'tile_gray');
+        setSelect('pathSlabFormat', state.pathSlabFormat || 'square300');
+        setSelect('pathMaterial', state.pathPaverMaterial || state.pathMaterial || 'tile_gray');
+        const pathType = document.getElementById('pathSurfaceType')?.value || 'paver';
+        state.pathSurfaceType = pathType;
+        state.pathSlabMaterial = state.pathSlabMaterial || document.getElementById('slabMaterial')?.value || 'tile_gray';
+        state.pathPaverMaterial = state.pathPaverMaterial || document.getElementById('pathMaterial')?.value || 'tile_gray';
+        state.pathMaterial = pathType === 'slab' ? state.pathSlabMaterial : state.pathPaverMaterial;
+        const slabSettings = document.getElementById('pathSlabSettings');
+        const paverSettings = document.getElementById('pathPaverSettings');
+        if (slabSettings) slabSettings.style.display = pathType === 'slab' ? 'block' : 'none';
+        if (paverSettings) paverSettings.style.display = pathType === 'paver' ? 'block' : 'none';
 
 
         setVal(
@@ -2870,6 +2993,23 @@ export class ProjectIO {
                     : 'none';
         }
 
+
+        // --------------------------------------------------------
+        // БОРДЮР ПЛОЩАДКИ
+        // --------------------------------------------------------
+        setVal('curbVisible', state.curbVisible === true);
+        setSelect('curbMaterial', state.curbMaterial || 'granite');
+        setVal('curbInstallEnabled', state.curbInstallEnabled !== false);
+        setVal('curbGateOpeningEnabled', state.curbGateOpeningEnabled === true);
+        ['curbWidth', 'curbHeight'].forEach(id => {
+            const fallback = id === 'curbWidth' ? 0.08 : 0.12;
+            const value = Number(state[id]) || fallback;
+            setVal(id, value);
+            setVal(`${id}Input`, value);
+            setText(`${id}Val`, value.toFixed(2) + ' м');
+        });
+        const siteCurbControls = document.getElementById('siteCurbControls');
+        if (siteCurbControls) siteCurbControls.style.display = state.curbVisible ? 'block' : 'none';
 
         // --------------------------------------------------------
         // ОГРАДКА

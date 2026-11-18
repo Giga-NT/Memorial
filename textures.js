@@ -34,6 +34,7 @@ const getTexturePath = (basePath, useWebP = USE_WEBP) => {
 
 const texturePaths = {
     granite: { color: './textures/gabbro/color.webp' },
+    rombak: { color: './textures/rombak/color.svg' },
     marble: { color: './textures/marble/color.webp' },
     red_granite: { color: './textures/red_granite/color.webp' },
     beige_granite: { color: './textures/beige_granite/color.webp' },
