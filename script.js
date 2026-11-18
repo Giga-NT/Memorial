@@ -7598,9 +7598,10 @@ document.getElementById('sendOrderBtn')?.addEventListener('click', async functio
             const allVases = window.vasesManager.getAllVases?.() || window.vasesManager.vases || [];
             vasesData = allVases.map(v => ({
                 type: v.vaseType || v.type || 'vase1',
-                x: v.x || 0,
-                z: v.z || 0,
-                rotation: v.rotation || 0,
+                x: v.group ? v.group.position.x : (v.x || 0),
+                y: v.group ? v.group.position.y : 0,
+                z: v.group ? v.group.position.z : (v.z || 0),
+                rotation: v.group ? v.group.rotation.y : (v.rotation || 0),
                 scale: v.scale || 1,
                 material: v.material || 'marble'
             }));
